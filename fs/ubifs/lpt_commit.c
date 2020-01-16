@@ -21,73 +21,73 @@
 static int dbg_populate_lsave(struct ubifs_info *c);
 
 /**
- * first_dirty_cnode - find first dirty cnode.
+ * first_dirty_cyesde - find first dirty cyesde.
  * @c: UBIFS file-system description object
- * @nnode: nnode at which to start
+ * @nyesde: nyesde at which to start
  *
- * This function returns the first dirty cnode or %NULL if there is not one.
+ * This function returns the first dirty cyesde or %NULL if there is yest one.
  */
-static struct ubifs_cnode *first_dirty_cnode(const struct ubifs_info *c, struct ubifs_nnode *nnode)
+static struct ubifs_cyesde *first_dirty_cyesde(const struct ubifs_info *c, struct ubifs_nyesde *nyesde)
 {
-	ubifs_assert(c, nnode);
+	ubifs_assert(c, nyesde);
 	while (1) {
 		int i, cont = 0;
 
 		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			struct ubifs_cnode *cnode;
+			struct ubifs_cyesde *cyesde;
 
-			cnode = nnode->nbranch[i].cnode;
-			if (cnode &&
-			    test_bit(DIRTY_CNODE, &cnode->flags)) {
-				if (cnode->level == 0)
-					return cnode;
-				nnode = (struct ubifs_nnode *)cnode;
+			cyesde = nyesde->nbranch[i].cyesde;
+			if (cyesde &&
+			    test_bit(DIRTY_CNODE, &cyesde->flags)) {
+				if (cyesde->level == 0)
+					return cyesde;
+				nyesde = (struct ubifs_nyesde *)cyesde;
 				cont = 1;
 				break;
 			}
 		}
 		if (!cont)
-			return (struct ubifs_cnode *)nnode;
+			return (struct ubifs_cyesde *)nyesde;
 	}
 }
 
 /**
- * next_dirty_cnode - find next dirty cnode.
+ * next_dirty_cyesde - find next dirty cyesde.
  * @c: UBIFS file-system description object
- * @cnode: cnode from which to begin searching
+ * @cyesde: cyesde from which to begin searching
  *
- * This function returns the next dirty cnode or %NULL if there is not one.
+ * This function returns the next dirty cyesde or %NULL if there is yest one.
  */
-static struct ubifs_cnode *next_dirty_cnode(const struct ubifs_info *c, struct ubifs_cnode *cnode)
+static struct ubifs_cyesde *next_dirty_cyesde(const struct ubifs_info *c, struct ubifs_cyesde *cyesde)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 	int i;
 
-	ubifs_assert(c, cnode);
-	nnode = cnode->parent;
-	if (!nnode)
+	ubifs_assert(c, cyesde);
+	nyesde = cyesde->parent;
+	if (!nyesde)
 		return NULL;
-	for (i = cnode->iip + 1; i < UBIFS_LPT_FANOUT; i++) {
-		cnode = nnode->nbranch[i].cnode;
-		if (cnode && test_bit(DIRTY_CNODE, &cnode->flags)) {
-			if (cnode->level == 0)
-				return cnode; /* cnode is a pnode */
-			/* cnode is a nnode */
-			return first_dirty_cnode(c, (struct ubifs_nnode *)cnode);
+	for (i = cyesde->iip + 1; i < UBIFS_LPT_FANOUT; i++) {
+		cyesde = nyesde->nbranch[i].cyesde;
+		if (cyesde && test_bit(DIRTY_CNODE, &cyesde->flags)) {
+			if (cyesde->level == 0)
+				return cyesde; /* cyesde is a pyesde */
+			/* cyesde is a nyesde */
+			return first_dirty_cyesde(c, (struct ubifs_nyesde *)cyesde);
 		}
 	}
-	return (struct ubifs_cnode *)nnode;
+	return (struct ubifs_cyesde *)nyesde;
 }
 
 /**
- * get_cnodes_to_commit - create list of dirty cnodes to commit.
+ * get_cyesdes_to_commit - create list of dirty cyesdes to commit.
  * @c: UBIFS file-system description object
  *
- * This function returns the number of cnodes to commit.
+ * This function returns the number of cyesdes to commit.
  */
-static int get_cnodes_to_commit(struct ubifs_info *c)
+static int get_cyesdes_to_commit(struct ubifs_info *c)
 {
-	struct ubifs_cnode *cnode, *cnext;
+	struct ubifs_cyesde *cyesde, *cnext;
 	int cnt = 0;
 
 	if (!c->nroot)
@@ -96,25 +96,25 @@ static int get_cnodes_to_commit(struct ubifs_info *c)
 	if (!test_bit(DIRTY_CNODE, &c->nroot->flags))
 		return 0;
 
-	c->lpt_cnext = first_dirty_cnode(c, c->nroot);
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	c->lpt_cnext = first_dirty_cyesde(c, c->nroot);
+	cyesde = c->lpt_cnext;
+	if (!cyesde)
 		return 0;
 	cnt += 1;
 	while (1) {
-		ubifs_assert(c, !test_bit(COW_CNODE, &cnode->flags));
-		__set_bit(COW_CNODE, &cnode->flags);
-		cnext = next_dirty_cnode(c, cnode);
+		ubifs_assert(c, !test_bit(COW_CNODE, &cyesde->flags));
+		__set_bit(COW_CNODE, &cyesde->flags);
+		cnext = next_dirty_cyesde(c, cyesde);
 		if (!cnext) {
-			cnode->cnext = c->lpt_cnext;
+			cyesde->cnext = c->lpt_cnext;
 			break;
 		}
-		cnode->cnext = cnext;
-		cnode = cnext;
+		cyesde->cnext = cnext;
+		cyesde = cnext;
 		cnt += 1;
 	}
-	dbg_cmt("committing %d cnodes", cnt);
-	dbg_lp("committing %d cnodes", cnt);
+	dbg_cmt("committing %d cyesdes", cnt);
+	dbg_lp("committing %d cyesdes", cnt);
 	ubifs_assert(c, cnt == c->dirty_nn_cnt + c->dirty_pn_cnt);
 	return cnt;
 }
@@ -174,21 +174,21 @@ static int alloc_lpt_leb(struct ubifs_info *c, int *lnum)
 }
 
 /**
- * layout_cnodes - layout cnodes for commit.
+ * layout_cyesdes - layout cyesdes for commit.
  * @c: UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int layout_cnodes(struct ubifs_info *c)
+static int layout_cyesdes(struct ubifs_info *c)
 {
 	int lnum, offs, len, alen, done_lsave, done_ltab, err;
-	struct ubifs_cnode *cnode;
+	struct ubifs_cyesde *cyesde;
 
 	err = dbg_chk_lpt_sz(c, 0, 0);
 	if (err)
 		return err;
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	cyesde = c->lpt_cnext;
+	if (!cyesde)
 		return 0;
 	lnum = c->nhead_lnum;
 	offs = c->nhead_offs;
@@ -212,11 +212,11 @@ static int layout_cnodes(struct ubifs_info *c)
 	}
 
 	do {
-		if (cnode->level) {
-			len = c->nnode_sz;
+		if (cyesde->level) {
+			len = c->nyesde_sz;
 			c->dirty_nn_cnt -= 1;
 		} else {
-			len = c->pnode_sz;
+			len = c->pyesde_sz;
 			c->dirty_pn_cnt -= 1;
 		}
 		while (offs + len > c->leb_size) {
@@ -225,7 +225,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -248,17 +248,17 @@ static int layout_cnodes(struct ubifs_info *c)
 			}
 			break;
 		}
-		if (cnode->parent) {
-			cnode->parent->nbranch[cnode->iip].lnum = lnum;
-			cnode->parent->nbranch[cnode->iip].offs = offs;
+		if (cyesde->parent) {
+			cyesde->parent->nbranch[cyesde->iip].lnum = lnum;
+			cyesde->parent->nbranch[cyesde->iip].offs = offs;
 		} else {
 			c->lpt_lnum = lnum;
 			c->lpt_offs = offs;
 		}
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
-		cnode = cnode->cnext;
-	} while (cnode && cnode != c->lpt_cnext);
+		cyesde = cyesde->cnext;
+	} while (cyesde && cyesde != c->lpt_cnext);
 
 	/* Make sure to place LPT's save table */
 	if (!done_lsave) {
@@ -268,7 +268,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -288,7 +288,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -307,7 +307,7 @@ static int layout_cnodes(struct ubifs_info *c)
 		return err;
 	return 0;
 
-no_space:
+yes_space:
 	ubifs_err(c, "LPT out of space at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
 		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
@@ -352,19 +352,19 @@ static int realloc_lpt_leb(struct ubifs_info *c, int *lnum)
 }
 
 /**
- * write_cnodes - write cnodes for commit.
+ * write_cyesdes - write cyesdes for commit.
  * @c: UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int write_cnodes(struct ubifs_info *c)
+static int write_cyesdes(struct ubifs_info *c)
 {
 	int lnum, offs, len, from, err, wlen, alen, done_ltab, done_lsave;
-	struct ubifs_cnode *cnode;
+	struct ubifs_cyesde *cyesde;
 	void *buf = c->lpt_buf;
 
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	cyesde = c->lpt_cnext;
+	if (!cyesde)
 		return 0;
 	lnum = c->nhead_lnum;
 	offs = c->nhead_offs;
@@ -392,12 +392,12 @@ static int write_cnodes(struct ubifs_info *c)
 		dbg_chk_lpt_sz(c, 1, c->ltab_sz);
 	}
 
-	/* Loop for each cnode */
+	/* Loop for each cyesde */
 	do {
-		if (cnode->level)
-			len = c->nnode_sz;
+		if (cyesde->level)
+			len = c->nyesde_sz;
 		else
-			len = c->pnode_sz;
+			len = c->pyesde_sz;
 		while (offs + len > c->leb_size) {
 			wlen = offs - from;
 			if (wlen) {
@@ -411,7 +411,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -435,26 +435,26 @@ static int write_cnodes(struct ubifs_info *c)
 			}
 			break;
 		}
-		if (cnode->level)
-			ubifs_pack_nnode(c, buf + offs,
-					 (struct ubifs_nnode *)cnode);
+		if (cyesde->level)
+			ubifs_pack_nyesde(c, buf + offs,
+					 (struct ubifs_nyesde *)cyesde);
 		else
-			ubifs_pack_pnode(c, buf + offs,
-					 (struct ubifs_pnode *)cnode);
+			ubifs_pack_pyesde(c, buf + offs,
+					 (struct ubifs_pyesde *)cyesde);
 		/*
 		 * The reason for the barriers is the same as in case of TNC.
-		 * See comment in 'write_index()'. 'dirty_cow_nnode()' and
-		 * 'dirty_cow_pnode()' are the functions for which this is
+		 * See comment in 'write_index()'. 'dirty_cow_nyesde()' and
+		 * 'dirty_cow_pyesde()' are the functions for which this is
 		 * important.
 		 */
-		clear_bit(DIRTY_CNODE, &cnode->flags);
+		clear_bit(DIRTY_CNODE, &cyesde->flags);
 		smp_mb__before_atomic();
-		clear_bit(COW_CNODE, &cnode->flags);
+		clear_bit(COW_CNODE, &cyesde->flags);
 		smp_mb__after_atomic();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
-		cnode = cnode->cnext;
-	} while (cnode && cnode != c->lpt_cnext);
+		cyesde = cyesde->cnext;
+	} while (cyesde && cyesde != c->lpt_cnext);
 
 	/* Make sure to place LPT's save table */
 	if (!done_lsave) {
@@ -468,7 +468,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -494,7 +494,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto yes_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -531,7 +531,7 @@ static int write_cnodes(struct ubifs_info *c)
 
 	return 0;
 
-no_space:
+yes_space:
 	ubifs_err(c, "LPT out of space mismatch at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
 		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
@@ -541,102 +541,102 @@ no_space:
 }
 
 /**
- * next_pnode_to_dirty - find next pnode to dirty.
+ * next_pyesde_to_dirty - find next pyesde to dirty.
  * @c: UBIFS file-system description object
- * @pnode: pnode
+ * @pyesde: pyesde
  *
- * This function returns the next pnode to dirty or %NULL if there are no more
- * pnodes.  Note that pnodes that have never been written (lnum == 0) are
+ * This function returns the next pyesde to dirty or %NULL if there are yes more
+ * pyesdes.  Note that pyesdes that have never been written (lnum == 0) are
  * skipped.
  */
-static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
-					       struct ubifs_pnode *pnode)
+static struct ubifs_pyesde *next_pyesde_to_dirty(struct ubifs_info *c,
+					       struct ubifs_pyesde *pyesde)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 	int iip;
 
 	/* Try to go right */
-	nnode = pnode->parent;
-	for (iip = pnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
-		if (nnode->nbranch[iip].lnum)
-			return ubifs_get_pnode(c, nnode, iip);
+	nyesde = pyesde->parent;
+	for (iip = pyesde->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
+		if (nyesde->nbranch[iip].lnum)
+			return ubifs_get_pyesde(c, nyesde, iip);
 	}
 
 	/* Go up while can't go right */
 	do {
-		iip = nnode->iip + 1;
-		nnode = nnode->parent;
-		if (!nnode)
+		iip = nyesde->iip + 1;
+		nyesde = nyesde->parent;
+		if (!nyesde)
 			return NULL;
 		for (; iip < UBIFS_LPT_FANOUT; iip++) {
-			if (nnode->nbranch[iip].lnum)
+			if (nyesde->nbranch[iip].lnum)
 				break;
 		}
 	} while (iip >= UBIFS_LPT_FANOUT);
 
 	/* Go right */
-	nnode = ubifs_get_nnode(c, nnode, iip);
-	if (IS_ERR(nnode))
-		return (void *)nnode;
+	nyesde = ubifs_get_nyesde(c, nyesde, iip);
+	if (IS_ERR(nyesde))
+		return (void *)nyesde;
 
 	/* Go down to level 1 */
-	while (nnode->level > 1) {
+	while (nyesde->level > 1) {
 		for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++) {
-			if (nnode->nbranch[iip].lnum)
+			if (nyesde->nbranch[iip].lnum)
 				break;
 		}
 		if (iip >= UBIFS_LPT_FANOUT) {
 			/*
-			 * Should not happen, but we need to keep going
+			 * Should yest happen, but we need to keep going
 			 * if it does.
 			 */
 			iip = 0;
 		}
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return (void *)nnode;
+		nyesde = ubifs_get_nyesde(c, nyesde, iip);
+		if (IS_ERR(nyesde))
+			return (void *)nyesde;
 	}
 
 	for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++)
-		if (nnode->nbranch[iip].lnum)
+		if (nyesde->nbranch[iip].lnum)
 			break;
 	if (iip >= UBIFS_LPT_FANOUT)
-		/* Should not happen, but we need to keep going if it does */
+		/* Should yest happen, but we need to keep going if it does */
 		iip = 0;
-	return ubifs_get_pnode(c, nnode, iip);
+	return ubifs_get_pyesde(c, nyesde, iip);
 }
 
 /**
- * add_pnode_dirt - add dirty space to LPT LEB properties.
+ * add_pyesde_dirt - add dirty space to LPT LEB properties.
  * @c: UBIFS file-system description object
- * @pnode: pnode for which to add dirt
+ * @pyesde: pyesde for which to add dirt
  */
-static void add_pnode_dirt(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void add_pyesde_dirt(struct ubifs_info *c, struct ubifs_pyesde *pyesde)
 {
-	ubifs_add_lpt_dirt(c, pnode->parent->nbranch[pnode->iip].lnum,
-			   c->pnode_sz);
+	ubifs_add_lpt_dirt(c, pyesde->parent->nbranch[pyesde->iip].lnum,
+			   c->pyesde_sz);
 }
 
 /**
- * do_make_pnode_dirty - mark a pnode dirty.
+ * do_make_pyesde_dirty - mark a pyesde dirty.
  * @c: UBIFS file-system description object
- * @pnode: pnode to mark dirty
+ * @pyesde: pyesde to mark dirty
  */
-static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void do_make_pyesde_dirty(struct ubifs_info *c, struct ubifs_pyesde *pyesde)
 {
-	/* Assumes cnext list is empty i.e. not called during commit */
-	if (!test_and_set_bit(DIRTY_CNODE, &pnode->flags)) {
-		struct ubifs_nnode *nnode;
+	/* Assumes cnext list is empty i.e. yest called during commit */
+	if (!test_and_set_bit(DIRTY_CNODE, &pyesde->flags)) {
+		struct ubifs_nyesde *nyesde;
 
 		c->dirty_pn_cnt += 1;
-		add_pnode_dirt(c, pnode);
+		add_pyesde_dirt(c, pyesde);
 		/* Mark parent and ancestors dirty too */
-		nnode = pnode->parent;
-		while (nnode) {
-			if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+		nyesde = pyesde->parent;
+		while (nyesde) {
+			if (!test_and_set_bit(DIRTY_CNODE, &nyesde->flags)) {
 				c->dirty_nn_cnt += 1;
-				ubifs_add_nnode_dirt(c, nnode);
-				nnode = nnode->parent;
+				ubifs_add_nyesde_dirt(c, nyesde);
+				nyesde = nyesde->parent;
 			} else
 				break;
 		}
@@ -648,7 +648,7 @@ static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
  * @c: UBIFS file-system description object
  *
  * This function is used by the "small" LPT model to cause the entire LEB
- * properties tree to be written.  The "small" LPT model does not use LPT
+ * properties tree to be written.  The "small" LPT model does yest use LPT
  * garbage collection because it is more efficient to write the entire tree
  * (because it is small).
  *
@@ -656,17 +656,17 @@ static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
  */
 static int make_tree_dirty(struct ubifs_info *c)
 {
-	struct ubifs_pnode *pnode;
+	struct ubifs_pyesde *pyesde;
 
-	pnode = ubifs_pnode_lookup(c, 0);
-	if (IS_ERR(pnode))
-		return PTR_ERR(pnode);
+	pyesde = ubifs_pyesde_lookup(c, 0);
+	if (IS_ERR(pyesde))
+		return PTR_ERR(pyesde);
 
-	while (pnode) {
-		do_make_pnode_dirty(c, pnode);
-		pnode = next_pnode_to_dirty(c, pnode);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
+	while (pyesde) {
+		do_make_pyesde_dirty(c, pyesde);
+		pyesde = next_pyesde_to_dirty(c, pyesde);
+		if (IS_ERR(pyesde))
+			return PTR_ERR(pyesde);
 	}
 	return 0;
 }
@@ -676,7 +676,7 @@ static int make_tree_dirty(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This function returns %1 if the LPT area is running out of free space and %0
- * if it is not.
+ * if it is yest.
  */
 static int need_write_all(struct ubifs_info *c)
 {
@@ -728,7 +728,7 @@ static void lpt_tgc_start(struct ubifs_info *c)
  *
  * LPT trivial garbage collection is where a LPT LEB contains only dirty and
  * free space and so may be reused as soon as the next commit is completed.
- * This function is called after the commit is completed (master node has been
+ * This function is called after the commit is completed (master yesde has been
  * written) and un-maps LPT LEBs that were marked for trivial GC.
  */
 static int lpt_tgc_end(struct ubifs_info *c)
@@ -754,8 +754,8 @@ static int lpt_tgc_end(struct ubifs_info *c)
  * of LEB numbers of important LEBs.  Important LEBs are ones that are (from
  * most important to least important): empty, freeable, freeable index, dirty
  * index, dirty or free. Upon mount, we read this list of LEB numbers and bring
- * their pnodes into memory.  That will stop us from having to scan the LPT
- * straight away. For the "small" model we assume that scanning the LPT is no
+ * their pyesdes into memory.  That will stop us from having to scan the LPT
+ * straight away. For the "small" model we assume that scanning the LPT is yes
  * big deal.
  */
 static void populate_lsave(struct ubifs_info *c)
@@ -812,78 +812,78 @@ static void populate_lsave(struct ubifs_info *c)
 }
 
 /**
- * nnode_lookup - lookup a nnode in the LPT.
+ * nyesde_lookup - lookup a nyesde in the LPT.
  * @c: UBIFS file-system description object
- * @i: nnode number
+ * @i: nyesde number
  *
- * This function returns a pointer to the nnode on success or a negative
+ * This function returns a pointer to the nyesde on success or a negative
  * error code on failure.
  */
-static struct ubifs_nnode *nnode_lookup(struct ubifs_info *c, int i)
+static struct ubifs_nyesde *nyesde_lookup(struct ubifs_info *c, int i)
 {
 	int err, iip;
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nyesde(c, NULL, 0);
 		if (err)
 			return ERR_PTR(err);
 	}
-	nnode = c->nroot;
+	nyesde = c->nroot;
 	while (1) {
 		iip = i & (UBIFS_LPT_FANOUT - 1);
 		i >>= UBIFS_LPT_FANOUT_SHIFT;
 		if (!i)
 			break;
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return nnode;
+		nyesde = ubifs_get_nyesde(c, nyesde, iip);
+		if (IS_ERR(nyesde))
+			return nyesde;
 	}
-	return nnode;
+	return nyesde;
 }
 
 /**
- * make_nnode_dirty - find a nnode and, if found, make it dirty.
+ * make_nyesde_dirty - find a nyesde and, if found, make it dirty.
  * @c: UBIFS file-system description object
- * @node_num: nnode number of nnode to make dirty
- * @lnum: LEB number where nnode was written
- * @offs: offset where nnode was written
+ * @yesde_num: nyesde number of nyesde to make dirty
+ * @lnum: LEB number where nyesde was written
+ * @offs: offset where nyesde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the yesdes in the LEB being garbage-collected as
+ * dirty.  The dirty yesdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_nnode_dirty(struct ubifs_info *c, int node_num, int lnum,
+static int make_nyesde_dirty(struct ubifs_info *c, int yesde_num, int lnum,
 			    int offs)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 
-	nnode = nnode_lookup(c, node_num);
-	if (IS_ERR(nnode))
-		return PTR_ERR(nnode);
-	if (nnode->parent) {
+	nyesde = nyesde_lookup(c, yesde_num);
+	if (IS_ERR(nyesde))
+		return PTR_ERR(nyesde);
+	if (nyesde->parent) {
 		struct ubifs_nbranch *branch;
 
-		branch = &nnode->parent->nbranch[nnode->iip];
+		branch = &nyesde->parent->nbranch[nyesde->iip];
 		if (branch->lnum != lnum || branch->offs != offs)
-			return 0; /* nnode is obsolete */
+			return 0; /* nyesde is obsolete */
 	} else if (c->lpt_lnum != lnum || c->lpt_offs != offs)
-			return 0; /* nnode is obsolete */
-	/* Assumes cnext list is empty i.e. not called during commit */
-	if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+			return 0; /* nyesde is obsolete */
+	/* Assumes cnext list is empty i.e. yest called during commit */
+	if (!test_and_set_bit(DIRTY_CNODE, &nyesde->flags)) {
 		c->dirty_nn_cnt += 1;
-		ubifs_add_nnode_dirt(c, nnode);
+		ubifs_add_nyesde_dirt(c, nyesde);
 		/* Mark parent and ancestors dirty too */
-		nnode = nnode->parent;
-		while (nnode) {
-			if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+		nyesde = nyesde->parent;
+		while (nyesde) {
+			if (!test_and_set_bit(DIRTY_CNODE, &nyesde->flags)) {
 				c->dirty_nn_cnt += 1;
-				ubifs_add_nnode_dirt(c, nnode);
-				nnode = nnode->parent;
+				ubifs_add_nyesde_dirt(c, nyesde);
+				nyesde = nyesde->parent;
 			} else
 				break;
 		}
@@ -892,46 +892,46 @@ static int make_nnode_dirty(struct ubifs_info *c, int node_num, int lnum,
 }
 
 /**
- * make_pnode_dirty - find a pnode and, if found, make it dirty.
+ * make_pyesde_dirty - find a pyesde and, if found, make it dirty.
  * @c: UBIFS file-system description object
- * @node_num: pnode number of pnode to make dirty
- * @lnum: LEB number where pnode was written
- * @offs: offset where pnode was written
+ * @yesde_num: pyesde number of pyesde to make dirty
+ * @lnum: LEB number where pyesde was written
+ * @offs: offset where pyesde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the yesdes in the LEB being garbage-collected as
+ * dirty.  The dirty yesdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_pnode_dirty(struct ubifs_info *c, int node_num, int lnum,
+static int make_pyesde_dirty(struct ubifs_info *c, int yesde_num, int lnum,
 			    int offs)
 {
-	struct ubifs_pnode *pnode;
+	struct ubifs_pyesde *pyesde;
 	struct ubifs_nbranch *branch;
 
-	pnode = ubifs_pnode_lookup(c, node_num);
-	if (IS_ERR(pnode))
-		return PTR_ERR(pnode);
-	branch = &pnode->parent->nbranch[pnode->iip];
+	pyesde = ubifs_pyesde_lookup(c, yesde_num);
+	if (IS_ERR(pyesde))
+		return PTR_ERR(pyesde);
+	branch = &pyesde->parent->nbranch[pyesde->iip];
 	if (branch->lnum != lnum || branch->offs != offs)
 		return 0;
-	do_make_pnode_dirty(c, pnode);
+	do_make_pyesde_dirty(c, pyesde);
 	return 0;
 }
 
 /**
- * make_ltab_dirty - make ltab node dirty.
+ * make_ltab_dirty - make ltab yesde dirty.
  * @c: UBIFS file-system description object
  * @lnum: LEB number where ltab was written
  * @offs: offset where ltab was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the yesdes in the LEB being garbage-collected as
+ * dirty.  The dirty yesdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -939,7 +939,7 @@ static int make_pnode_dirty(struct ubifs_info *c, int node_num, int lnum,
 static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	if (lnum != c->ltab_lnum || offs != c->ltab_offs)
-		return 0; /* This ltab node is obsolete */
+		return 0; /* This ltab yesde is obsolete */
 	if (!(c->lpt_drty_flgs & LTAB_DIRTY)) {
 		c->lpt_drty_flgs |= LTAB_DIRTY;
 		ubifs_add_lpt_dirt(c, c->ltab_lnum, c->ltab_sz);
@@ -948,15 +948,15 @@ static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * make_lsave_dirty - make lsave node dirty.
+ * make_lsave_dirty - make lsave yesde dirty.
  * @c: UBIFS file-system description object
  * @lnum: LEB number where lsave was written
  * @offs: offset where lsave was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the yesdes in the LEB being garbage-collected as
+ * dirty.  The dirty yesdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -964,7 +964,7 @@ static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 static int make_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	if (lnum != c->lsave_lnum || offs != c->lsave_offs)
-		return 0; /* This lsave node is obsolete */
+		return 0; /* This lsave yesde is obsolete */
 	if (!(c->lpt_drty_flgs & LSAVE_DIRTY)) {
 		c->lpt_drty_flgs |= LSAVE_DIRTY;
 		ubifs_add_lpt_dirt(c, c->lsave_lnum, c->lsave_sz);
@@ -973,29 +973,29 @@ static int make_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * make_node_dirty - make node dirty.
+ * make_yesde_dirty - make yesde dirty.
  * @c: UBIFS file-system description object
- * @node_type: LPT node type
- * @node_num: node number
- * @lnum: LEB number where node was written
- * @offs: offset where node was written
+ * @yesde_type: LPT yesde type
+ * @yesde_num: yesde number
+ * @lnum: LEB number where yesde was written
+ * @offs: offset where yesde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the yesdes in the LEB being garbage-collected as
+ * dirty.  The dirty yesdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_node_dirty(struct ubifs_info *c, int node_type, int node_num,
+static int make_yesde_dirty(struct ubifs_info *c, int yesde_type, int yesde_num,
 			   int lnum, int offs)
 {
-	switch (node_type) {
+	switch (yesde_type) {
 	case UBIFS_LPT_NNODE:
-		return make_nnode_dirty(c, node_num, lnum, offs);
+		return make_nyesde_dirty(c, yesde_num, lnum, offs);
 	case UBIFS_LPT_PNODE:
-		return make_pnode_dirty(c, node_num, lnum, offs);
+		return make_pyesde_dirty(c, yesde_num, lnum, offs);
 	case UBIFS_LPT_LTAB:
 		return make_ltab_dirty(c, lnum, offs);
 	case UBIFS_LPT_LSAVE:
@@ -1005,17 +1005,17 @@ static int make_node_dirty(struct ubifs_info *c, int node_type, int node_num,
 }
 
 /**
- * get_lpt_node_len - return the length of a node based on its type.
+ * get_lpt_yesde_len - return the length of a yesde based on its type.
  * @c: UBIFS file-system description object
- * @node_type: LPT node type
+ * @yesde_type: LPT yesde type
  */
-static int get_lpt_node_len(const struct ubifs_info *c, int node_type)
+static int get_lpt_yesde_len(const struct ubifs_info *c, int yesde_type)
 {
-	switch (node_type) {
+	switch (yesde_type) {
 	case UBIFS_LPT_NNODE:
-		return c->nnode_sz;
+		return c->nyesde_sz;
 	case UBIFS_LPT_PNODE:
-		return c->pnode_sz;
+		return c->pyesde_sz;
 	case UBIFS_LPT_LTAB:
 		return c->ltab_sz;
 	case UBIFS_LPT_LSAVE:
@@ -1042,49 +1042,49 @@ static int get_pad_len(const struct ubifs_info *c, uint8_t *buf, int len)
 }
 
 /**
- * get_lpt_node_type - return type (and node number) of a node in a buffer.
+ * get_lpt_yesde_type - return type (and yesde number) of a yesde in a buffer.
  * @c: UBIFS file-system description object
  * @buf: buffer
- * @node_num: node number is returned here
+ * @yesde_num: yesde number is returned here
  */
-static int get_lpt_node_type(const struct ubifs_info *c, uint8_t *buf,
-			     int *node_num)
+static int get_lpt_yesde_type(const struct ubifs_info *c, uint8_t *buf,
+			     int *yesde_num)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
-	int pos = 0, node_type;
+	int pos = 0, yesde_type;
 
-	node_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
-	*node_num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
-	return node_type;
+	yesde_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
+	*yesde_num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
+	return yesde_type;
 }
 
 /**
- * is_a_node - determine if a buffer contains a node.
+ * is_a_yesde - determine if a buffer contains a yesde.
  * @c: UBIFS file-system description object
  * @buf: buffer
  * @len: length of buffer
  *
- * This function returns %1 if the buffer contains a node or %0 if it does not.
+ * This function returns %1 if the buffer contains a yesde or %0 if it does yest.
  */
-static int is_a_node(const struct ubifs_info *c, uint8_t *buf, int len)
+static int is_a_yesde(const struct ubifs_info *c, uint8_t *buf, int len)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
-	int pos = 0, node_type, node_len;
+	int pos = 0, yesde_type, yesde_len;
 	uint16_t crc, calc_crc;
 
 	if (len < UBIFS_LPT_CRC_BYTES + (UBIFS_LPT_TYPE_BITS + 7) / 8)
 		return 0;
-	node_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
-	if (node_type == UBIFS_LPT_NOT_A_NODE)
+	yesde_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
+	if (yesde_type == UBIFS_LPT_NOT_A_NODE)
 		return 0;
-	node_len = get_lpt_node_len(c, node_type);
-	if (!node_len || node_len > len)
+	yesde_len = get_lpt_yesde_len(c, yesde_type);
+	if (!yesde_len || yesde_len > len)
 		return 0;
 	pos = 0;
 	addr = buf;
 	crc = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_CRC_BITS);
 	calc_crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
-			 node_len - UBIFS_LPT_CRC_BYTES);
+			 yesde_len - UBIFS_LPT_CRC_BYTES);
 	if (crc != calc_crc)
 		return 0;
 	return 1;
@@ -1096,15 +1096,15 @@ static int is_a_node(const struct ubifs_info *c, uint8_t *buf, int len)
  * @lnum: LEB number to garbage collect
  *
  * LPT garbage collection is used only for the "big" LPT model
- * (c->big_lpt == 1).  Garbage collection simply involves marking all the nodes
- * in the LEB being garbage-collected as dirty.  The dirty nodes are written
+ * (c->big_lpt == 1).  Garbage collection simply involves marking all the yesdes
+ * in the LEB being garbage-collected as dirty.  The dirty yesdes are written
  * next commit, after which the LEB is free to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, node_type, node_num, node_len, offs;
+	int err, len = c->leb_size, yesde_type, yesde_num, yesde_len, offs;
 	void *buf = c->lpt_buf;
 
 	dbg_lp("LEB %d", lnum);
@@ -1114,7 +1114,7 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 		return err;
 
 	while (1) {
-		if (!is_a_node(c, buf, len)) {
+		if (!is_a_yesde(c, buf, len)) {
 			int pad_len;
 
 			pad_len = get_pad_len(c, buf, len);
@@ -1125,17 +1125,17 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 			}
 			return 0;
 		}
-		node_type = get_lpt_node_type(c, buf, &node_num);
-		node_len = get_lpt_node_len(c, node_type);
+		yesde_type = get_lpt_yesde_type(c, buf, &yesde_num);
+		yesde_len = get_lpt_yesde_len(c, yesde_type);
 		offs = c->leb_size - len;
-		ubifs_assert(c, node_len != 0);
+		ubifs_assert(c, yesde_len != 0);
 		mutex_lock(&c->lp_mutex);
-		err = make_node_dirty(c, node_type, node_num, lnum, offs);
+		err = make_yesde_dirty(c, yesde_type, yesde_num, lnum, offs);
 		mutex_unlock(&c->lp_mutex);
 		if (err)
 			return err;
-		buf += node_len;
-		len -= node_len;
+		buf += yesde_len;
+		len -= yesde_len;
 	}
 	return 0;
 }
@@ -1173,9 +1173,9 @@ static int lpt_gc(struct ubifs_info *c)
  * @c: the UBIFS file-system description object
  *
  * This function has to be called when UBIFS starts the commit operation.
- * This function "freezes" all currently dirty LEB properties and does not
+ * This function "freezes" all currently dirty LEB properties and does yest
  * change them anymore. Further changes are saved and tracked separately
- * because they are not part of this commit. This function returns zero in case
+ * because they are yest part of this commit. This function returns zero in case
  * of success and a negative error code in case of failure.
  */
 int ubifs_lpt_start_commit(struct ubifs_info *c)
@@ -1194,8 +1194,8 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 
 	if (c->check_lpt_free) {
 		/*
-		 * We ensure there is enough free space in
-		 * ubifs_lpt_post_commit() by marking nodes dirty. That
+		 * We ensure there is eyesugh free space in
+		 * ubifs_lpt_post_commit() by marking yesdes dirty. That
 		 * information is lost when we unmount, so we also need
 		 * to check free space once after mounting also.
 		 */
@@ -1212,7 +1212,7 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 	lpt_tgc_start(c);
 
 	if (!c->dirty_pn_cnt) {
-		dbg_cmt("no cnodes to commit");
+		dbg_cmt("yes cyesdes to commit");
 		err = 0;
 		goto out;
 	}
@@ -1228,14 +1228,14 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 	if (c->big_lpt)
 		populate_lsave(c);
 
-	cnt = get_cnodes_to_commit(c);
+	cnt = get_cyesdes_to_commit(c);
 	ubifs_assert(c, cnt != 0);
 
-	err = layout_cnodes(c);
+	err = layout_cyesdes(c);
 	if (err)
 		goto out;
 
-	err = ubifs_lpt_calc_hash(c, c->mst_node->hash_lpt);
+	err = ubifs_lpt_calc_hash(c, c->mst_yesde->hash_lpt);
 	if (err)
 		goto out;
 
@@ -1250,23 +1250,23 @@ out:
 }
 
 /**
- * free_obsolete_cnodes - free obsolete cnodes for commit end.
+ * free_obsolete_cyesdes - free obsolete cyesdes for commit end.
  * @c: UBIFS file-system description object
  */
-static void free_obsolete_cnodes(struct ubifs_info *c)
+static void free_obsolete_cyesdes(struct ubifs_info *c)
 {
-	struct ubifs_cnode *cnode, *cnext;
+	struct ubifs_cyesde *cyesde, *cnext;
 
 	cnext = c->lpt_cnext;
 	if (!cnext)
 		return;
 	do {
-		cnode = cnext;
-		cnext = cnode->cnext;
-		if (test_bit(OBSOLETE_CNODE, &cnode->flags))
-			kfree(cnode);
+		cyesde = cnext;
+		cnext = cyesde->cnext;
+		if (test_bit(OBSOLETE_CNODE, &cyesde->flags))
+			kfree(cyesde);
 		else
-			cnode->cnext = NULL;
+			cyesde->cnext = NULL;
 	} while (cnext != c->lpt_cnext);
 	c->lpt_cnext = NULL;
 }
@@ -1289,12 +1289,12 @@ int ubifs_lpt_end_commit(struct ubifs_info *c)
 	if (!c->lpt_cnext)
 		return 0;
 
-	err = write_cnodes(c);
+	err = write_cyesdes(c);
 	if (err)
 		return err;
 
 	mutex_lock(&c->lp_mutex);
-	free_obsolete_cnodes(c);
+	free_obsolete_cyesdes(c);
 	mutex_unlock(&c->lp_mutex);
 
 	return 0;
@@ -1329,28 +1329,28 @@ out:
 }
 
 /**
- * first_nnode - find the first nnode in memory.
+ * first_nyesde - find the first nyesde in memory.
  * @c: UBIFS file-system description object
- * @hght: height of tree where nnode found is returned here
+ * @hght: height of tree where nyesde found is returned here
  *
- * This function returns a pointer to the nnode found or %NULL if no nnode is
+ * This function returns a pointer to the nyesde found or %NULL if yes nyesde is
  * found. This function is a helper to 'ubifs_lpt_free()'.
  */
-static struct ubifs_nnode *first_nnode(struct ubifs_info *c, int *hght)
+static struct ubifs_nyesde *first_nyesde(struct ubifs_info *c, int *hght)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 	int h, i, found;
 
-	nnode = c->nroot;
+	nyesde = c->nroot;
 	*hght = 0;
-	if (!nnode)
+	if (!nyesde)
 		return NULL;
 	for (h = 1; h < c->lpt_hght; h++) {
 		found = 0;
 		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			if (nnode->nbranch[i].nnode) {
+			if (nyesde->nbranch[i].nyesde) {
 				found = 1;
-				nnode = nnode->nbranch[i].nnode;
+				nyesde = nyesde->nbranch[i].nyesde;
 				*hght = h;
 				break;
 			}
@@ -1358,46 +1358,46 @@ static struct ubifs_nnode *first_nnode(struct ubifs_info *c, int *hght)
 		if (!found)
 			break;
 	}
-	return nnode;
+	return nyesde;
 }
 
 /**
- * next_nnode - find the next nnode in memory.
+ * next_nyesde - find the next nyesde in memory.
  * @c: UBIFS file-system description object
- * @nnode: nnode from which to start.
- * @hght: height of tree where nnode is, is passed and returned here
+ * @nyesde: nyesde from which to start.
+ * @hght: height of tree where nyesde is, is passed and returned here
  *
- * This function returns a pointer to the nnode found or %NULL if no nnode is
+ * This function returns a pointer to the nyesde found or %NULL if yes nyesde is
  * found. This function is a helper to 'ubifs_lpt_free()'.
  */
-static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
-				      struct ubifs_nnode *nnode, int *hght)
+static struct ubifs_nyesde *next_nyesde(struct ubifs_info *c,
+				      struct ubifs_nyesde *nyesde, int *hght)
 {
-	struct ubifs_nnode *parent;
+	struct ubifs_nyesde *parent;
 	int iip, h, i, found;
 
-	parent = nnode->parent;
+	parent = nyesde->parent;
 	if (!parent)
 		return NULL;
-	if (nnode->iip == UBIFS_LPT_FANOUT - 1) {
+	if (nyesde->iip == UBIFS_LPT_FANOUT - 1) {
 		*hght -= 1;
 		return parent;
 	}
-	for (iip = nnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
-		nnode = parent->nbranch[iip].nnode;
-		if (nnode)
+	for (iip = nyesde->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
+		nyesde = parent->nbranch[iip].nyesde;
+		if (nyesde)
 			break;
 	}
-	if (!nnode) {
+	if (!nyesde) {
 		*hght -= 1;
 		return parent;
 	}
 	for (h = *hght + 1; h < c->lpt_hght; h++) {
 		found = 0;
 		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			if (nnode->nbranch[i].nnode) {
+			if (nyesde->nbranch[i].nyesde) {
 				found = 1;
-				nnode = nnode->nbranch[i].nnode;
+				nyesde = nyesde->nbranch[i].nyesde;
 				*hght = h;
 				break;
 			}
@@ -1405,7 +1405,7 @@ static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
 		if (!found)
 			break;
 	}
-	return nnode;
+	return nyesde;
 }
 
 /**
@@ -1415,12 +1415,12 @@ static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
  */
 void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 	int i, hght;
 
 	/* Free write-only things first */
 
-	free_obsolete_cnodes(c); /* Leftover from a failed commit */
+	free_obsolete_cyesdes(c); /* Leftover from a failed commit */
 
 	vfree(c->ltab_cmt);
 	c->ltab_cmt = NULL;
@@ -1434,18 +1434,18 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 
 	/* Now free the rest */
 
-	nnode = first_nnode(c, &hght);
-	while (nnode) {
+	nyesde = first_nyesde(c, &hght);
+	while (nyesde) {
 		for (i = 0; i < UBIFS_LPT_FANOUT; i++)
-			kfree(nnode->nbranch[i].nnode);
-		nnode = next_nnode(c, nnode, &hght);
+			kfree(nyesde->nbranch[i].nyesde);
+		nyesde = next_nyesde(c, nyesde, &hght);
 	}
 	for (i = 0; i < LPROPS_HEAP_CNT; i++)
 		kfree(c->lpt_heap[i].arr);
 	kfree(c->dirty_idx.arr);
 	kfree(c->nroot);
 	vfree(c->ltab);
-	kfree(c->lpt_nod_buf);
+	kfree(c->lpt_yesd_buf);
 }
 
 /*
@@ -1468,33 +1468,33 @@ static int dbg_is_all_ff(uint8_t *buf, int len)
 }
 
 /**
- * dbg_is_nnode_dirty - determine if a nnode is dirty.
+ * dbg_is_nyesde_dirty - determine if a nyesde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where nnode was written
- * @offs: offset where nnode was written
+ * @lnum: LEB number where nyesde was written
+ * @offs: offset where nyesde was written
  */
-static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
+static int dbg_is_nyesde_dirty(struct ubifs_info *c, int lnum, int offs)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nyesde *nyesde;
 	int hght;
 
-	/* Entire tree is in memory so first_nnode / next_nnode are OK */
-	nnode = first_nnode(c, &hght);
-	for (; nnode; nnode = next_nnode(c, nnode, &hght)) {
+	/* Entire tree is in memory so first_nyesde / next_nyesde are OK */
+	nyesde = first_nyesde(c, &hght);
+	for (; nyesde; nyesde = next_nyesde(c, nyesde, &hght)) {
 		struct ubifs_nbranch *branch;
 
 		cond_resched();
-		if (nnode->parent) {
-			branch = &nnode->parent->nbranch[nnode->iip];
+		if (nyesde->parent) {
+			branch = &nyesde->parent->nbranch[nyesde->iip];
 			if (branch->lnum != lnum || branch->offs != offs)
 				continue;
-			if (test_bit(DIRTY_CNODE, &nnode->flags))
+			if (test_bit(DIRTY_CNODE, &nyesde->flags))
 				return 1;
 			return 0;
 		} else {
 			if (c->lpt_lnum != lnum || c->lpt_offs != offs)
 				continue;
-			if (test_bit(DIRTY_CNODE, &nnode->flags))
+			if (test_bit(DIRTY_CNODE, &nyesde->flags))
 				return 1;
 			return 0;
 		}
@@ -1503,28 +1503,28 @@ static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_pnode_dirty - determine if a pnode is dirty.
+ * dbg_is_pyesde_dirty - determine if a pyesde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where pnode was written
- * @offs: offset where pnode was written
+ * @lnum: LEB number where pyesde was written
+ * @offs: offset where pyesde was written
  */
-static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
+static int dbg_is_pyesde_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	int i, cnt;
 
 	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FANOUT);
 	for (i = 0; i < cnt; i++) {
-		struct ubifs_pnode *pnode;
+		struct ubifs_pyesde *pyesde;
 		struct ubifs_nbranch *branch;
 
 		cond_resched();
-		pnode = ubifs_pnode_lookup(c, i);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
-		branch = &pnode->parent->nbranch[pnode->iip];
+		pyesde = ubifs_pyesde_lookup(c, i);
+		if (IS_ERR(pyesde))
+			return PTR_ERR(pyesde);
+		branch = &pyesde->parent->nbranch[pyesde->iip];
 		if (branch->lnum != lnum || branch->offs != offs)
 			continue;
-		if (test_bit(DIRTY_CNODE, &pnode->flags))
+		if (test_bit(DIRTY_CNODE, &pyesde->flags))
 			return 1;
 		return 0;
 	}
@@ -1532,10 +1532,10 @@ static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_ltab_dirty - determine if a ltab node is dirty.
+ * dbg_is_ltab_dirty - determine if a ltab yesde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where ltab node was written
- * @offs: offset where ltab node was written
+ * @lnum: LEB number where ltab yesde was written
+ * @offs: offset where ltab yesde was written
  */
 static int dbg_is_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 {
@@ -1545,10 +1545,10 @@ static int dbg_is_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_lsave_dirty - determine if a lsave node is dirty.
+ * dbg_is_lsave_dirty - determine if a lsave yesde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where lsave node was written
- * @offs: offset where lsave node was written
+ * @lnum: LEB number where lsave yesde was written
+ * @offs: offset where lsave yesde was written
  */
 static int dbg_is_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 {
@@ -1558,20 +1558,20 @@ static int dbg_is_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_node_dirty - determine if a node is dirty.
+ * dbg_is_yesde_dirty - determine if a yesde is dirty.
  * @c: the UBIFS file-system description object
- * @node_type: node type
- * @lnum: LEB number where node was written
- * @offs: offset where node was written
+ * @yesde_type: yesde type
+ * @lnum: LEB number where yesde was written
+ * @offs: offset where yesde was written
  */
-static int dbg_is_node_dirty(struct ubifs_info *c, int node_type, int lnum,
+static int dbg_is_yesde_dirty(struct ubifs_info *c, int yesde_type, int lnum,
 			     int offs)
 {
-	switch (node_type) {
+	switch (yesde_type) {
 	case UBIFS_LPT_NNODE:
-		return dbg_is_nnode_dirty(c, lnum, offs);
+		return dbg_is_nyesde_dirty(c, lnum, offs);
 	case UBIFS_LPT_PNODE:
-		return dbg_is_pnode_dirty(c, lnum, offs);
+		return dbg_is_pyesde_dirty(c, lnum, offs);
 	case UBIFS_LPT_LTAB:
 		return dbg_is_ltab_dirty(c, lnum, offs);
 	case UBIFS_LPT_LSAVE:
@@ -1583,13 +1583,13 @@ static int dbg_is_node_dirty(struct ubifs_info *c, int node_type, int lnum,
 /**
  * dbg_check_ltab_lnum - check the ltab for a LPT LEB number.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where node was written
+ * @lnum: LEB number where yesde was written
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, dirty = 0, node_type, node_num, node_len;
+	int err, len = c->leb_size, dirty = 0, yesde_type, yesde_num, yesde_len;
 	int ret;
 	void *buf, *p;
 
@@ -1598,7 +1598,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 
 	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory for ltab checking");
+		ubifs_err(c, "canyest allocate memory for ltab checking");
 		return 0;
 	}
 
@@ -1609,7 +1609,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 		goto out;
 
 	while (1) {
-		if (!is_a_node(c, p, len)) {
+		if (!is_a_yesde(c, p, len)) {
 			int i, pad_len;
 
 			pad_len = get_pad_len(c, p, len);
@@ -1637,13 +1637,13 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 			}
 			goto out;
 		}
-		node_type = get_lpt_node_type(c, p, &node_num);
-		node_len = get_lpt_node_len(c, node_type);
-		ret = dbg_is_node_dirty(c, node_type, lnum, c->leb_size - len);
+		yesde_type = get_lpt_yesde_type(c, p, &yesde_num);
+		yesde_len = get_lpt_yesde_len(c, yesde_type);
+		ret = dbg_is_yesde_dirty(c, yesde_type, lnum, c->leb_size - len);
 		if (ret == 1)
-			dirty += node_len;
-		p += node_len;
-		len -= node_len;
+			dirty += yesde_len;
+		p += yesde_len;
+		len -= yesde_len;
 	}
 
 	err = 0;
@@ -1668,16 +1668,16 @@ int dbg_check_ltab(struct ubifs_info *c)
 	/* Bring the entire tree into memory */
 	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FANOUT);
 	for (i = 0; i < cnt; i++) {
-		struct ubifs_pnode *pnode;
+		struct ubifs_pyesde *pyesde;
 
-		pnode = ubifs_pnode_lookup(c, i);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
+		pyesde = ubifs_pyesde_lookup(c, i);
+		if (IS_ERR(pyesde))
+			return PTR_ERR(pyesde);
 		cond_resched();
 	}
 
-	/* Check nodes */
-	err = dbg_check_lpt_nodes(c, (struct ubifs_cnode *)c->nroot, 0, 0);
+	/* Check yesdes */
+	err = dbg_check_lpt_yesdes(c, (struct ubifs_cyesde *)c->nroot, 0, 0);
 	if (err)
 		return err;
 
@@ -1695,7 +1695,7 @@ int dbg_check_ltab(struct ubifs_info *c)
 }
 
 /**
- * dbg_chk_lpt_free_spc - check LPT free space is enough to write entire LPT.
+ * dbg_chk_lpt_free_spc - check LPT free space is eyesugh to write entire LPT.
  * @c: the UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -1728,7 +1728,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 }
 
 /**
- * dbg_chk_lpt_sz - check LPT does not write more than LPT size.
+ * dbg_chk_lpt_sz - check LPT does yest write more than LPT size.
  * @c: the UBIFS file-system description object
  * @action: what to do
  * @len: length written
@@ -1736,7 +1736,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  * This function returns %0 on success and a negative error code on failure.
  * The @action argument may be one of:
  *   o %0 - LPT debugging checking starts, initialize debugging variables;
- *   o %1 - wrote an LPT node, increase LPT size by @len bytes;
+ *   o %1 - wrote an LPT yesde, increase LPT size by @len bytes;
  *   o %2 - switched to a different LEB and wasted @len bytes;
  *   o %3 - check that we've written the right number of bytes.
  *   o %4 - wasted @len bytes;
@@ -1756,14 +1756,14 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		d->chk_lpt_sz2 = 0;
 		d->chk_lpt_lebs = 0;
 		d->chk_lpt_wastage = 0;
-		if (c->dirty_pn_cnt > c->pnode_cnt) {
-			ubifs_err(c, "dirty pnodes %d exceed max %d",
-				  c->dirty_pn_cnt, c->pnode_cnt);
+		if (c->dirty_pn_cnt > c->pyesde_cnt) {
+			ubifs_err(c, "dirty pyesdes %d exceed max %d",
+				  c->dirty_pn_cnt, c->pyesde_cnt);
 			err = -EINVAL;
 		}
-		if (c->dirty_nn_cnt > c->nnode_cnt) {
-			ubifs_err(c, "dirty nnodes %d exceed max %d",
-				  c->dirty_nn_cnt, c->nnode_cnt);
+		if (c->dirty_nn_cnt > c->nyesde_cnt) {
+			ubifs_err(c, "dirty nyesdes %d exceed max %d",
+				  c->dirty_nn_cnt, c->nyesde_cnt);
 			err = -EINVAL;
 		}
 		return err;
@@ -1799,8 +1799,8 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 				  d->new_nhead_offs, len);
 			err = -EINVAL;
 		}
-		lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
-		lpt_sz += (long long)c->nnode_cnt * c->nnode_sz;
+		lpt_sz = (long long)c->pyesde_cnt * c->pyesde_sz;
+		lpt_sz += (long long)c->nyesde_cnt * c->nyesde_sz;
 		lpt_sz += c->ltab_sz;
 		if (c->big_lpt)
 			lpt_sz += c->lsave_sz;
@@ -1835,19 +1835,19 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
  * @lnum: LEB number to dump
  *
  * This function dumps an LEB from LPT area. Nodes in this area are very
- * different to nodes in the main area (e.g., they do not have common headers,
- * they do not have 8-byte alignments, etc), so we have a separate function to
+ * different to yesdes in the main area (e.g., they do yest have common headers,
+ * they do yest have 8-byte alignments, etc), so we have a separate function to
  * dump LPT area LEBs. Note, LPT has to be locked by the caller.
  */
 static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, node_type, node_num, node_len, offs;
+	int err, len = c->leb_size, yesde_type, yesde_num, yesde_len, offs;
 	void *buf, *p;
 
 	pr_err("(pid %d) start dumping LEB %d\n", current->pid, lnum);
 	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory to dump LPT");
+		ubifs_err(c, "canyest allocate memory to dump LPT");
 		return;
 	}
 
@@ -1857,7 +1857,7 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 
 	while (1) {
 		offs = c->leb_size - len;
-		if (!is_a_node(c, p, len)) {
+		if (!is_a_yesde(c, p, len)) {
 			int pad_len;
 
 			pad_len = get_pad_len(c, p, len);
@@ -1874,39 +1874,39 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			break;
 		}
 
-		node_type = get_lpt_node_type(c, p, &node_num);
-		switch (node_type) {
+		yesde_type = get_lpt_yesde_type(c, p, &yesde_num);
+		switch (yesde_type) {
 		case UBIFS_LPT_PNODE:
 		{
-			node_len = c->pnode_sz;
+			yesde_len = c->pyesde_sz;
 			if (c->big_lpt)
-				pr_err("LEB %d:%d, pnode num %d\n",
-				       lnum, offs, node_num);
+				pr_err("LEB %d:%d, pyesde num %d\n",
+				       lnum, offs, yesde_num);
 			else
-				pr_err("LEB %d:%d, pnode\n", lnum, offs);
+				pr_err("LEB %d:%d, pyesde\n", lnum, offs);
 			break;
 		}
 		case UBIFS_LPT_NNODE:
 		{
 			int i;
-			struct ubifs_nnode nnode;
+			struct ubifs_nyesde nyesde;
 
-			node_len = c->nnode_sz;
+			yesde_len = c->nyesde_sz;
 			if (c->big_lpt)
-				pr_err("LEB %d:%d, nnode num %d, ",
-				       lnum, offs, node_num);
+				pr_err("LEB %d:%d, nyesde num %d, ",
+				       lnum, offs, yesde_num);
 			else
-				pr_err("LEB %d:%d, nnode, ",
+				pr_err("LEB %d:%d, nyesde, ",
 				       lnum, offs);
-			err = ubifs_unpack_nnode(c, p, &nnode);
+			err = ubifs_unpack_nyesde(c, p, &nyesde);
 			if (err) {
-				pr_err("failed to unpack_node, error %d\n",
+				pr_err("failed to unpack_yesde, error %d\n",
 				       err);
 				break;
 			}
 			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-				pr_cont("%d:%d", nnode.nbranch[i].lnum,
-				       nnode.nbranch[i].offs);
+				pr_cont("%d:%d", nyesde.nbranch[i].lnum,
+				       nyesde.nbranch[i].offs);
 				if (i != UBIFS_LPT_FANOUT - 1)
 					pr_cont(", ");
 			}
@@ -1914,20 +1914,20 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			break;
 		}
 		case UBIFS_LPT_LTAB:
-			node_len = c->ltab_sz;
+			yesde_len = c->ltab_sz;
 			pr_err("LEB %d:%d, ltab\n", lnum, offs);
 			break;
 		case UBIFS_LPT_LSAVE:
-			node_len = c->lsave_sz;
+			yesde_len = c->lsave_sz;
 			pr_err("LEB %d:%d, lsave len\n", lnum, offs);
 			break;
 		default:
-			ubifs_err(c, "LPT node type %d not recognized", node_type);
+			ubifs_err(c, "LPT yesde type %d yest recognized", yesde_type);
 			goto out;
 		}
 
-		p += node_len;
-		len -= node_len;
+		p += yesde_len;
+		len -= yesde_len;
 	}
 
 	pr_err("(pid %d) finish dumping LEB %d\n", current->pid, lnum);
@@ -1959,8 +1959,8 @@ void ubifs_dump_lpt_lebs(const struct ubifs_info *c)
  *
  * This is a debugging version for 'populate_lsave()' which populates lsave
  * with random LEBs instead of useful LEBs, which is good for test coverage.
- * Returns zero if lsave has not been populated (this debugging feature is
- * disabled) an non-zero if lsave has been populated.
+ * Returns zero if lsave has yest been populated (this debugging feature is
+ * disabled) an yesn-zero if lsave has been populated.
  */
 static int dbg_populate_lsave(struct ubifs_info *c)
 {

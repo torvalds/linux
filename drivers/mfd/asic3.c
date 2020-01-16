@@ -335,10 +335,10 @@ static int asic3_gpio_irq_type(struct irq_data *data, unsigned int type)
 	} else {
 		/*
 		 * if type == IRQ_TYPE_NONE, we should mask interrupts, but
-		 * be careful to not unmask them if mask was also called.
+		 * be careful to yest unmask them if mask was also called.
 		 * Probably need internal state for mask.
 		 */
-		dev_notice(asic->dev, "irq type not changed\n");
+		dev_yestice(asic->dev, "irq type yest changed\n");
 	}
 	asic3_write_register(asic, bank + ASIC3_GPIO_LEVEL_TRIGGER,
 			     level);
@@ -882,11 +882,11 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 
 	mem_sdio = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem_sdio)
-		dev_dbg(asic->dev, "no SDIO MEM resource\n");
+		dev_dbg(asic->dev, "yes SDIO MEM resource\n");
 
 	irq = platform_get_irq(pdev, 1);
 	if (irq < 0)
-		dev_dbg(asic->dev, "no SDIO IRQ resource\n");
+		dev_dbg(asic->dev, "yes SDIO IRQ resource\n");
 
 	/* DS1WM */
 	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
@@ -968,7 +968,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(asic->dev, "no MEM resource\n");
+		dev_err(asic->dev, "yes MEM resource\n");
 		return -ENOMEM;
 	}
 

@@ -634,7 +634,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	char shortpkt[VLAN_ETH_HLEN];
 	bool is_multi, vlan;
 	struct ethhdr *eth;
-	u16 queue_no = 0;
+	u16 queue_yes = 0;
 	u16 vlan_id = 0;
 	netdev_tx_t ret;
 	char *data;
@@ -642,7 +642,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	ret = NETDEV_TX_OK;
 	is_multi = false;
-	cur_queue = netdev_get_tx_queue(netdev, queue_no);
+	cur_queue = netdev_get_tx_queue(netdev, queue_yes);
 
 	eth = (struct ethhdr *)skb->data;
 	my_epid = hw->my_epid;
@@ -694,7 +694,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (pstatus != EP_PARTNER_SHARED) {
 			if (!is_multi)
 				hw->ep_shm_info[dest_epid].ep_stats
-					.tx_dropped_not_shared += 1;
+					.tx_dropped_yest_shared += 1;
 			ret = NETDEV_TX_OK;
 		} else if (!fjes_hw_check_epbuf_version(
 				&adapter->hw.ep_shm_info[dest_epid].rx, 0)) {

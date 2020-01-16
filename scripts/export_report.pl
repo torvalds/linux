@@ -12,9 +12,9 @@ use Getopt::Std;
 use strict;
 
 sub numerically {
-	my $no1 = (split /\s+/, $a)[1];
-	my $no2 = (split /\s+/, $b)[1];
-	return $no1 <=> $no2;
+	my $yes1 = (split /\s+/, $a)[1];
+	my $yes2 = (split /\s+/, $b)[1];
+	return $yes1 <=> $yes2;
 }
 
 sub alphabetically {
@@ -30,7 +30,7 @@ sub print_depends_on {
 		my $list = $href->{$mod};
 		print "\t$mod:\n";
 		foreach my $sym (sort numerically @{$list}) {
-			my ($symbol, $no) = split /\s+/, $sym;
+			my ($symbol, $yes) = split /\s+/, $sym;
 			printf("\t\t%-25s\n", $symbol);
 		}
 		print "\n";
@@ -41,7 +41,7 @@ sub print_depends_on {
 
 sub usage {
         print "Usage: @_ -h -k Module.symvers  [ -o outputfile ] \n",
-	      "\t-f: treat all the non-option argument as .mod.c files. ",
+	      "\t-f: treat all the yesn-option argument as .mod.c files. ",
 	      "Recommend using this as the last option\n",
 	      "\t-h: print detailed help\n",
 	      "\t-k: the path to Module.symvers file. By default uses ",
@@ -52,7 +52,7 @@ sub usage {
 
 sub collectcfiles {
     my @file;
-    open my $fh, '< modules.order' or die "cannot open modules.order: $!\n";
+    open my $fh, '< modules.order' or die "canyest open modules.order: $!\n";
     while (<$fh>) {
 	s/\.ko$/.mod.c/;
 	push (@file, $_)
@@ -64,7 +64,7 @@ sub collectcfiles {
 
 my (%SYMBOL, %MODULE, %opt, @allcfiles);
 
-if (not getopts('hk:o:f',\%opt) or defined $opt{'h'}) {
+if (yest getopts('hk:o:f',\%opt) or defined $opt{'h'}) {
         usage($0);
 }
 
@@ -74,16 +74,16 @@ if (defined $opt{'f'}) {
 	@allcfiles = collectcfiles();
 }
 
-if (not defined $opt{'k'}) {
+if (yest defined $opt{'k'}) {
 	$opt{'k'} = "Module.symvers";
 }
 
 open (my $module_symvers, '<', $opt{'k'})
-    or die "Sorry, cannot open $opt{'k'}: $!\n";
+    or die "Sorry, canyest open $opt{'k'}: $!\n";
 
 if (defined $opt{'o'}) {
     open (my $out, '>', $opt{'o'})
-	or die "Sorry, cannot open $opt{'o'} $!\n";
+	or die "Sorry, canyest open $opt{'o'} $!\n";
 
     select $out;
 }
@@ -108,7 +108,7 @@ foreach my $thismod (@allcfiles) {
 	my $module;
 
 	unless (open ($module, '<', $thismod)) {
-		warn "Sorry, cannot open $thismod: $!\n";
+		warn "Sorry, canyest open $thismod: $!\n";
 		next;
 	}
 
@@ -134,7 +134,7 @@ foreach my $thismod (@allcfiles) {
 		}
 	}
 	if ($state != 2) {
-		warn "WARNING:$thismod is not built with CONFIG_MODVERSIONS enabled\n";
+		warn "WARNING:$thismod is yest built with CONFIG_MODVERSIONS enabled\n";
 		$modversion_warnings++;
 	}
 	close($module);

@@ -15,8 +15,8 @@
 struct dib3000mc_config {
 	struct dibx000_agc_config *agc;
 
-	u8 phase_noise_mode;
-	u8 impulse_noise_mode;
+	u8 phase_yesise_mode;
+	u8 impulse_yesise_mode;
 
 	u8  pwm3_inversion;
 	u8  use_pwm3;
@@ -41,7 +41,7 @@ extern struct dvb_frontend *dib3000mc_attach(struct i2c_adapter *i2c_adap,
 					     u8 i2c_addr,
 					     struct dib3000mc_config *cfg);
 extern int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c,
-				     int no_of_demods, u8 default_addr,
+				     int yes_of_demods, u8 default_addr,
 				     struct dib3000mc_config cfg[]);
 extern
 struct i2c_adapter *dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod,
@@ -57,7 +57,7 @@ struct dvb_frontend *dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 
 static inline
 int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c,
-			      int no_of_demods, u8 default_addr,
+			      int yes_of_demods, u8 default_addr,
 			      struct dib3000mc_config cfg[])
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
@@ -73,8 +73,8 @@ struct i2c_adapter *dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod,
 }
 #endif // CONFIG_DVB_DIB3000MC
 
-extern int dib3000mc_pid_control(struct dvb_frontend *fe, int index, int pid,int onoff);
-extern int dib3000mc_pid_parse(struct dvb_frontend *fe, int onoff);
+extern int dib3000mc_pid_control(struct dvb_frontend *fe, int index, int pid,int oyesff);
+extern int dib3000mc_pid_parse(struct dvb_frontend *fe, int oyesff);
 
 extern void dib3000mc_set_config(struct dvb_frontend *, struct dib3000mc_config *);
 

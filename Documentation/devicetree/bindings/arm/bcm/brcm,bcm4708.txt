@@ -3,7 +3,7 @@ Broadcom BCM4708 device tree bindings
 
 Boards with the BCM4708 SoC shall have the following properties:
 
-Required root node property:
+Required root yesde property:
 
 bcm4708
 compatible = "brcm,bcm4708";

@@ -453,7 +453,7 @@ run:
 					 T_A_WAIT_BCON);
 			/*
 			 * Now, we directly enter A_HOST. So set b_conn = 1
-			 * here. In fact, it need host driver to notify us.
+			 * here. In fact, it need host driver to yestify us.
 			 */
 			mvotg->otg_ctrl.b_conn = 1;
 			break;
@@ -462,7 +462,7 @@ run:
 		case OTG_STATE_A_WAIT_VFALL:
 			/*
 			 * Now, we has exited A_HOST. So set b_conn = 0
-			 * here. In fact, it need host driver to notify us.
+			 * here. In fact, it need host driver to yestify us.
 			 */
 			mvotg->otg_ctrl.b_conn = 0;
 			mv_otg_set_vbus(otg, 0);
@@ -694,7 +694,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 
 	mvotg->qwork = create_singlethread_workqueue("mv_otg_queue");
 	if (!mvotg->qwork) {
-		dev_dbg(&pdev->dev, "cannot create workqueue for OTG\n");
+		dev_dbg(&pdev->dev, "canyest create workqueue for OTG\n");
 		return -ENOMEM;
 	}
 
@@ -719,7 +719,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(mvotg->pdev,
 					 IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no phy I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes phy I/O memory resource defined\n");
 		retval = -ENODEV;
 		goto err_destroy_workqueue;
 	}
@@ -734,7 +734,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(mvotg->pdev,
 					 IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes I/O memory resource defined\n");
 		retval = -ENODEV;
 		goto err_destroy_workqueue;
 	}
@@ -790,7 +790,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(mvotg->pdev, IORESOURCE_IRQ, 0);
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no IRQ resource defined\n");
+		dev_err(&pdev->dev, "yes IRQ resource defined\n");
 		retval = -ENODEV;
 		goto err_disable_clk;
 	}
@@ -840,7 +840,7 @@ static int mv_otg_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (mvotg->phy.otg->state != OTG_STATE_B_IDLE) {
 		dev_info(&pdev->dev,
-			 "OTG state is not B_IDLE, it is %d!\n",
+			 "OTG state is yest B_IDLE, it is %d!\n",
 			 mvotg->phy.otg->state);
 		return -EAGAIN;
 	}

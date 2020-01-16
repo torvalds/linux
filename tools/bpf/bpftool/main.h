@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #ifndef __BPF_TOOL_H
 #define __BPF_TOOL_H
@@ -45,7 +45,7 @@
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
 	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} |\n"	\
-	"\t            {-m|--mapcompat} | {-n|--nomount} }"
+	"\t            {-m|--mapcompat} | {-n|--yesmount} }"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE }"
 
@@ -104,7 +104,7 @@ void __printf(1, 2) p_info(const char *fmt, ...);
 bool is_prefix(const char *pfx, const char *str);
 int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
-void usage(void) __noreturn;
+void usage(void) __yesreturn;
 
 void set_max_rlimit(void);
 
@@ -117,7 +117,7 @@ struct pinned_obj_table {
 struct pinned_obj {
 	__u32 id;
 	char *path;
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 };
 
 struct btf;
@@ -126,8 +126,8 @@ struct bpf_line_info;
 int build_pinned_obj_table(struct pinned_obj_table *table,
 			   enum bpf_obj_type type);
 void delete_pinned_obj_table(struct pinned_obj_table *tab);
-void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
-void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_iyesde);
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_iyesde);
 
 struct cmd {
 	const char *cmd;
@@ -192,7 +192,7 @@ void print_hex_data_json(uint8_t *data, size_t len);
 unsigned int get_page_size(void);
 unsigned int get_possible_cpus(void);
 const char *
-ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_iyes,
 		      const char **opt);
 
 struct btf_dumper {

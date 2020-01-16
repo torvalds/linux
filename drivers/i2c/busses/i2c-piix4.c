@@ -160,7 +160,7 @@ struct i2c_piix4_adapdata {
 
 	/* SB800 */
 	bool sb800_main;
-	bool notify_imc;
+	bool yestify_imc;
 	u8 port;		/* Port number, shifted */
 };
 
@@ -228,7 +228,7 @@ static int piix4_setup(struct pci_dev *PIIX4_dev,
 	} else if ((temp & 1) == 0) {
 		if (force) {
 			/* This should never need to be done, but has been
-			 * noted that many Dell machines have the SMBus
+			 * yested that many Dell machines have the SMBus
 			 * interface on the PIIX4 disabled!? NOTE: This assumes
 			 * I/O space and other allocations WERE done by the
 			 * Bios!  Don't complain if your hardware does weird
@@ -237,11 +237,11 @@ static int piix4_setup(struct pci_dev *PIIX4_dev,
 			 */
 			pci_write_config_byte(PIIX4_dev, SMBHSTCFG,
 					      temp | 1);
-			dev_notice(&PIIX4_dev->dev,
+			dev_yestice(&PIIX4_dev->dev,
 				   "WARNING: SMBus interface has been FORCEFULLY ENABLED!\n");
 		} else {
 			dev_err(&PIIX4_dev->dev,
-				"SMBus Host Controller not enabled!\n");
+				"SMBus Host Controller yest enabled!\n");
 			release_region(piix4_smba, SMBIOSIZE);
 			return -ENODEV;
 		}
@@ -270,9 +270,9 @@ static int piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 	u8 smba_en_lo, smba_en_hi, smb_en, smb_en_status, port_sel;
 	u8 i2ccfg, i2ccfg_offset = 0x10;
 
-	/* SB800 and later SMBus does not support forcing address */
+	/* SB800 and later SMBus does yest support forcing address */
 	if (force || force_addr) {
-		dev_err(&PIIX4_dev->dev, "SMBus does not support "
+		dev_err(&PIIX4_dev->dev, "SMBus does yest support "
 			"forcing address!\n");
 		return -EINVAL;
 	}
@@ -316,7 +316,7 @@ static int piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 
 	if (!smb_en_status) {
 		dev_err(&PIIX4_dev->dev,
-			"SMBus Host Controller not enabled!\n");
+			"SMBus Host Controller yest enabled!\n");
 		return -ENODEV;
 	}
 
@@ -329,7 +329,7 @@ static int piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 		return -EBUSY;
 	}
 
-	/* Aux SMBus does not support IRQ information */
+	/* Aux SMBus does yest support IRQ information */
 	if (aux) {
 		dev_info(&PIIX4_dev->dev,
 			 "Auxiliary SMBus Host Controller at 0x%x\n",
@@ -407,7 +407,7 @@ static int piix4_setup_aux(struct pci_dev *PIIX4_dev,
 	pci_read_config_word(PIIX4_dev, base_reg_addr, &piix4_smba);
 	if ((piix4_smba & 1) == 0) {
 		dev_dbg(&PIIX4_dev->dev,
-			"Auxiliary SMBus controller not enabled\n");
+			"Auxiliary SMBus controller yest enabled\n");
 		return -ENODEV;
 	}
 
@@ -493,7 +493,7 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 
 	if (temp & 0x04) {
 		result = -ENXIO;
-		dev_dbg(&piix4_adapter->dev, "Error: no response!\n");
+		dev_dbg(&piix4_adapter->dev, "Error: yes response!\n");
 	}
 
 	if (inb_p(SMBHSTSTS) != 0x00)
@@ -510,7 +510,7 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		 unsigned short flags, char read_write,
 		 u8 command, int size, union i2c_smbus_data * data)
@@ -665,7 +665,7 @@ static void piix4_imc_wakeup(void)
 /*
  * Handles access to multiple SMBus ports on the SB800.
  * The port is selected by bits 2:1 of the smb_en register (0x2c).
- * Returns negative errno on error.
+ * Returns negative erryes on error.
  *
  * Note: The selected port must be returned to the initial selection to avoid
  * problems on certain systems.
@@ -712,7 +712,7 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 	 * Therefore we need to request the ownership flag during those
 	 * transactions.
 	 */
-	if ((size == I2C_SMBUS_BLOCK_DATA) && adapdata->notify_imc) {
+	if ((size == I2C_SMBUS_BLOCK_DATA) && adapdata->yestify_imc) {
 		int ret;
 
 		ret = piix4_imc_sleep();
@@ -730,11 +730,11 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 			break;
 		}
 
-		/* If IMC communication fails do not retry */
+		/* If IMC communication fails do yest retry */
 		if (ret) {
 			dev_warn(&adap->dev,
-				 "Continuing without IMC notification.\n");
-			adapdata->notify_imc = false;
+				 "Continuing without IMC yestification.\n");
+			adapdata->yestify_imc = false;
 		}
 	}
 
@@ -754,7 +754,7 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 	/* Release the semaphore */
 	outb_p(smbslvcnt | 0x20, SMBSLVCNT);
 
-	if ((size == I2C_SMBUS_BLOCK_DATA) && adapdata->notify_imc)
+	if ((size == I2C_SMBUS_BLOCK_DATA) && adapdata->yestify_imc)
 		piix4_imc_wakeup();
 
 release:
@@ -810,7 +810,7 @@ static struct i2c_adapter *piix4_aux_adapter;
 static int piix4_adapter_count;
 
 static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
-			     bool sb800_main, u8 port, bool notify_imc,
+			     bool sb800_main, u8 port, bool yestify_imc,
 			     u8 hw_port_nr, const char *name,
 			     struct i2c_adapter **padap)
 {
@@ -839,7 +839,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	adapdata->smba = smba;
 	adapdata->sb800_main = sb800_main;
 	adapdata->port = port << piix4_port_shift_sb800;
-	adapdata->notify_imc = notify_imc;
+	adapdata->yestify_imc = yestify_imc;
 
 	/* set up the sysfs linkage to our parent device */
 	adap->dev.parent = &dev->dev;
@@ -868,7 +868,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 }
 
 static int piix4_add_adapters_sb800(struct pci_dev *dev, unsigned short smba,
-				    bool notify_imc)
+				    bool yestify_imc)
 {
 	struct i2c_piix4_adapdata *adapdata;
 	int port;
@@ -885,7 +885,7 @@ static int piix4_add_adapters_sb800(struct pci_dev *dev, unsigned short smba,
 	for (port = 0; port < piix4_adapter_count; port++) {
 		u8 hw_port_nr = port == 0 ? 0 : port + 1;
 
-		retval = piix4_add_adapter(dev, smba, true, port, notify_imc,
+		retval = piix4_add_adapter(dev, smba, true, port, yestify_imc,
 					   hw_port_nr,
 					   piix4_main_port_names_sb800[port],
 					   &piix4_main_adapters[port]);
@@ -921,7 +921,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	     dev->revision >= 0x40) ||
 	    dev->vendor == PCI_VENDOR_ID_AMD ||
 	    dev->vendor == PCI_VENDOR_ID_HYGON) {
-		bool notify_imc = false;
+		bool yestify_imc = false;
 		is_sb800 = true;
 
 		if ((dev->vendor == PCI_VENDOR_ID_AMD ||
@@ -930,13 +930,13 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			u8 imc;
 
 			/*
-			 * Detect if IMC is active or not, this method is
-			 * described on coreboot's AMD IMC notes
+			 * Detect if IMC is active or yest, this method is
+			 * described on coreboot's AMD IMC yestes
 			 */
 			pci_bus_read_config_byte(dev->bus, PCI_DEVFN(0x14, 3),
 						 0x40, &imc);
 			if (imc & 0x80)
-				notify_imc = true;
+				yestify_imc = true;
 		}
 
 		/* base address location etc changed in SB800 */
@@ -948,7 +948,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		 * Try to register multiplexed main SMBus adapter,
 		 * give up if we can't
 		 */
-		retval = piix4_add_adapters_sb800(dev, retval, notify_imc);
+		retval = piix4_add_adapters_sb800(dev, retval, yestify_imc);
 		if (retval < 0)
 			return retval;
 	} else {

@@ -12,7 +12,7 @@
 #include "processor.h"
 #include "vmx.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <linux/kvm.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -32,29 +32,29 @@ void test_nested_state(struct kvm_vm *vm, struct kvm_nested_state *state)
 	vcpu_nested_state_set(vm, VCPU_ID, state, false);
 }
 
-void test_nested_state_expect_errno(struct kvm_vm *vm,
+void test_nested_state_expect_erryes(struct kvm_vm *vm,
 				    struct kvm_nested_state *state,
-				    int expected_errno)
+				    int expected_erryes)
 {
 	int rv;
 
 	rv = vcpu_nested_state_set(vm, VCPU_ID, state, true);
-	TEST_ASSERT(rv == -1 && errno == expected_errno,
-		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i errno: %s (%d)",
-		strerror(expected_errno), expected_errno, rv, strerror(errno),
-		errno);
+	TEST_ASSERT(rv == -1 && erryes == expected_erryes,
+		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i erryes: %s (%d)",
+		strerror(expected_erryes), expected_erryes, rv, strerror(erryes),
+		erryes);
 }
 
 void test_nested_state_expect_einval(struct kvm_vm *vm,
 				     struct kvm_nested_state *state)
 {
-	test_nested_state_expect_errno(vm, state, EINVAL);
+	test_nested_state_expect_erryes(vm, state, EINVAL);
 }
 
 void test_nested_state_expect_efault(struct kvm_vm *vm,
 				     struct kvm_nested_state *state)
 {
-	test_nested_state_expect_errno(vm, state, EFAULT);
+	test_nested_state_expect_erryes(vm, state, EFAULT);
 }
 
 void set_revision_id_for_vmcs12(struct kvm_nested_state *state,
@@ -101,14 +101,14 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	test_nested_state_expect_einval(vm, state);
 
 	/*
-	 * We cannot virtualize anything if the guest does not have VMX
+	 * We canyest virtualize anything if the guest does yest have VMX
 	 * enabled.
 	 */
 	set_default_vmx_state(state, state_sz);
 	test_nested_state_expect_einval(vm, state);
 
 	/*
-	 * We cannot virtualize anything if the guest does not have VMX
+	 * We canyest virtualize anything if the guest does yest have VMX
 	 * enabled.  We expect KVM_SET_NESTED_STATE to return 0 if vmxon_pa
 	 * is set to -1ull, but the flags must be zero.
 	 */
@@ -144,7 +144,7 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	}
 	test_nested_state(vm, state);
 
-	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
+	/* It is invalid to have vmxon_pa == -1ull and SMM flags yesn-zero. */
 	state->hdr.vmx.smm.flags = 1;
 	test_nested_state_expect_einval(vm, state);
 
@@ -154,7 +154,7 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	state->flags = 0;
 	test_nested_state_expect_einval(vm, state);
 
-	/* It is invalid to have vmxon_pa set to a non-page aligned address. */
+	/* It is invalid to have vmxon_pa set to a yesn-page aligned address. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = 1;
 	test_nested_state_expect_einval(vm, state);
@@ -185,12 +185,12 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	state->hdr.vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
 	test_nested_state_expect_einval(vm, state);
 
-	/* Size must be large enough to fit kvm_nested_state and vmcs12. */
+	/* Size must be large eyesugh to fit kvm_nested_state and vmcs12. */
 	set_default_vmx_state(state, state_sz);
 	state->size = sizeof(*state);
 	test_nested_state(vm, state);
 
-	/* vmxon_pa cannot be the same address as vmcs_pa. */
+	/* vmxon_pa canyest be the same address as vmcs_pa. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = 0;
 	state->hdr.vmx.vmcs12_pa = 0;
@@ -228,12 +228,12 @@ int main(int argc, char *argv[])
 	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		printf("KVM_CAP_NESTED_STATE not available, skipping test\n");
+		printf("KVM_CAP_NESTED_STATE yest available, skipping test\n");
 		exit(KSFT_SKIP);
 	}
 
 	/*
-	 * AMD currently does not implement set_nested_state, so for now we
+	 * AMD currently does yest implement set_nested_state, so for yesw we
 	 * just early out.
 	 */
 	nested_vmx_check_supported();
@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 	/* Passing a NULL kvm_nested_state causes a EFAULT. */
 	test_nested_state_expect_efault(vm, NULL);
 
-	/* 'size' cannot be smaller than sizeof(kvm_nested_state). */
+	/* 'size' canyest be smaller than sizeof(kvm_nested_state). */
 	set_default_state(&state);
 	state.size = 0;
 	test_nested_state_expect_einval(vm, &state);

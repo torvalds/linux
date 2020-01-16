@@ -8,7 +8,7 @@
  *
  *	Added conditional policy language extensions
  *
- * Copyright (C) 2003 Tresys Technology, LLC
+ * Copyright (C) 2003 Tresys Techyeslogy, LLC
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
@@ -19,11 +19,11 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "avtab.h"
 #include "policydb.h"
 
-static struct kmem_cache *avtab_node_cachep;
+static struct kmem_cache *avtab_yesde_cachep;
 static struct kmem_cache *avtab_xperms_cachep;
 
 /* Based on MurmurHash3, written by Austin Appleby and placed in the
@@ -65,48 +65,48 @@ static inline int avtab_hash(struct avtab_key *keyp, u32 mask)
 	return hash & mask;
 }
 
-static struct avtab_node*
-avtab_insert_node(struct avtab *h, int hvalue,
-		  struct avtab_node *prev, struct avtab_node *cur,
+static struct avtab_yesde*
+avtab_insert_yesde(struct avtab *h, int hvalue,
+		  struct avtab_yesde *prev, struct avtab_yesde *cur,
 		  struct avtab_key *key, struct avtab_datum *datum)
 {
-	struct avtab_node *newnode;
+	struct avtab_yesde *newyesde;
 	struct avtab_extended_perms *xperms;
-	newnode = kmem_cache_zalloc(avtab_node_cachep, GFP_KERNEL);
-	if (newnode == NULL)
+	newyesde = kmem_cache_zalloc(avtab_yesde_cachep, GFP_KERNEL);
+	if (newyesde == NULL)
 		return NULL;
-	newnode->key = *key;
+	newyesde->key = *key;
 
 	if (key->specified & AVTAB_XPERMS) {
 		xperms = kmem_cache_zalloc(avtab_xperms_cachep, GFP_KERNEL);
 		if (xperms == NULL) {
-			kmem_cache_free(avtab_node_cachep, newnode);
+			kmem_cache_free(avtab_yesde_cachep, newyesde);
 			return NULL;
 		}
 		*xperms = *(datum->u.xperms);
-		newnode->datum.u.xperms = xperms;
+		newyesde->datum.u.xperms = xperms;
 	} else {
-		newnode->datum.u.data = datum->u.data;
+		newyesde->datum.u.data = datum->u.data;
 	}
 
 	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
+		newyesde->next = prev->next;
+		prev->next = newyesde;
 	} else {
-		struct avtab_node **n = &h->htable[hvalue];
+		struct avtab_yesde **n = &h->htable[hvalue];
 
-		newnode->next = *n;
-		*n = newnode;
+		newyesde->next = *n;
+		*n = newyesde;
 	}
 
 	h->nel++;
-	return newnode;
+	return newyesde;
 }
 
 static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
 {
 	int hvalue;
-	struct avtab_node *prev, *cur, *newnode;
+	struct avtab_yesde *prev, *cur, *newyesde;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
@@ -120,7 +120,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 		    key->target_type == cur->key.target_type &&
 		    key->target_class == cur->key.target_class &&
 		    (specified & cur->key.specified)) {
-			/* extended perms may not be unique */
+			/* extended perms may yest be unique */
 			if (specified & AVTAB_XPERMS)
 				break;
 			return -EEXIST;
@@ -136,8 +136,8 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 			break;
 	}
 
-	newnode = avtab_insert_node(h, hvalue, prev, cur, key, datum);
-	if (!newnode)
+	newyesde = avtab_insert_yesde(h, hvalue, prev, cur, key, datum);
+	if (!newyesde)
 		return -ENOMEM;
 
 	return 0;
@@ -145,13 +145,13 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 
 /* Unlike avtab_insert(), this function allow multiple insertions of the same
  * key/specified mask into the table, as needed by the conditional avtab.
- * It also returns a pointer to the node inserted.
+ * It also returns a pointer to the yesde inserted.
  */
-struct avtab_node *
-avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
+struct avtab_yesde *
+avtab_insert_yesnunique(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
 {
 	int hvalue;
-	struct avtab_node *prev, *cur;
+	struct avtab_yesde *prev, *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
@@ -175,13 +175,13 @@ avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datu
 		    key->target_class < cur->key.target_class)
 			break;
 	}
-	return avtab_insert_node(h, hvalue, prev, cur, key, datum);
+	return avtab_insert_yesde(h, hvalue, prev, cur, key, datum);
 }
 
 struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 {
 	int hvalue;
-	struct avtab_node *cur;
+	struct avtab_yesde *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
@@ -210,14 +210,14 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 	return NULL;
 }
 
-/* This search function returns a node pointer, and can be used in
- * conjunction with avtab_search_next_node()
+/* This search function returns a yesde pointer, and can be used in
+ * conjunction with avtab_search_next_yesde()
  */
-struct avtab_node*
-avtab_search_node(struct avtab *h, struct avtab_key *key)
+struct avtab_yesde*
+avtab_search_yesde(struct avtab *h, struct avtab_key *key)
 {
 	int hvalue;
-	struct avtab_node *cur;
+	struct avtab_yesde *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
 	if (!h)
@@ -245,30 +245,30 @@ avtab_search_node(struct avtab *h, struct avtab_key *key)
 	return NULL;
 }
 
-struct avtab_node*
-avtab_search_node_next(struct avtab_node *node, int specified)
+struct avtab_yesde*
+avtab_search_yesde_next(struct avtab_yesde *yesde, int specified)
 {
-	struct avtab_node *cur;
+	struct avtab_yesde *cur;
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
 	specified &= ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
-	for (cur = node->next; cur; cur = cur->next) {
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type == cur->key.target_type &&
-		    node->key.target_class == cur->key.target_class &&
+	for (cur = yesde->next; cur; cur = cur->next) {
+		if (yesde->key.source_type == cur->key.source_type &&
+		    yesde->key.target_type == cur->key.target_type &&
+		    yesde->key.target_class == cur->key.target_class &&
 		    (specified & cur->key.specified))
 			return cur;
 
-		if (node->key.source_type < cur->key.source_type)
+		if (yesde->key.source_type < cur->key.source_type)
 			break;
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type < cur->key.target_type)
+		if (yesde->key.source_type == cur->key.source_type &&
+		    yesde->key.target_type < cur->key.target_type)
 			break;
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type == cur->key.target_type &&
-		    node->key.target_class < cur->key.target_class)
+		if (yesde->key.source_type == cur->key.source_type &&
+		    yesde->key.target_type == cur->key.target_type &&
+		    yesde->key.target_class < cur->key.target_class)
 			break;
 	}
 	return NULL;
@@ -277,7 +277,7 @@ avtab_search_node_next(struct avtab_node *node, int specified)
 void avtab_destroy(struct avtab *h)
 {
 	int i;
-	struct avtab_node *cur, *temp;
+	struct avtab_yesde *cur, *temp;
 
 	if (!h)
 		return;
@@ -290,7 +290,7 @@ void avtab_destroy(struct avtab *h)
 			if (temp->key.specified & AVTAB_XPERMS)
 				kmem_cache_free(avtab_xperms_cachep,
 						temp->datum.u.xperms);
-			kmem_cache_free(avtab_node_cachep, temp);
+			kmem_cache_free(avtab_yesde_cachep, temp);
 		}
 	}
 	kvfree(h->htable);
@@ -345,7 +345,7 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 {
 	int i, chain_len, slots_used, max_chain_len;
 	unsigned long long chain2_len_sum;
-	struct avtab_node *cur;
+	struct avtab_yesde *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
@@ -506,7 +506,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 	if ((vers < POLICYDB_VERSION_XPERMS_IOCTL) &&
 			(key.specified & AVTAB_XPERMS)) {
-		pr_err("SELinux:  avtab:  policy version %u does not "
+		pr_err("SELinux:  avtab:  policy version %u does yest "
 				"support extended permissions rules and one "
 				"was specified\n", vers);
 		return -EINVAL;
@@ -596,7 +596,7 @@ bad:
 	goto out;
 }
 
-int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp)
+int avtab_write_item(struct policydb *p, struct avtab_yesde *cur, void *fp)
 {
 	__le16 buf16[4];
 	__le32 buf32[ARRAY_SIZE(cur->datum.u.xperms->perms.p)];
@@ -635,7 +635,7 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 {
 	unsigned int i;
 	int rc = 0;
-	struct avtab_node *cur;
+	struct avtab_yesde *cur;
 	__le32 buf[1];
 
 	buf[0] = cpu_to_le32(a->nel);
@@ -657,8 +657,8 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 
 void __init avtab_cache_init(void)
 {
-	avtab_node_cachep = kmem_cache_create("avtab_node",
-					      sizeof(struct avtab_node),
+	avtab_yesde_cachep = kmem_cache_create("avtab_yesde",
+					      sizeof(struct avtab_yesde),
 					      0, SLAB_PANIC, NULL);
 	avtab_xperms_cachep = kmem_cache_create("avtab_extended_perms",
 						sizeof(struct avtab_extended_perms),

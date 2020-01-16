@@ -218,9 +218,9 @@ struct sxgbe_extra_stats {
 	unsigned long rx_threshold;
 	unsigned long tx_pkt_n;
 	unsigned long rx_pkt_n;
-	unsigned long normal_irq_n;
-	unsigned long tx_normal_irq_n;
-	unsigned long rx_normal_irq_n;
+	unsigned long yesrmal_irq_n;
+	unsigned long tx_yesrmal_irq_n;
+	unsigned long rx_yesrmal_irq_n;
 	unsigned long napi_poll;
 	unsigned long tx_clean;
 	unsigned long tx_reset_ic_bit;
@@ -273,15 +273,15 @@ struct sxgbe_extra_stats {
 	unsigned long dvan_ocvlan_icvlan_pkt;
 
 	/* L3/L4 Pkt type */
-	unsigned long not_ip_pkt;
+	unsigned long yest_ip_pkt;
 	unsigned long ip4_tcp_pkt;
 	unsigned long ip4_udp_pkt;
 	unsigned long ip4_icmp_pkt;
-	unsigned long ip4_unknown_pkt;
+	unsigned long ip4_unkyeswn_pkt;
 	unsigned long ip6_tcp_pkt;
 	unsigned long ip6_udp_pkt;
 	unsigned long ip6_icmp_pkt;
-	unsigned long ip6_unknown_pkt;
+	unsigned long ip6_unkyeswn_pkt;
 
 	/* Filter specific */
 	unsigned long vlan_filter_match;
@@ -293,7 +293,7 @@ struct sxgbe_extra_stats {
 
 	/* RX context specific */
 	unsigned long timestamp_dropped;
-	unsigned long rx_msg_type_no_ptp;
+	unsigned long rx_msg_type_yes_ptp;
 	unsigned long rx_ptp_type_sync;
 	unsigned long rx_ptp_type_follow_up;
 	unsigned long rx_ptp_type_delay_req;
@@ -301,7 +301,7 @@ struct sxgbe_extra_stats {
 	unsigned long rx_ptp_type_pdelay_req;
 	unsigned long rx_ptp_type_pdelay_resp;
 	unsigned long rx_ptp_type_pdelay_follow_up;
-	unsigned long rx_ptp_announce;
+	unsigned long rx_ptp_anyesunce;
 	unsigned long rx_ptp_mgmt;
 	unsigned long rx_ptp_signal;
 	unsigned long rx_ptp_resv_msg_type;
@@ -374,9 +374,9 @@ struct sxgbe_ops {
 
 /* SXGBE private data structures */
 struct sxgbe_tx_queue {
-	unsigned int irq_no;
+	unsigned int irq_yes;
 	struct sxgbe_priv_data *priv_ptr;
-	struct sxgbe_tx_norm_desc *dma_tx;
+	struct sxgbe_tx_yesrm_desc *dma_tx;
 	dma_addr_t dma_tx_phy;
 	dma_addr_t *tx_skbuff_dma;
 	struct sk_buff **tx_skbuff;
@@ -388,20 +388,20 @@ struct sxgbe_tx_queue {
 	u32 tx_coal_timer;
 	int hwts_tx_en;
 	u16 prev_mss;
-	u8 queue_no;
+	u8 queue_yes;
 };
 
 struct sxgbe_rx_queue {
 	struct sxgbe_priv_data *priv_ptr;
-	struct sxgbe_rx_norm_desc *dma_rx;
+	struct sxgbe_rx_yesrm_desc *dma_rx;
 	struct sk_buff **rx_skbuff;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
-	unsigned int irq_no;
+	unsigned int irq_yes;
 	u32 rx_riwt;
 	dma_addr_t *rx_skbuff_dma;
 	dma_addr_t dma_rx_phy;
-	u8 queue_no;
+	u8 queue_yes;
 };
 
 /* SXGBE HW capabilities */
@@ -466,7 +466,7 @@ struct sxgbe_priv_data {
 	struct net_device *dev;
 	struct device *device;
 	struct sxgbe_ops *hw;	/* sxgbe specific ops */
-	int no_csum_insertion;
+	int yes_csum_insertion;
 	int irq;
 	int rxcsum_insertion;
 	spinlock_t stats_lock;	/* lock for tx/rx statatics */

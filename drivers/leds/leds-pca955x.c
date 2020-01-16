@@ -71,7 +71,7 @@ enum pca955x_type {
 struct pca955x_chipdef {
 	int			bits;
 	u8			slv_addr;	/* 7-bit slave address mask */
-	int			slv_addr_shift;	/* Number of bits to ignore */
+	int			slv_addr_shift;	/* Number of bits to igyesre */
 };
 
 static struct pca955x_chipdef pca955x_chipdefs[] = {
@@ -337,7 +337,7 @@ static int pca955x_gpio_get_value(struct gpio_chip *gc, unsigned int offset)
 	struct pca955x_led *led = &pca955x->leds[offset];
 	u8 reg = 0;
 
-	/* There is nothing we can do about errors */
+	/* There is yesthing we can do about errors */
 	pca955x_read_input(pca955x->client, led->led_num / 8, &reg);
 
 	return !!(reg & (1 << (led->led_num % 8)));
@@ -349,7 +349,7 @@ static int pca955x_gpio_direction_input(struct gpio_chip *gc,
 	struct pca955x *pca955x = gpiochip_get_data(gc);
 	struct pca955x_led *led = &pca955x->leds[offset];
 
-	/* To use as input ensure pin is not driven. */
+	/* To use as input ensure pin is yest driven. */
 	return pca955x_led_set(&led->led_cdev, PCA955X_GPIO_INPUT);
 }
 
@@ -364,10 +364,10 @@ static struct pca955x_platform_data *
 pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 {
 	struct pca955x_platform_data *pdata;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_yesde_count(&client->dev);
 	if (!count || count > chip->bits)
 		return ERR_PTR(-ENODEV);
 
@@ -381,25 +381,25 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 	if (!pdata->leds)
 		return ERR_PTR(-ENOMEM);
 
-	device_for_each_child_node(&client->dev, child) {
+	device_for_each_child_yesde(&client->dev, child) {
 		const char *name;
 		u32 reg;
 		int res;
 
-		res = fwnode_property_read_u32(child, "reg", &reg);
+		res = fwyesde_property_read_u32(child, "reg", &reg);
 		if ((res != 0) || (reg >= chip->bits))
 			continue;
 
-		res = fwnode_property_read_string(child, "label", &name);
-		if ((res != 0) && is_of_node(child))
-			name = to_of_node(child)->name;
+		res = fwyesde_property_read_string(child, "label", &name);
+		if ((res != 0) && is_of_yesde(child))
+			name = to_of_yesde(child)->name;
 
 		snprintf(pdata->leds[reg].name, sizeof(pdata->leds[reg].name),
 			 "%s", name);
 
 		pdata->leds[reg].type = PCA955X_TYPE_LED;
-		fwnode_property_read_u32(child, "type", &pdata->leds[reg].type);
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_u32(child, "type", &pdata->leds[reg].type);
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					&pdata->leds[reg].default_trigger);
 	}
 
@@ -529,7 +529,7 @@ static int pca955x_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	/* Set to fast frequency so we do not see flashing */
+	/* Set to fast frequency so we do yest see flashing */
 	err = pca955x_write_psc(client, 0, 0);
 	if (err)
 		return err;
@@ -556,7 +556,7 @@ static int pca955x_probe(struct i2c_client *client,
 		if (err) {
 			/* Use data->gpio.dev as a flag for freeing gpiochip */
 			pca955x->gpio.parent = NULL;
-			dev_warn(&client->dev, "could not add gpiochip\n");
+			dev_warn(&client->dev, "could yest add gpiochip\n");
 			return err;
 		}
 		dev_info(&client->dev, "gpios %i...%i\n",

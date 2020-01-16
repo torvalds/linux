@@ -44,11 +44,11 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 
 static void parse_redboot_of(struct mtd_info *master)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 dirblock;
 	int ret;
 
-	np = mtd_get_of_node(master);
+	np = mtd_get_of_yesde(master);
 	if (!np)
 		return;
 
@@ -89,8 +89,8 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		offset = master->size + directory * master->erasesize;
 		while (mtd_block_isbad(master, offset)) {
 			if (!offset) {
-			nogood:
-				printk(KERN_NOTICE "Failed to find a non-bad block to check for RedBoot partition table\n");
+			yesgood:
+				printk(KERN_NOTICE "Failed to find a yesn-bad block to check for RedBoot partition table\n");
 				return -EIO;
 			}
 			offset -= master->erasesize;
@@ -100,7 +100,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		while (mtd_block_isbad(master, offset)) {
 			offset += master->erasesize;
 			if (offset == master->size)
-				goto nogood;
+				goto yesgood;
 		}
 	}
 	buf = vmalloc(master->erasesize);
@@ -128,9 +128,9 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			/* This is apparently the FIS directory entry for the
 			 * FIS directory itself.  The FIS directory size is
 			 * one erase block; if the buf[i].size field is
-			 * swab32(erasesize) then we know we are looking at
+			 * swab32(erasesize) then we kyesw we are looking at
 			 * a byte swapped FIS directory - swap all the entries!
-			 * (NOTE: this is 'size' not 'data_length'; size is
+			 * (NOTE: this is 'size' yest 'data_length'; size is
 			 * the full size of the entry.)
 			 */
 
@@ -148,7 +148,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 				numslots = swab32(buf[i].size) / sizeof (struct fis_image_desc);
 				for (j = 0; j < numslots; ++j) {
 
-					/* A single 0xff denotes a deleted entry.
+					/* A single 0xff deyestes a deleted entry.
 					 * Two of them in a row is the end of the table.
 					 */
 					if (buf[j].name[0] == 0xff) {
@@ -160,7 +160,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 					}
 
 					/* The unsigned long fields were written with the
-					 * wrong byte sex, name and pad have no byte sex.
+					 * wrong byte sex, name and pad have yes byte sex.
 					 */
 					swab32s(&buf[j].flash_base);
 					swab32s(&buf[j].mem_base);
@@ -211,7 +211,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			buf[i].flash_base &= master->size-1;
 
 		/* I'm sure the JFFS2 code has done me permanent damage.
-		 * I now think the following is _normal_
+		 * I yesw think the following is _yesrmal_
 		 */
 		prev = &fl;
 		while(*prev && (*prev)->img->flash_base < new_fl->img->flash_base)

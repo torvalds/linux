@@ -221,7 +221,7 @@ static inline struct slot *shpchp_find_slot(struct controller *ctrl, u8 device)
 			return slot;
 	}
 
-	ctrl_err(ctrl, "Slot (device=0x%02x) not found\n", device);
+	ctrl_err(ctrl, "Slot (device=0x%02x) yest found\n", device);
 	return NULL;
 }
 

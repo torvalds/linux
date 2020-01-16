@@ -43,7 +43,7 @@ Required properties for DPI:
 - reg:		Physical base address and length of the registers
 - clocks:	a) core: The core clock the unit runs on
 		b) pixel: The pixel clock that feeds the pixelvalve
-- port:		Port node with a single endpoint connecting to the panel
+- port:		Port yesde with a single endpoint connecting to the panel
 		  device, as defined in [1]
 
 Required properties for VEC:

@@ -7,11 +7,11 @@ Required properties:
   - "ti,omap4-gpio" for OMAP4 controllers
 - reg : Physical base address of the controller and length of memory mapped
   region.
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device yesde as a GPIO controller.
 - #gpio-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify optional parameters (unused)
-- interrupt-controller: Mark the device node as an interrupt controller.
+- interrupt-controller: Mark the device yesde as an interrupt controller.
 - #interrupt-cells : Should be 2.
   The first cell is the GPIO number.
   The second cell is used to specify flags:

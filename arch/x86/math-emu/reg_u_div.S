@@ -3,7 +3,7 @@
 /*---------------------------------------------------------------------------+
  |  reg_u_div.S                                                              |
  |                                                                           |
- | Divide one FPU_REG by another and put the result in a destination FPU_REG.|
+ | Divide one FPU_REG by ayesther and put the result in a destination FPU_REG.|
  |                                                                           |
  | Copyright (C) 1992,1993,1995,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -17,7 +17,7 @@
  |    int FPU_u_div(FPU_REG *a, FPU_REG *b, FPU_REG *dest,                   |
  |                unsigned int control_word, char *sign)                     |
  |                                                                           |
- |  Does not compute the destination exponent, but does adjust it.           |
+ |  Does yest compute the destination exponent, but does adjust it.           |
  |                                                                           |
  |    Return value is the tag of the answer, or-ed with FPU_Exception if     |
  |    one was raised, or -1 on internal error.                               |
@@ -95,14 +95,14 @@ SYM_FUNC_START(FPU_u_div)
 	subl	%eax,%edx
 	addl	EXP_BIAS,%edx
 
-	/* A denormal and a large number can cause an exponent underflow */
+	/* A deyesrmal and a large number can cause an exponent underflow */
 	cmpl	EXP_WAY_UNDER,%edx
-	jg	xExp_not_underflow
+	jg	xExp_yest_underflow
 
 	/* Set to a really low value allow correct handling */
 	movl	EXP_WAY_UNDER,%edx
 
-xExp_not_underflow:
+xExp_yest_underflow:
 
 	movw    %dx,EXP(%edi)
 
@@ -124,12 +124,12 @@ xExp_not_underflow:
 
 	cmpl	%ecx,%edx
 	setaeb	FPU_ovfl_flag	/* Keep a record */
-	jb	L_no_adjust
+	jb	L_yes_adjust
 
 	subl	%ecx,%edx	/* Prevent the overflow */
 
-L_no_adjust:
-	/* Divide the 64 bit number by the 32 bit denominator */
+L_yes_adjust:
+	/* Divide the 64 bit number by the 32 bit deyesminator */
 	divl	%ecx
 	movl	%eax,FPU_result_2
 
@@ -142,8 +142,8 @@ L_no_adjust:
 	xorl	%eax,%eax
 	divl	%ecx
 
-	testb	$255,FPU_ovfl_flag	/* was the num > denom ? */
-	je	L_no_overflow
+	testb	$255,FPU_ovfl_flag	/* was the num > deyesm ? */
+	je	L_yes_overflow
 
 	/* Do the shifting here */
 	/* increase the exponent */
@@ -155,17 +155,17 @@ L_no_adjust:
 	rcrl	FPU_result_1
 	rcrl	%eax
 
-L_no_overflow:
+L_yes_overflow:
 	jmp	LRound_precision	/* Do the rounding as required */
 
 
 /*---------------------------------------------------------------------------+
  |  Divide:   Return  arg1/arg2 to arg3.                                     |
  |                                                                           |
- |  This routine does not use the exponents of arg1 and arg2, but does       |
+ |  This routine does yest use the exponents of arg1 and arg2, but does       |
  |  adjust the exponent of arg3.                                             |
  |                                                                           |
- |  The maximum returned value is (ignoring exponents)                       |
+ |  The maximum returned value is (igyesring exponents)                       |
  |               .ffffffff ffffffff                                          |
  |               ------------------  =  1.ffffffff fffffffe                  |
  |               .80000000 00000000                                          |
@@ -218,38 +218,38 @@ LLess_than_1:
 	/* We will divide by a number which is too large */
 	movl	SIGH(%ebx),%ecx
 	addl	$1,%ecx
-	jnc	LFirst_div_not_1
+	jnc	LFirst_div_yest_1
 
 	/* here we need to divide by 100000000h,
-	   i.e., no division at all.. */
+	   i.e., yes division at all.. */
 	mov	%edx,%eax
 	jmp	LFirst_div_done
 
-LFirst_div_not_1:
+LFirst_div_yest_1:
 	divl	%ecx		/* Divide the numerator by the augmented
-				   denom ms dw */
+				   deyesm ms dw */
 
 LFirst_div_done:
 	movl	%eax,FPU_result_2	/* Put the result in the answer */
 
-	mull	SIGH(%ebx)	/* mul by the ms dw of the denom */
+	mull	SIGH(%ebx)	/* mul by the ms dw of the deyesm */
 
 	subl	%eax,FPU_accum_2	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_3
 
 	movl	FPU_result_2,%eax	/* Get the result back */
-	mull	SIGL(%ebx)	/* now mul the ls dw of the denom */
+	mull	SIGL(%ebx)	/* yesw mul the ls dw of the deyesm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 	sbbl	$0,FPU_accum_3
-	je	LDo_2nd_32_bits		/* Must check for non-zero result here */
+	je	LDo_2nd_32_bits		/* Must check for yesn-zero result here */
 
 #ifdef PARANOID
 	jb	L_bugged_1
 #endif /* PARANOID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract ayesther once of the deyesm */
 	incl	FPU_result_2	/* Correct the answer */
 
 	movl	SIGL(%ebx),%eax
@@ -259,13 +259,13 @@ LFirst_div_done:
 
 #ifdef PARANOID
 	sbbl	$0,FPU_accum_3
-	jne	L_bugged_1	/* Must check for non-zero result here */
+	jne	L_bugged_1	/* Must check for yesn-zero result here */
 #endif /* PARANOID */ 
 
 /*----------------------------------------------------------------------*/
 /* Half of the main problem is done, there is just a reduced numerator
-   to handle now.
-   Work with the second 32 bits, FPU_accum_0 not used from now on */
+   to handle yesw.
+   Work with the second 32 bits, FPU_accum_0 yest used from yesw on */
 LDo_2nd_32_bits:
 	movl	FPU_accum_2,%edx	/* get the reduced num */
 	movl	FPU_accum_1,%eax
@@ -293,20 +293,20 @@ LPrevent_2nd_overflow:
 #endif /* PARANOID */ 
 
 LDo_2nd_div:
-	cmpl	$0,%ecx		/* augmented denom msw */
-	jnz	LSecond_div_not_1
+	cmpl	$0,%ecx		/* augmented deyesm msw */
+	jnz	LSecond_div_yest_1
 
 	/* %ecx == 0, we are dividing by 1.0 */
 	mov	%edx,%eax
 	jmp	LSecond_div_done
 
-LSecond_div_not_1:
-	divl	%ecx		/* Divide the numerator by the denom ms dw */
+LSecond_div_yest_1:
+	divl	%ecx		/* Divide the numerator by the deyesm ms dw */
 
 LSecond_div_done:
 	movl	%eax,FPU_result_1	/* Put the result in the answer */
 
-	mull	SIGH(%ebx)	/* mul by the ms dw of the denom */
+	mull	SIGH(%ebx)	/* mul by the ms dw of the deyesm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
@@ -316,7 +316,7 @@ LSecond_div_done:
 #endif /* PARANOID */ 
 
 	movl	FPU_result_1,%eax	/* Get the result back */
-	mull	SIGL(%ebx)	/* now mul the ls dw of the denom */
+	mull	SIGL(%ebx)	/* yesw mul the ls dw of the deyesm */
 
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1	/* Subtract from the num local reg */
@@ -333,7 +333,7 @@ LSecond_div_done:
 	jne	L_bugged_2
 #endif /* PARANOID */
 
-	/* need to subtract another once of the denom */
+	/* need to subtract ayesther once of the deyesm */
 	movl	SIGL(%ebx),%eax
 	movl	SIGH(%ebx),%edx
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
@@ -349,7 +349,7 @@ LSecond_div_done:
 	adcl	$0,FPU_result_2
 
 #ifdef PARANOID
-	jc	L_bugged_2	/* Must check for non-zero result here */
+	jc	L_bugged_2	/* Must check for yesn-zero result here */
 #endif /* PARANOID */
 
 /*----------------------------------------------------------------------*/
@@ -361,11 +361,11 @@ LDo_3rd_32_bits:
 	movl	FPU_accum_0,%eax
 
 	/* need to check for possible subsequent overflow */
-	cmpl	SIGH(%ebx),%edx	/* denom */
+	cmpl	SIGH(%ebx),%edx	/* deyesm */
 	jb	LRound_prep
 	ja	LPrevent_3rd_overflow
 
-	cmpl	SIGL(%ebx),%eax	/* denom */
+	cmpl	SIGL(%ebx),%eax	/* deyesm */
 	jb	LRound_prep
 
 LPrevent_3rd_overflow:
@@ -387,7 +387,7 @@ LRound_prep:
 /*
  * Prepare for rounding.
  * To test for rounding, we just need to compare 2*accum with the
- * denom.
+ * deyesm.
  */
 	movl	FPU_accum_0,%ecx
 	movl	FPU_accum_1,%edx
@@ -399,28 +399,28 @@ LRound_prep:
 	clc
 	rcll	$1,%ecx
 	rcll	$1,%edx
-	jc	LRound_large		/* No need to compare, denom smaller */
+	jc	LRound_large		/* No need to compare, deyesm smaller */
 
 	subl	SIGL(%ebx),%ecx
 	sbbl	SIGH(%ebx),%edx
-	jnc	LRound_not_small
+	jnc	LRound_yest_small
 
-	movl	$0x70000000,%eax	/* Denom was larger */
+	movl	$0x70000000,%eax	/* Deyesm was larger */
 	jmp	LRound_ovfl
 
-LRound_not_small:
+LRound_yest_small:
 	jnz	LRound_large
 
-	movl	$0x80000000,%eax	/* Remainder was exactly 1/2 denom */
+	movl	$0x80000000,%eax	/* Remainder was exactly 1/2 deyesm */
 	jmp	LRound_ovfl
 
 LRound_large:
-	movl	$0xff000000,%eax	/* Denom was smaller */
+	movl	$0xff000000,%eax	/* Deyesm was smaller */
 
 LRound_ovfl:
-/* We are now ready to deal with rounding, but first we must get
+/* We are yesw ready to deal with rounding, but first we must get
    the bits properly aligned */
-	testb	$255,FPU_ovfl_flag	/* was the num > denom ? */
+	testb	$255,FPU_ovfl_flag	/* was the num > deyesm ? */
 	je	LRound_precision
 
 	incw	EXP(%edi)

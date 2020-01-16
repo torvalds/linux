@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -52,7 +52,7 @@ struct iceland_mc_reg_entry {
 struct iceland_mc_reg_table {
 	uint8_t   last;               /* number of registers*/
 	uint8_t   num_entries;        /* number of entries in mc_reg_table_entry used*/
-	uint16_t  validflag;          /* indicate the corresponding register is valid or not. 1: valid, 0: invalid. bit0->address[0], bit1->address[1], etc.*/
+	uint16_t  validflag;          /* indicate the corresponding register is valid or yest. 1: valid, 0: invalid. bit0->address[0], bit1->address[1], etc.*/
 	struct iceland_mc_reg_entry    mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
 	SMU71_Discrete_MCRegisterAddress mc_reg_address[SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE];
 };

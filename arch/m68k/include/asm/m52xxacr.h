@@ -14,7 +14,7 @@
 
 /*
  * All varients of the ColdFire using version 2 cores have a similar
- * cache setup. Although not absolutely identical the cache register
+ * cache setup. Although yest absolutely identical the cache register
  * definitions are compatible for all of them. Mostly they support a
  * configurable cache memory that can be instruction only, data only,
  * or split instruction and data. The exception is the very old version 2
@@ -70,7 +70,7 @@
 #define CACHE_INVTYPEI	CACR_INVI
 #define CACHE_INVTYPED	CACR_INVD
 #else
-/* This is the instruction cache only devices (no split cache, no eusp) */
+/* This is the instruction cache only devices (yes split cache, yes eusp) */
 #define CACHE_TYPE	0
 #define CACHE_INVTYPEI	0
 #endif

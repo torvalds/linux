@@ -1,6 +1,6 @@
 Andestech ATCPIT100 timer
 ------------------------------------------------------------------
-ATCPIT100 is a generic IP block from Andes Technology, embedded in
+ATCPIT100 is a generic IP block from Andes Techyeslogy, embedded in
 Andestech AE3XX platforms and other designs.
 
 This timer is a set of compact multi-function timers, which can be

@@ -8,7 +8,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is yest publicly available.
 
 Author: Samuel Mendoza-Jonas <sam@mendozajonas.com>
 
@@ -22,7 +22,7 @@ IR35221 is a Digital DC-DC Multiphase Converter
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does yest probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an IR35221

@@ -19,7 +19,7 @@ struct vendor_info {
  */
 static const char * const txt_base_models[] = {
 	"MQ 2", "MQ Pro", "SP 25", "SP 50", "SP 100", "SP 5000", "SP 7000",
-	"SP 1000", "Unknown"
+	"SP 1000", "Unkyeswn"
 };
 #define N_BASE_MODELS (ARRAY_SIZE(txt_base_models) - 1)
 

@@ -30,7 +30,7 @@ struct imx_key_drv_data {
 	struct delayed_work check_work;
 	struct input_dev *input;
 	struct imx_sc_ipc *key_ipc_handle;
-	struct notifier_block key_notifier;
+	struct yestifier_block key_yestifier;
 };
 
 struct imx_sc_msg_key {
@@ -38,13 +38,13 @@ struct imx_sc_msg_key {
 	u32 state;
 };
 
-static int imx_sc_key_notify(struct notifier_block *nb,
+static int imx_sc_key_yestify(struct yestifier_block *nb,
 			     unsigned long event, void *group)
 {
 	struct imx_key_drv_data *priv =
 				 container_of(nb,
 					      struct imx_key_drv_data,
-					      key_notifier);
+					      key_yestifier);
 
 	if ((event & SC_IRQ_BUTTON) && (*(u8 *)group == SC_IRQ_GROUP_WAKE)) {
 		schedule_delayed_work(&priv->check_work,
@@ -149,12 +149,12 @@ static int imx_sc_key_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	priv->key_notifier.notifier_call = imx_sc_key_notify;
-	error = imx_scu_irq_register_notifier(&priv->key_notifier);
+	priv->key_yestifier.yestifier_call = imx_sc_key_yestify;
+	error = imx_scu_irq_register_yestifier(&priv->key_yestifier);
 	if (error) {
 		imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON,
 					 false);
-		dev_err(&pdev->dev, "failed to register scu notifier\n");
+		dev_err(&pdev->dev, "failed to register scu yestifier\n");
 		return error;
 	}
 
@@ -166,7 +166,7 @@ static int imx_sc_key_remove(struct platform_device *pdev)
 	struct imx_key_drv_data *priv = platform_get_drvdata(pdev);
 
 	imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON, false);
-	imx_scu_irq_unregister_notifier(&priv->key_notifier);
+	imx_scu_irq_unregister_yestifier(&priv->key_yestifier);
 	cancel_delayed_work_sync(&priv->check_work);
 
 	return 0;

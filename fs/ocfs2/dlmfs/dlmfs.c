@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmfs.c
  *
@@ -42,10 +42,10 @@
 
 static const struct super_operations dlmfs_ops;
 static const struct file_operations dlmfs_file_operations;
-static const struct inode_operations dlmfs_dir_inode_operations;
-static const struct inode_operations dlmfs_root_inode_operations;
-static const struct inode_operations dlmfs_file_inode_operations;
-static struct kmem_cache *dlmfs_inode_cache;
+static const struct iyesde_operations dlmfs_dir_iyesde_operations;
+static const struct iyesde_operations dlmfs_root_iyesde_operations;
+static const struct iyesde_operations dlmfs_file_iyesde_operations;
+static struct kmem_cache *dlmfs_iyesde_cache;
 
 struct workqueue_struct *user_dlm_worker;
 
@@ -54,18 +54,18 @@ struct workqueue_struct *user_dlm_worker;
 /*
  * These are the ABI capabilities of dlmfs.
  *
- * Over time, dlmfs has added some features that were not part of the
- * initial ABI.  Unfortunately, some of these features are not detectable
+ * Over time, dlmfs has added some features that were yest part of the
+ * initial ABI.  Unfortunately, some of these features are yest detectable
  * via standard usage.  For example, Linux's default poll always returns
- * EPOLLIN, so there is no way for a caller of poll(2) to know when dlmfs
+ * EPOLLIN, so there is yes way for a caller of poll(2) to kyesw when dlmfs
  * added poll support.  Instead, we provide this list of new capabilities.
  *
  * Capabilities is a read-only attribute.  We do it as a module parameter
- * so we can discover it whether dlmfs is built in, loaded, or even not
+ * so we can discover it whether dlmfs is built in, loaded, or even yest
  * loaded.
  *
  * The ABI features are local to this machine's dlmfs mount.  This is
- * distinct from the locking protocol, which is concerned with inter-node
+ * distinct from the locking protocol, which is concerned with inter-yesde
  * interaction.
  *
  * Capabilities:
@@ -115,24 +115,24 @@ static int dlmfs_decode_open_flags(int open_flags,
 	return 0;
 }
 
-static int dlmfs_file_open(struct inode *inode,
+static int dlmfs_file_open(struct iyesde *iyesde,
 			   struct file *file)
 {
 	int status, level, flags;
 	struct dlmfs_filp_private *fp = NULL;
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_iyesde_private *ip;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(iyesde->i_mode))
 		BUG();
 
-	mlog(0, "open called on inode %lu, flags 0x%x\n", inode->i_ino,
+	mlog(0, "open called on iyesde %lu, flags 0x%x\n", iyesde->i_iyes,
 		file->f_flags);
 
 	status = dlmfs_decode_open_flags(file->f_flags, &level, &flags);
 	if (status < 0)
 		goto bail;
 
-	/* We don't want to honor O_APPEND at read/write time as it
+	/* We don't want to hoyesr O_APPEND at read/write time as it
 	 * doesn't make sense for LVB writes. */
 	file->f_flags &= ~O_APPEND;
 
@@ -143,7 +143,7 @@ static int dlmfs_file_open(struct inode *inode,
 	}
 	fp->fp_lock_level = level;
 
-	ip = DLMFS_I(inode);
+	ip = DLMFS_I(iyesde);
 
 	status = user_dlm_cluster_lock(&ip->ip_lockres, level, flags);
 	if (status < 0) {
@@ -162,17 +162,17 @@ bail:
 	return status;
 }
 
-static int dlmfs_file_release(struct inode *inode,
+static int dlmfs_file_release(struct iyesde *iyesde,
 			      struct file *file)
 {
 	int level;
-	struct dlmfs_inode_private *ip = DLMFS_I(inode);
+	struct dlmfs_iyesde_private *ip = DLMFS_I(iyesde);
 	struct dlmfs_filp_private *fp = file->private_data;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(iyesde->i_mode))
 		BUG();
 
-	mlog(0, "close called on inode %lu\n", inode->i_ino);
+	mlog(0, "close called on iyesde %lu\n", iyesde->i_iyes);
 
 	if (fp) {
 		level = fp->fp_lock_level;
@@ -188,28 +188,28 @@ static int dlmfs_file_release(struct inode *inode,
 
 /*
  * We do ->setattr() just to override size changes.  Our size is the size
- * of the LVB and nothing else.
+ * of the LVB and yesthing else.
  */
 static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int error;
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, attr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 
 static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 {
 	__poll_t event = 0;
-	struct inode *inode = file_inode(file);
-	struct dlmfs_inode_private *ip = DLMFS_I(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct dlmfs_iyesde_private *ip = DLMFS_I(iyesde);
 
 	poll_wait(file, &ip->ip_lockres.l_event, wait);
 
@@ -229,12 +229,12 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	int bytes_left;
 	ssize_t readlen, got;
 	char *lvb_buf;
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 
-	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
-		inode->i_ino, count, *ppos);
+	mlog(0, "iyesde %lu, count = %zu, *ppos = %llu\n",
+		iyesde->i_iyes, count, *ppos);
 
-	if (*ppos >= i_size_read(inode))
+	if (*ppos >= i_size_read(iyesde))
 		return 0;
 
 	if (!count)
@@ -244,8 +244,8 @@ static ssize_t dlmfs_file_read(struct file *filp,
 		return -EFAULT;
 
 	/* don't read past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		readlen = i_size_read(inode) - *ppos;
+	if ((count + *ppos) > i_size_read(iyesde))
+		readlen = i_size_read(iyesde) - *ppos;
 	else
 		readlen = count;
 
@@ -253,7 +253,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!lvb_buf)
 		return -ENOMEM;
 
-	got = user_dlm_read_lvb(inode, lvb_buf, readlen);
+	got = user_dlm_read_lvb(iyesde, lvb_buf, readlen);
 	if (got) {
 		BUG_ON(got != readlen);
 		bytes_left = __copy_to_user(buf, lvb_buf, readlen);
@@ -277,12 +277,12 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	int bytes_left;
 	ssize_t writelen;
 	char *lvb_buf;
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 
-	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
-		inode->i_ino, count, *ppos);
+	mlog(0, "iyesde %lu, count = %zu, *ppos = %llu\n",
+		iyesde->i_iyes, count, *ppos);
 
-	if (*ppos >= i_size_read(inode))
+	if (*ppos >= i_size_read(iyesde))
 		return -ENOSPC;
 
 	if (!count)
@@ -292,8 +292,8 @@ static ssize_t dlmfs_file_write(struct file *filp,
 		return -EFAULT;
 
 	/* don't write past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		writelen = i_size_read(inode) - *ppos;
+	if ((count + *ppos) > i_size_read(iyesde))
+		writelen = i_size_read(iyesde) - *ppos;
 	else
 		writelen = count - *ppos;
 
@@ -304,7 +304,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	bytes_left = copy_from_user(lvb_buf, buf, writelen);
 	writelen -= bytes_left;
 	if (writelen)
-		user_dlm_write_lvb(inode, lvb_buf, writelen);
+		user_dlm_write_lvb(iyesde, lvb_buf, writelen);
 
 	kfree(lvb_buf);
 
@@ -315,53 +315,53 @@ static ssize_t dlmfs_file_write(struct file *filp,
 
 static void dlmfs_init_once(void *foo)
 {
-	struct dlmfs_inode_private *ip =
-		(struct dlmfs_inode_private *) foo;
+	struct dlmfs_iyesde_private *ip =
+		(struct dlmfs_iyesde_private *) foo;
 
 	ip->ip_conn = NULL;
 	ip->ip_parent = NULL;
 
-	inode_init_once(&ip->ip_vfs_inode);
+	iyesde_init_once(&ip->ip_vfs_iyesde);
 }
 
-static struct inode *dlmfs_alloc_inode(struct super_block *sb)
+static struct iyesde *dlmfs_alloc_iyesde(struct super_block *sb)
 {
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_iyesde_private *ip;
 
-	ip = kmem_cache_alloc(dlmfs_inode_cache, GFP_NOFS);
+	ip = kmem_cache_alloc(dlmfs_iyesde_cache, GFP_NOFS);
 	if (!ip)
 		return NULL;
 
-	return &ip->ip_vfs_inode;
+	return &ip->ip_vfs_iyesde;
 }
 
-static void dlmfs_free_inode(struct inode *inode)
+static void dlmfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
+	kmem_cache_free(dlmfs_iyesde_cache, DLMFS_I(iyesde));
 }
 
-static void dlmfs_evict_inode(struct inode *inode)
+static void dlmfs_evict_iyesde(struct iyesde *iyesde)
 {
 	int status;
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_iyesde_private *ip;
 
-	clear_inode(inode);
+	clear_iyesde(iyesde);
 
-	mlog(0, "inode %lu\n", inode->i_ino);
+	mlog(0, "iyesde %lu\n", iyesde->i_iyes);
 
-	ip = DLMFS_I(inode);
+	ip = DLMFS_I(iyesde);
 
-	if (S_ISREG(inode->i_mode)) {
+	if (S_ISREG(iyesde->i_mode)) {
 		status = user_dlm_destroy_lock(&ip->ip_lockres);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erryes(status);
 		iput(ip->ip_parent);
 		goto clear_fields;
 	}
 
 	mlog(0, "we're a directory, ip->ip_conn = 0x%p\n", ip->ip_conn);
 	/* we must be a directory. If required, lets unregister the
-	 * dlm context now. */
+	 * dlm context yesw. */
 	if (ip->ip_conn)
 		user_dlm_unregister(ip->ip_conn);
 clear_fields:
@@ -369,57 +369,57 @@ clear_fields:
 	ip->ip_conn = NULL;
 }
 
-static struct inode *dlmfs_get_root_inode(struct super_block *sb)
+static struct iyesde *dlmfs_get_root_iyesde(struct super_block *sb)
 {
-	struct inode *inode = new_inode(sb);
+	struct iyesde *iyesde = new_iyesde(sb);
 	umode_t mode = S_IFDIR | 0755;
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode_init_owner(inode, NULL, mode);
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-		inc_nlink(inode);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde_init_owner(iyesde, NULL, mode);
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+		inc_nlink(iyesde);
 
-		inode->i_fop = &simple_dir_operations;
-		inode->i_op = &dlmfs_root_inode_operations;
+		iyesde->i_fop = &simple_dir_operations;
+		iyesde->i_op = &dlmfs_root_iyesde_operations;
 	}
 
-	return inode;
+	return iyesde;
 }
 
-static struct inode *dlmfs_get_inode(struct inode *parent,
+static struct iyesde *dlmfs_get_iyesde(struct iyesde *parent,
 				     struct dentry *dentry,
 				     umode_t mode)
 {
 	struct super_block *sb = parent->i_sb;
-	struct inode * inode = new_inode(sb);
-	struct dlmfs_inode_private *ip;
+	struct iyesde * iyesde = new_iyesde(sb);
+	struct dlmfs_iyesde_private *ip;
 
-	if (!inode)
+	if (!iyesde)
 		return NULL;
 
-	inode->i_ino = get_next_ino();
-	inode_init_owner(inode, parent, mode);
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	iyesde->i_iyes = get_next_iyes();
+	iyesde_init_owner(iyesde, parent, mode);
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 
-	ip = DLMFS_I(inode);
+	ip = DLMFS_I(iyesde);
 	ip->ip_conn = DLMFS_I(parent)->ip_conn;
 
 	switch (mode & S_IFMT) {
 	default:
-		/* for now we don't support anything other than
+		/* for yesw we don't support anything other than
 		 * directories and regular files. */
 		BUG();
 		break;
 	case S_IFREG:
-		inode->i_op = &dlmfs_file_inode_operations;
-		inode->i_fop = &dlmfs_file_operations;
+		iyesde->i_op = &dlmfs_file_iyesde_operations;
+		iyesde->i_fop = &dlmfs_file_operations;
 
-		i_size_write(inode,  DLM_LVB_LEN);
+		i_size_write(iyesde,  DLM_LVB_LEN);
 
 		user_dlm_lock_res_init(&ip->ip_lockres, dentry);
 
-		/* released at clear_inode time, this insures that we
+		/* released at clear_iyesde time, this insures that we
 		 * get to drop the dlm reference on each lock *before*
 		 * we call the unregister code for releasing parent
 		 * directories. */
@@ -427,29 +427,29 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 		BUG_ON(!ip->ip_parent);
 		break;
 	case S_IFDIR:
-		inode->i_op = &dlmfs_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
+		iyesde->i_op = &dlmfs_dir_iyesde_operations;
+		iyesde->i_fop = &simple_dir_operations;
 
-		/* directory inodes start off with i_nlink ==
+		/* directory iyesdes start off with i_nlink ==
 		 * 2 (for "." entry) */
-		inc_nlink(inode);
+		inc_nlink(iyesde);
 		break;
 	}
-	return inode;
+	return iyesde;
 }
 
 /*
- * File creation. Allocate an inode, and we're done..
+ * File creation. Allocate an iyesde, and we're done..
  */
 /* SMP-safe */
-static int dlmfs_mkdir(struct inode * dir,
+static int dlmfs_mkdir(struct iyesde * dir,
 		       struct dentry * dentry,
 		       umode_t mode)
 {
 	int status;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	const struct qstr *domain = &dentry->d_name;
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_iyesde_private *ip;
 	struct ocfs2_cluster_connection *conn;
 
 	mlog(0, "mkdir %.*s\n", domain->len, domain->name);
@@ -461,42 +461,42 @@ static int dlmfs_mkdir(struct inode * dir,
 		goto bail;
 	}
 
-	inode = dlmfs_get_inode(dir, dentry, mode | S_IFDIR);
-	if (!inode) {
+	iyesde = dlmfs_get_iyesde(dir, dentry, mode | S_IFDIR);
+	if (!iyesde) {
 		status = -ENOMEM;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
-	ip = DLMFS_I(inode);
+	ip = DLMFS_I(iyesde);
 
 	conn = user_dlm_register(domain);
 	if (IS_ERR(conn)) {
 		status = PTR_ERR(conn);
-		mlog(ML_ERROR, "Error %d could not register domain \"%.*s\"\n",
+		mlog(ML_ERROR, "Error %d could yest register domain \"%.*s\"\n",
 		     status, domain->len, domain->name);
 		goto bail;
 	}
 	ip->ip_conn = conn;
 
 	inc_nlink(dir);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 
 	status = 0;
 bail:
 	if (status < 0)
-		iput(inode);
+		iput(iyesde);
 	return status;
 }
 
-static int dlmfs_create(struct inode *dir,
+static int dlmfs_create(struct iyesde *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool excl)
 {
 	int status = 0;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	const struct qstr *name = &dentry->d_name;
 
 	mlog(0, "create %.*s\n", name->len, name->name);
@@ -511,30 +511,30 @@ static int dlmfs_create(struct inode *dir,
 		goto bail;
 	}
 
-	inode = dlmfs_get_inode(dir, dentry, mode | S_IFREG);
-	if (!inode) {
+	iyesde = dlmfs_get_iyesde(dir, dentry, mode | S_IFREG);
+	if (!iyesde) {
 		status = -ENOMEM;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 bail:
 	return status;
 }
 
-static int dlmfs_unlink(struct inode *dir,
+static int dlmfs_unlink(struct iyesde *dir,
 			struct dentry *dentry)
 {
 	int status;
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 
-	mlog(0, "unlink inode %lu\n", inode->i_ino);
+	mlog(0, "unlink iyesde %lu\n", iyesde->i_iyes);
 
-	/* if there are no current holders, or none that are waiting
+	/* if there are yes current holders, or yesne that are waiting
 	 * to acquire a lock, this basically destroys our lockres. */
-	status = user_dlm_destroy_lock(&DLMFS_I(inode)->ip_lockres);
+	status = user_dlm_destroy_lock(&DLMFS_I(iyesde)->ip_lockres);
 	if (status < 0) {
 		mlog(ML_ERROR, "unlink %pd, error %d from destroy\n",
 		     dentry, status);
@@ -554,7 +554,7 @@ static int dlmfs_fill_super(struct super_block * sb,
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = DLMFS_MAGIC;
 	sb->s_op = &dlmfs_ops;
-	sb->s_root = d_make_root(dlmfs_get_root_inode(sb));
+	sb->s_root = d_make_root(dlmfs_get_root_iyesde(sb));
 	if (!sb->s_root)
 		return -ENOMEM;
 	return 0;
@@ -569,14 +569,14 @@ static const struct file_operations dlmfs_file_operations = {
 	.llseek		= default_llseek,
 };
 
-static const struct inode_operations dlmfs_dir_inode_operations = {
+static const struct iyesde_operations dlmfs_dir_iyesde_operations = {
 	.create		= dlmfs_create,
 	.lookup		= simple_lookup,
 	.unlink		= dlmfs_unlink,
 };
 
 /* this way we can restrict mkdir to only the toplevel of the fs. */
-static const struct inode_operations dlmfs_root_inode_operations = {
+static const struct iyesde_operations dlmfs_root_iyesde_operations = {
 	.lookup		= simple_lookup,
 	.mkdir		= dlmfs_mkdir,
 	.rmdir		= simple_rmdir,
@@ -584,13 +584,13 @@ static const struct inode_operations dlmfs_root_inode_operations = {
 
 static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
-	.alloc_inode	= dlmfs_alloc_inode,
-	.free_inode	= dlmfs_free_inode,
-	.evict_inode	= dlmfs_evict_inode,
-	.drop_inode	= generic_delete_inode,
+	.alloc_iyesde	= dlmfs_alloc_iyesde,
+	.free_iyesde	= dlmfs_free_iyesde,
+	.evict_iyesde	= dlmfs_evict_iyesde,
+	.drop_iyesde	= generic_delete_iyesde,
 };
 
-static const struct inode_operations dlmfs_file_inode_operations = {
+static const struct iyesde_operations dlmfs_file_iyesde_operations = {
 	.getattr	= simple_getattr,
 	.setattr	= dlmfs_file_setattr,
 };
@@ -598,7 +598,7 @@ static const struct inode_operations dlmfs_file_inode_operations = {
 static struct dentry *dlmfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_nodev(fs_type, flags, data, dlmfs_fill_super);
+	return mount_yesdev(fs_type, flags, data, dlmfs_fill_super);
 }
 
 static struct file_system_type dlmfs_fs_type = {
@@ -612,18 +612,18 @@ MODULE_ALIAS_FS("ocfs2_dlmfs");
 static int __init init_dlmfs_fs(void)
 {
 	int status;
-	int cleanup_inode = 0, cleanup_worker = 0;
+	int cleanup_iyesde = 0, cleanup_worker = 0;
 
-	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
-				sizeof(struct dlmfs_inode_private),
+	dlmfs_iyesde_cache = kmem_cache_create("dlmfs_iyesde_cache",
+				sizeof(struct dlmfs_iyesde_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 				dlmfs_init_once);
-	if (!dlmfs_inode_cache) {
+	if (!dlmfs_iyesde_cache) {
 		status = -ENOMEM;
 		goto bail;
 	}
-	cleanup_inode = 1;
+	cleanup_iyesde = 1;
 
 	user_dlm_worker = alloc_workqueue("user_dlm", WQ_MEM_RECLAIM, 0);
 	if (!user_dlm_worker) {
@@ -636,8 +636,8 @@ static int __init init_dlmfs_fs(void)
 	status = register_filesystem(&dlmfs_fs_type);
 bail:
 	if (status) {
-		if (cleanup_inode)
-			kmem_cache_destroy(dlmfs_inode_cache);
+		if (cleanup_iyesde)
+			kmem_cache_destroy(dlmfs_iyesde_cache);
 		if (cleanup_worker)
 			destroy_workqueue(user_dlm_worker);
 	} else
@@ -652,11 +652,11 @@ static void __exit exit_dlmfs_fs(void)
 	destroy_workqueue(user_dlm_worker);
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(dlmfs_inode_cache);
+	kmem_cache_destroy(dlmfs_iyesde_cache);
 
 }
 

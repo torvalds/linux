@@ -325,7 +325,7 @@ bool iavf_check_asq_alive(struct iavf_hw *hw)
  * @unloading: is the driver unloading itself
  *
  * Tell the Firmware that we're shutting down the AdminQ and whether
- * or not the driver is unloading as well.
+ * or yest the driver is unloading as well.
  **/
 enum iavf_status iavf_aq_queue_shutdown(struct iavf_hw *hw, bool unloading)
 {
@@ -512,9 +512,9 @@ enum iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
  *
  * Typical work flow:
  *
- * IF NOT iavf_ptype_lookup[ptype].known
+ * IF NOT iavf_ptype_lookup[ptype].kyeswn
  * THEN
- *      Packet is unknown
+ *      Packet is unkyeswn
  * ELSE IF iavf_ptype_lookup[ptype].outer_ip == IAVF_RX_PTYPE_OUTER_IP
  *      Use the rest of the fields to look at the tunnels, inner protocols, etc
  * ELSE
@@ -874,7 +874,7 @@ struct iavf_rx_ptype_decoded iavf_ptype_lookup[] = {
  * @cmd_details: pointer to command details
  *
  * Send message to PF driver using admin queue. By default, this message
- * is sent asynchronously, i.e. iavf_asq_send_command() does not wait for
+ * is sent asynchroyesusly, i.e. iavf_asq_send_command() does yest wait for
  * completion before returning.
  **/
 enum iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,
@@ -945,8 +945,8 @@ void iavf_vf_parse_hw_config(struct iavf_hw *hw,
  * iavf_vf_reset
  * @hw: pointer to the hardware structure
  *
- * Send a VF_RESET message to the PF. Does not wait for response from PF
- * as none will be forthcoming. Immediately after calling this function,
+ * Send a VF_RESET message to the PF. Does yest wait for response from PF
+ * as yesne will be forthcoming. Immediately after calling this function,
  * the admin queue should be shut down and (optionally) reinitialized.
  **/
 enum iavf_status iavf_vf_reset(struct iavf_hw *hw)

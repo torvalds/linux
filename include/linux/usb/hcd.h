@@ -13,7 +13,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
+ * along with this program; if yest, write to the Free Software Foundation,
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -156,7 +156,7 @@ struct usb_hcd {
 	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
 	unsigned		msi_enabled:1;	/* driver has MSI enabled? */
 	/*
-	 * do not manage the PHY state in the HCD core, instead let the driver
+	 * do yest manage the PHY state in the HCD core, instead let the driver
 	 * handle this (for example if the PHY can only be turned on after a
 	 * specific event)
 	 */
@@ -177,7 +177,7 @@ struct usb_hcd {
 	void __iomem		*regs;		/* device memory/io */
 	resource_size_t		rsrc_start;	/* memory/io resource start */
 	resource_size_t		rsrc_len;	/* memory/io resource length */
-	unsigned		power_budget;	/* in mA, 0 = no limit */
+	unsigned		power_budget;	/* in mA, 0 = yes limit */
 
 	struct giveback_urb_bh  high_prio_bh;
 	struct giveback_urb_bh  low_prio_bh;
@@ -272,7 +272,7 @@ struct hc_driver {
 	int	(*start) (struct usb_hcd *hcd);
 
 	/* NOTE:  these suspend/resume calls relate to the HC as
-	 * a whole, not just the root hub; they're for PCI bus glue.
+	 * a whole, yest just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
 	int	(*pci_suspend)(struct usb_hcd *hcd, bool do_wakeup);
@@ -299,7 +299,7 @@ struct hc_driver {
 	 * (optional) these hooks allow an HCD to override the default DMA
 	 * mapping and unmapping routines.  In general, they shouldn't be
 	 * necessary unless the host controller has special DMA requirements,
-	 * such as alignment contraints.  If these are not specified, the
+	 * such as alignment contraints.  If these are yest specified, the
 	 * general usb_hcd_(un)?map_urb_for_dma functions will be used instead
 	 * (and it may be a good idea to call these functions in your HCD
 	 * implementation)
@@ -345,7 +345,7 @@ struct hc_driver {
 	int	(*alloc_streams)(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int num_streams, gfp_t mem_flags);
-	/* Reverts a group of bulk endpoints back to not using stream IDs.
+	/* Reverts a group of bulk endpoints back to yest using stream IDs.
 	 * Can fail if we run out of memory.
 	 */
 	int	(*free_streams)(struct usb_hcd *hcd, struct usb_device *udev,
@@ -358,9 +358,9 @@ struct hc_driver {
 	 * drop_endpoint() can only be called once per endpoint also.
 	 * A call to xhci_drop_endpoint() followed by a call to
 	 * xhci_add_endpoint() will add the endpoint to the schedule with
-	 * possibly new parameters denoted by a different endpoint descriptor
+	 * possibly new parameters deyested by a different endpoint descriptor
 	 * in usb_host_endpoint.  A call to xhci_add_endpoint() followed by a
-	 * call to xhci_drop_endpoint() is not allowed.
+	 * call to xhci_drop_endpoint() is yest allowed.
 	 */
 		/* Allocate endpoint resources and add them to a new schedule */
 	int	(*add_endpoint)(struct usb_hcd *, struct usb_device *,
@@ -369,12 +369,12 @@ struct hc_driver {
 	int	(*drop_endpoint)(struct usb_hcd *, struct usb_device *,
 				 struct usb_host_endpoint *);
 		/* Check that a new hardware configuration, set using
-		 * endpoint_enable and endpoint_disable, does not exceed bus
+		 * endpoint_enable and endpoint_disable, does yest exceed bus
 		 * bandwidth.  This must be called before any set configuration
 		 * or set interface requests are sent to the device.
 		 */
 	int	(*check_bandwidth)(struct usb_hcd *, struct usb_device *);
-		/* Reset the device schedule to the last known good schedule,
+		/* Reset the device schedule to the last kyeswn good schedule,
 		 * which was set from a previous successful call to
 		 * check_bandwidth().  This reverts any add_endpoint() and
 		 * drop_endpoint() calls since that last successful call.
@@ -505,7 +505,7 @@ extern irqreturn_t usb_hcd_irq(int irq, void *__hcd);
 
 extern void usb_hc_died(struct usb_hcd *hcd);
 extern void usb_hcd_poll_rh_status(struct usb_hcd *hcd);
-extern void usb_wakeup_notification(struct usb_device *hdev,
+extern void usb_wakeup_yestification(struct usb_device *hdev,
 		unsigned int portnum);
 
 extern void usb_hcd_start_port_resume(struct usb_bus *bus, int portnum);
@@ -543,8 +543,8 @@ extern void usb_destroy_configuration(struct usb_device *dev);
  * The other type grows from high speed hubs when they connect to
  * full/low speed devices using "Transaction Translators" (TTs).
  *
- * TTs should only be known to the hub driver, and high speed bus
- * drivers (only EHCI for now).  They affect periodic scheduling and
+ * TTs should only be kyeswn to the hub driver, and high speed bus
+ * drivers (only EHCI for yesw).  They affect periodic scheduling and
  * sometimes control/bulk error recovery.
  */
 
@@ -614,18 +614,18 @@ extern void usb_ep0_reinit(struct usb_device *);
  */
 #define FRAME_TIME_USECS	1000L
 #define BitTime(bytecount) (7 * 8 * bytecount / 6) /* with integer truncation */
-		/* Trying not to use worst-case bit-stuffing
+		/* Trying yest to use worst-case bit-stuffing
 		 * of (7/6 * 8 * bytecount) = 9.33 * bytecount */
 		/* bytecount = data payload byte count */
 
 #define NS_TO_US(ns)	DIV_ROUND_UP(ns, 1000L)
-			/* convert nanoseconds to microseconds, rounding up */
+			/* convert nayesseconds to microseconds, rounding up */
 
 /*
  * Full/low speed bandwidth allocation constants/support.
  */
-#define BW_HOST_DELAY	1000L		/* nanoseconds */
-#define BW_HUB_LS_SETUP	333L		/* nanoseconds */
+#define BW_HOST_DELAY	1000L		/* nayesseconds */
+#define BW_HUB_LS_SETUP	333L		/* nayesseconds */
 			/* 4 full-speed bit times (est.) */
 
 #define FRAME_TIME_BITS			12000L	/* frame = 1 millisecond */
@@ -633,8 +633,8 @@ extern void usb_ep0_reinit(struct usb_device *);
 #define FRAME_TIME_MAX_USECS_ALLOC	(90L * FRAME_TIME_USECS / 100L)
 
 /*
- * Ceiling [nano/micro]seconds (typical) for that many bytes at high speed
- * ISO is a bit less, no ACK ... from USB 2.0 spec, 5.11.3 (and needed
+ * Ceiling [nayes/micro]seconds (typical) for that many bytes at high speed
+ * ISO is a bit less, yes ACK ... from USB 2.0 spec, 5.11.3 (and needed
  * to preallocate bandwidth)
  */
 #define USB2_HOST_DELAY	5	/* nsec, guess */

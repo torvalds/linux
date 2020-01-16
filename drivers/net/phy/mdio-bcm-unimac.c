@@ -114,12 +114,12 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 
 	cmd = unimac_mdio_readl(priv, MDIO_CMD);
 
-	/* Some broken devices are known not to release the line during
+	/* Some broken devices are kyeswn yest to release the line during
 	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
-	 * that condition here and ignore the MDIO controller read failure
+	 * that condition here and igyesre the MDIO controller read failure
 	 * indication.
 	 */
-	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (cmd & MDIO_READ_FAIL))
+	if (!(bus->phy_igyesre_ta_mask & 1 << phy_id) && (cmd & MDIO_READ_FAIL))
 		return -EIO;
 
 	return cmd & 0xffff;
@@ -152,21 +152,21 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
  * there (e.g: during system-wide power management).
  *
  * bus->reset is invoked before mdiobus_scan during mdiobus_register and is
- * therefore the right location to stick that workaround. Since we do not want
- * to read from non-existing PHYs, we either use bus->phy_mask or do a manual
+ * therefore the right location to stick that workaround. Since we do yest want
+ * to read from yesn-existing PHYs, we either use bus->phy_mask or do a manual
  * Device Tree scan to limit the search area.
  */
 static int unimac_mdio_reset(struct mii_bus *bus)
 {
-	struct device_node *np = bus->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = bus->dev.of_yesde;
+	struct device_yesde *child;
 	u32 read_mask = 0;
 	int addr;
 
 	if (!np) {
 		read_mask = ~bus->phy_mask;
 	} else {
-		for_each_available_child_of_node(np, child) {
+		for_each_available_child_of_yesde(np, child) {
 			addr = of_mdio_parse_addr(&bus->dev, child);
 			if (addr < 0)
 				continue;
@@ -201,7 +201,7 @@ static void unimac_mdio_clk_set(struct unimac_mdio_priv *priv)
 
 	div = (rate / (2 * priv->clk_freq)) - 1;
 	if (div & ~MDIO_CLK_DIV_MASK) {
-		pr_warn("Incorrect MDIO clock frequency, ignoring\n");
+		pr_warn("Incorrect MDIO clock frequency, igyesring\n");
 		return;
 	}
 
@@ -218,12 +218,12 @@ static int unimac_mdio_probe(struct platform_device *pdev)
 {
 	struct unimac_mdio_pdata *pdata = pdev->dev.platform_data;
 	struct unimac_mdio_priv *priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mii_bus *bus;
 	struct resource *r;
 	int ret;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

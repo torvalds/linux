@@ -80,21 +80,21 @@ void cn_del_callback(struct cb_id *id);
  * @msg: 	message header(with attached data).
  * @len:	Number of @msg to be sent.
  * @portid:	destination port.
- *		If non-zero the message will be sent to the given port,
+ *		If yesn-zero the message will be sent to the given port,
  *		which should be set to the original sender.
  * @group:	destination group.
  * 		If @portid and @group is zero, then appropriate group will
  *		be searched through all registered connector users, and
  *		message will be delivered to the group which was created
  *		for user with the same ID as in @msg.
- *		If @group is not zero, then message will be delivered
+ *		If @group is yest zero, then message will be delivered
  *		to the specified group.
  * @gfp_mask:	GFP mask.
  *
  * It can be safely called from softirq context, but may silently
  * fail under strong memory pressure.
  *
- * If there are no listeners for given group %-ESRCH can be returned.
+ * If there are yes listeners for given group %-ESRCH can be returned.
  */
 int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 group, gfp_t gfp_mask);
 
@@ -103,21 +103,21 @@ int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 group, gfp
  *
  * @msg:	message header(with attached data).
  * @portid:	destination port.
- *		If non-zero the message will be sent to the given port,
+ *		If yesn-zero the message will be sent to the given port,
  *		which should be set to the original sender.
  * @group:	destination group.
  * 		If @portid and @group is zero, then appropriate group will
  *		be searched through all registered connector users, and
  *		message will be delivered to the group which was created
  *		for user with the same ID as in @msg.
- *		If @group is not zero, then message will be delivered
+ *		If @group is yest zero, then message will be delivered
  *		to the specified group.
  * @gfp_mask:	GFP mask.
  *
  * It can be safely called from softirq context, but may silently
  * fail under strong memory pressure.
  *
- * If there are no listeners for given group %-ESRCH can be returned.
+ * If there are yes listeners for given group %-ESRCH can be returned.
  */
 int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 group, gfp_t gfp_mask);
 

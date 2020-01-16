@@ -346,7 +346,7 @@ config MACH_S3C64XX_DT
 	  enabled.
 	  Select this if a fdt blob is available for your S3C64XX SoC based
 	  board.
-	  Note: This is under development and not all peripherals can be
+	  Note: This is under development and yest all peripherals can be
 	  supported with this machine file.
 
 endif

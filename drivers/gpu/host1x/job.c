@@ -30,7 +30,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	u64 total;
 	void *mem;
 
-	/* Check that we're not going to overflow */
+	/* Check that we're yest going to overflow */
 	total = sizeof(struct host1x_job) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
@@ -277,7 +277,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 			last_page = reloc->cmdbuf.offset >> PAGE_SHIFT;
 
 			if (unlikely(!cmdbuf_page_addr)) {
-				pr_err("Could not map cmdbuf for relocation\n");
+				pr_err("Could yest map cmdbuf for relocation\n");
 				return -ENOMEM;
 			}
 		}
@@ -405,7 +405,7 @@ static int check_incr(struct host1x_firewall *fw)
 	return 0;
 }
 
-static int check_nonincr(struct host1x_firewall *fw)
+static int check_yesnincr(struct host1x_firewall *fw)
 {
 	u32 count = fw->count;
 	int ret;
@@ -469,7 +469,7 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 		case 2:
 			fw->reg = word >> 16 & 0xfff;
 			fw->count = word & 0xffff;
-			err = check_nonincr(fw);
+			err = check_yesnincr(fw);
 			if (err)
 				goto out;
 			break;
@@ -515,7 +515,7 @@ static inline int copy_gathers(struct device *host, struct host1x_job *job,
 	}
 
 	/*
-	 * Try a non-blocking allocation from a higher priority pools first,
+	 * Try a yesn-blocking allocation from a higher priority pools first,
 	 * as awaiting for the allocation here is a major performance hit.
 	 */
 	job->gather_copy_mapped = dma_alloc_wc(host, size, &job->gather_copy,

@@ -235,7 +235,7 @@ static void stmfts_report_key_event(struct stmfts_data *sdata, const u8 event[])
 
 	default:
 		dev_warn(&sdata->client->dev,
-			 "unknown key event: %#02x\n", event[2]);
+			 "unkyeswn key event: %#02x\n", event[2]);
 		break;
 	}
 
@@ -292,7 +292,7 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 
 		default:
 			dev_err(&sdata->client->dev,
-				"unknown event %#02x\n", event[0]);
+				"unkyeswn event %#02x\n", event[0]);
 		}
 	}
 }
@@ -531,7 +531,7 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 		return err;
 
 	/*
-	 * The datasheet does not specify the power on time, but considering
+	 * The datasheet does yest specify the power on time, but considering
 	 * that the reset time is < 10ms, I sleep 20ms to be sure
 	 */
 	msleep(20);
@@ -578,7 +578,7 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 		return err;
 
 	/*
-	 * At this point no one is using the touchscreen
+	 * At this point yes one is using the touchscreen
 	 * and I don't really care about the return value
 	 */
 	(void) i2c_smbus_write_byte(sdata->client, STMFTS_SLEEP_IN);
@@ -686,9 +686,9 @@ static int stmfts_probe(struct i2c_client *client,
 
 	/*
 	 * stmfts_power_on expects interrupt to be disabled, but
-	 * at this point the device is still off and I do not trust
+	 * at this point the device is still off and I do yest trust
 	 * the status of the irq line that can generate some spurious
-	 * interrupts. To be on the safe side it's better to not enable
+	 * interrupts. To be on the safe side it's better to yest enable
 	 * the interrupts during their request.
 	 */
 	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);

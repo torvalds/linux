@@ -142,9 +142,9 @@ struct mxc_nand_devtype_data {
 	void (*enable_hwecc)(struct nand_chip *chip, bool enable);
 
 	/*
-	 * On i.MX21 the CONFIG2:INT bit cannot be read if interrupts are masked
+	 * On i.MX21 the CONFIG2:INT bit canyest be read if interrupts are masked
 	 * (CONFIG1:INT_MSK is set). To handle this the driver uses
-	 * enable_irq/disable_irq_nosync instead of CONFIG1:INT_MSK
+	 * enable_irq/disable_irq_yessync instead of CONFIG1:INT_MSK
 	 */
 	int irqpending_quirk;
 	int needs_ip;
@@ -288,7 +288,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom, void *buf)
  * MXC NANDFC can only perform full page+spare or spare-only read/write.  When
  * the upper layers perform a read/write buf operation, the saved column address
  * is used to index into the full page. So usually this function is called with
- * column == 0 (unless no column cycle is needed indicated by column == -1)
+ * column == 0 (unless yes column cycle is needed indicated by column == -1)
  */
 static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 {
@@ -300,7 +300,7 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 		host->devtype_data->send_addr(host, column & 0xff,
 					      page_addr == -1);
 		if (mtd->writesize > 512)
-			/* another col addr cycle for 2k page */
+			/* ayesther col addr cycle for 2k page */
 			host->devtype_data->send_addr(host,
 						      (column >> 8) & 0xff,
 						      false);
@@ -403,7 +403,7 @@ static void irq_control(struct mxc_nand_host *host, int activate)
 		if (activate)
 			enable_irq(host->irq);
 		else
-			disable_irq_nosync(host->irq);
+			disable_irq_yessync(host->irq);
 	} else {
 		host->devtype_data->irq_control(host, activate);
 	}
@@ -716,7 +716,7 @@ static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	unsigned int bitflips_corrected = 0;
-	int no_subpages;
+	int yes_subpages;
 	int i;
 
 	host->devtype_data->enable_hwecc(chip, ecc);
@@ -727,9 +727,9 @@ static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 	if (mtd->writesize > 512)
 		host->devtype_data->send_cmd(host, NAND_CMD_READSTART, true);
 
-	no_subpages = mtd->writesize >> 9;
+	yes_subpages = mtd->writesize >> 9;
 
-	for (i = 0; i < no_subpages; i++) {
+	for (i = 0; i < yes_subpages; i++) {
 		uint16_t ecc_stats;
 
 		/* NANDFC buffer 0 is used for page read/write */
@@ -775,7 +775,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	unsigned int max_bitflips = 0;
 	u32 ecc_stat, err;
-	int no_subpages;
+	int yes_subpages;
 	u8 ecc_bit_mask, err_limit;
 
 	host->devtype_data->enable_hwecc(chip, ecc);
@@ -797,7 +797,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 	ecc_bit_mask = (host->eccsize == 4) ? 0x7 : 0xf;
 	err_limit = (host->eccsize == 4) ? 0x4 : 0x8;
 
-	no_subpages = mtd->writesize >> 9;
+	yes_subpages = mtd->writesize >> 9;
 
 	ecc_stat = host->devtype_data->get_ecc_status(host);
 
@@ -811,7 +811,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 		}
 
 		ecc_stat >>= 4;
-	} while (--no_subpages);
+	} while (--yes_subpages);
 
 	return max_bitflips;
 }
@@ -1208,7 +1208,7 @@ static int mxc_nand_v2_setup_data_interface(struct nand_chip *chip, int csline,
 
 	dev_dbg(host->dev, "Setting rate to %ldHz, %s mode\n", rate_round,
 		config1 & NFC_V2_CONFIG1_ONE_CYCLE ? "One cycle (EDO)" :
-		"normal");
+		"yesrmal");
 
 	return 0;
 }
@@ -1656,7 +1656,7 @@ MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
 
 static int mxcnd_probe_dt(struct mxc_nand_host *host)
 {
-	struct device_node *np = host->dev->of_node;
+	struct device_yesde *np = host->dev->of_yesde;
 	const struct of_device_id *of_id =
 		of_match_device(mxcnd_dt_ids, host->dev);
 
@@ -1702,7 +1702,7 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 		chip->bbt_md = &bbt_mirror_descr;
 	}
 
-	/* Allocate the right size buffer now */
+	/* Allocate the right size buffer yesw */
 	devm_kfree(dev, (void *)host->data_buf);
 	host->data_buf = devm_kzalloc(dev, mtd->writesize + mtd->oobsize,
 				      GFP_KERNEL);
@@ -1721,7 +1721,7 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 
 	/*
 	 * Experimentation shows that i.MX NFC can only handle up to 218 oob
-	 * bytes. Limit used_oobsize to 218 so as to not confuse copy_spare()
+	 * bytes. Limit used_oobsize to 218 so as to yest confuse copy_spare()
 	 * into copying invalid data to/from the spare IO buffer, as this
 	 * might cause ECC data corruption when doing sub-page write to a
 	 * partially written page.
@@ -1781,7 +1781,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->legacy.chip_delay = 5;
 
 	nand_set_controller_data(this, host);
-	nand_set_flash_node(this, pdev->dev.of_node),
+	nand_set_flash_yesde(this, pdev->dev.of_yesde),
 	this->legacy.dev_ready = mxc_nand_dev_ready;
 	this->legacy.cmdfunc = mxc_nand_command;
 	this->legacy.read_byte = mxc_nand_read_byte;
@@ -1865,7 +1865,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	/*
 	 * Use host->devtype_data->irq_control() here instead of irq_control()
-	 * because we must not disable_irq_nosync without having requested the
+	 * because we must yest disable_irq_yessync without having requested the
 	 * irq.
 	 */
 	host->devtype_data->irq_control(host, 0);
@@ -1886,7 +1886,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	 * on this machine.
 	 */
 	if (host->devtype_data->irqpending_quirk) {
-		disable_irq_nosync(host->irq);
+		disable_irq_yessync(host->irq);
 		host->devtype_data->irq_control(host, 1);
 	}
 

@@ -6,7 +6,7 @@
  * Copyright (c) 2019 Facebook
  */
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/err.h>
 #include "hashmap.h"
 
@@ -107,7 +107,7 @@ int test_hashmap_generic(void)
 			return 1;
 	}
 	if (CHECK(found_msk != (1ULL << ELEM_CNT) - 1,
-		  "not all keys iterated: %llx\n", found_msk))
+		  "yest all keys iterated: %llx\n", found_msk))
 		return 1;
 
 	for (i = 0; i < ELEM_CNT; i++) {
@@ -151,7 +151,7 @@ int test_hashmap_generic(void)
 			return 1;
 	}
 	if (CHECK(found_msk != (1ULL << ELEM_CNT) - 1,
-		  "not all keys iterated after update: %llx\n", found_msk))
+		  "yest all keys iterated after update: %llx\n", found_msk))
 		return 1;
 
 	found_cnt = 0;
@@ -223,7 +223,7 @@ int test_hashmap_generic(void)
 	}
 
 	if (CHECK(found_cnt != ELEM_CNT || found_msk != (1ULL << ELEM_CNT) - 1,
-		  "not all keys were deleted: found_cnt:%d, found_msk:%llx\n",
+		  "yest all keys were deleted: found_cnt:%d, found_msk:%llx\n",
 		  found_cnt, found_msk))
 		return 1;
 	if (CHECK(hashmap__size(map) != 0,
@@ -304,7 +304,7 @@ int test_hashmap_multimap(void)
 		found_msk |= (long)entry->value;
 	}
 	if (CHECK(found_msk != (1 << 6) - 1,
-		  "not all keys iterated: %lx\n", found_msk))
+		  "yest all keys iterated: %lx\n", found_msk))
 		return 1;
 
 	/* iterate values for key 1 */

@@ -8,7 +8,7 @@
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
  * Thanks goes to Ingo Molnar, for suggesting the idea.
- * Mathieu Desnoyers, for suggesting postponing the modifications.
+ * Mathieu Desyesyers, for suggesting postponing the modifications.
  * Arjan van de Ven, for keeping me straight, and explaining to me
  * the dangers of modifying code on the run.
  */
@@ -26,9 +26,9 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 static unsigned char ftrace_replaced_code[MCOUNT_INSN_SIZE];
 
-static unsigned char ftrace_nop[4];
+static unsigned char ftrace_yesp[4];
 /*
- * If we're trying to nop out a call to a function, we instead
+ * If we're trying to yesp out a call to a function, we instead
  * place a call to the address after the memory table.
  *
  * 8c011060 <a>:
@@ -37,18 +37,18 @@ static unsigned char ftrace_nop[4];
  * 8c011064:       02 c7           mova    8c011070 <a+0x10>,r0
  * 8c011066:       2b 41           jmp     @r1
  * 8c011068:       2a 40           lds     r0,pr
- * 8c01106a:       09 00           nop
+ * 8c01106a:       09 00           yesp
  * 8c01106c:       68 24           .word 0x2468     <--- ip
  * 8c01106e:       1d 8c           .word 0x8c1d
  * 8c011070:       26 4f           lds.l   @r15+,pr <--- ip + MCOUNT_INSN_SIZE
  *
  * We write 0x8c011070 to 0x8c01106c so that on entry to a() we branch
- * past the _mcount call and continue executing code like normal.
+ * past the _mcount call and continue executing code like yesrmal.
  */
-static unsigned char *ftrace_nop_replace(unsigned long ip)
+static unsigned char *ftrace_yesp_replace(unsigned long ip)
 {
-	__raw_writel(ip + MCOUNT_INSN_SIZE, ftrace_nop);
-	return ftrace_nop;
+	__raw_writel(ip + MCOUNT_INSN_SIZE, ftrace_yesp);
+	return ftrace_yesp;
 }
 
 static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
@@ -65,10 +65,10 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 
 /*
  * Modifying code must take extra care. On an SMP machine, if
- * the code being modified is also being executed on another CPU
+ * the code being modified is also being executed on ayesther CPU
  * that CPU will have undefined results and possibly take a GPF.
  * We use kstop_machine to stop other CPUS from exectuing code.
- * But this does not stop NMIs from happening. We still need
+ * But this does yest stop NMIs from happening. We still need
  * to protect against that. We separate out the modification of
  * the code to take care of this.
  *
@@ -86,7 +86,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * "ftrace_nmi_enter". This will check if the flag is set to write
  * and if it is, it will write what is in the IP and "code" buffers.
  *
- * The trick is, it does not matter if everyone is writing the same
+ * The trick is, it does yest matter if everyone is writing the same
  * content to the code location. Also, if a CPU is executing code
  * it is OK to write to that code location if the contents being written
  * are the same as what exists.
@@ -196,7 +196,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are parayesid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -230,14 +230,14 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(ip, old, new);
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned char *new, *old;
 	unsigned long ip = rec->ip;
 
 	old = ftrace_call_replace(ip, addr);
-	new = ftrace_nop_replace(ip);
+	new = ftrace_yesp_replace(ip);
 
 	return ftrace_modify_code(rec->ip, old, new);
 }
@@ -247,7 +247,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned char *new, *old;
 	unsigned long ip = rec->ip;
 
-	old = ftrace_nop_replace(ip);
+	old = ftrace_yesp_replace(ip);
 	new = ftrace_call_replace(ip, addr);
 
 	return ftrace_modify_code(rec->ip, old, new);
@@ -333,7 +333,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	/*
 	 * Protect against fault, even if it shouldn't
 	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
+	 * igyesre such a protection.
 	 */
 	__asm__ __volatile__(
 		"1:						\n\t"

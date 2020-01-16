@@ -2,7 +2,7 @@
 /*
  * IMG I2S input controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -439,7 +439,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 
 	i2s->base = base;
 
-	if (of_property_read_u32(pdev->dev.of_node, "img,i2s-channels",
+	if (of_property_read_u32(pdev->dev.of_yesde, "img,i2s-channels",
 			&i2s->max_i2s_chan)) {
 		dev_err(dev, "No img,i2s-channels property\n");
 		return -EINVAL;

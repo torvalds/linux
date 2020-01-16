@@ -58,7 +58,7 @@ struct matrox_device
  *
  * Using tristate pins, since i can't find any open-drain pin in whole motherboard.
  * Unfortunately we can't connect to Intel's 82801xx IO controller
- * since we don't know motherboard schema, which has pretty unused(may be not) GPIO.
+ * since we don't kyesw motherboard schema, which has pretty unused(may be yest) GPIO.
  *
  * I've heard that PIIX also has open drain pin.
  *
@@ -139,7 +139,7 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	dev->phys_addr = pci_resource_start(pdev, 1);
 
-	dev->virt_addr = ioremap_nocache(dev->phys_addr, 16384);
+	dev->virt_addr = ioremap_yescache(dev->phys_addr, 16384);
 	if (!dev->virt_addr) {
 		dev_err(&pdev->dev, "%s: failed to ioremap(0x%lx, %d).\n",
 			__func__, dev->phys_addr, 16384);

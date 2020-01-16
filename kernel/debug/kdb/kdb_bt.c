@@ -61,9 +61,9 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
  * Outputs:
  *	None.
  * Returns:
- *	zero for success, a kdb diagnostic if error
+ *	zero for success, a kdb diagyesstic if error
  * Locking:
- *	none.
+ *	yesne.
  * Remarks:
  *	Backtrack works best when the code uses frame pointers.  But even
  *	without frame pointers we should get a reasonable trace.
@@ -108,14 +108,14 @@ kdb_bt_cpu(unsigned long cpu)
 	struct task_struct *kdb_tsk;
 
 	if (cpu >= num_possible_cpus() || !cpu_online(cpu)) {
-		kdb_printf("WARNING: no process for cpu %ld\n", cpu);
+		kdb_printf("WARNING: yes process for cpu %ld\n", cpu);
 		return;
 	}
 
 	/* If a CPU failed to round up we could be here */
 	kdb_tsk = KDB_TSK(cpu);
 	if (!kdb_tsk) {
-		kdb_printf("WARNING: no task for cpu %ld\n", cpu);
+		kdb_printf("WARNING: yes task for cpu %ld\n", cpu);
 		return;
 	}
 
@@ -194,7 +194,7 @@ kdb_bt(int argc, const char **argv)
 			kdb_bt_cpu(cpu);
 		} else {
 			/*
-			 * Recursive use of kdb_parse, do not use argv after
+			 * Recursive use of kdb_parse, do yest use argv after
 			 * this point.
 			 */
 			argv = NULL;

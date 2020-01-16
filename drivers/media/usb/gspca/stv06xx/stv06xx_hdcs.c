@@ -53,7 +53,7 @@ enum hdcs_power_state {
 	HDCS_STATE_RUN
 };
 
-/* no lock? */
+/* yes lock? */
 struct hdcs {
 	enum hdcs_power_state state;
 	int w, h;

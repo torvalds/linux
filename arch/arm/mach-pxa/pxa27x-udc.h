@@ -3,7 +3,7 @@
 #define _ASM_ARCH_PXA27X_UDC_H
 
 #ifdef _ASM_ARCH_PXA25X_UDC_H
-#error You cannot include both PXA25x and PXA27x UDC support
+#error You canyest include both PXA25x and PXA27x UDC support
 #endif
 
 #define UDCCR           __REG(0x40600000) /* UDC Control Register */
@@ -238,7 +238,7 @@
 #define UDCCONR_ET_S	(13)
 #define UDCCONR_ET_INT	(0x03 << 13)	/*   Interrupt */
 #define UDCCONR_ET_BULK	(0x02 << 13)	/*   Bulk */
-#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochronous */
+#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochroyesus */
 #define UDCCONR_ET_NU	(0x00 << 13)	/*   Not used */
 #define UDCCONR_ED	(1 << 12)	/* Endpoint Direction */
 #define UDCCONR_MPS	(0x3ff << 2)	/* Maximum Packet Size */

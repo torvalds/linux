@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 
@@ -102,7 +102,7 @@ static struct platform_suspend_ops puv3_pm_ops = {
 static int __init puv3_pm_init(void)
 {
 	if (!puv3_cpu_pm_fns) {
-		printk(KERN_ERR "no valid puv3_cpu_pm_fns defined\n");
+		printk(KERN_ERR "yes valid puv3_cpu_pm_fns defined\n");
 		return -EINVAL;
 	}
 

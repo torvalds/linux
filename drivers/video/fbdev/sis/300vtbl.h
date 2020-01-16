@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,11 +28,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -282,10 +282,10 @@ static const struct SiS_VBMode SiS300_VBModeIDTable[] =
 static const struct SiS_CRT1Table SiS300_CRT1Table[] =
 {
  {{0x2d,0x27,0x28,0x90,0x2c,0x80,0xbf,0x1f,    /* 0x00 - 320x200 */
-  0x9c,0x8e,0x8f,0x96,0xb9,0x30,0x00,0x00,     /* HRE [4],[15] is invalid - but correcting it does not work */
+  0x9c,0x8e,0x8f,0x96,0xb9,0x30,0x00,0x00,     /* HRE [4],[15] is invalid - but correcting it does yest work */
   0x00}},
  {{0x2d,0x27,0x28,0x90,0x2c,0x80,0x0b,0x3e,    /* 0x01 */
-  0xe9,0x8b,0xdf,0xe7,0x04,0x00,0x00,0x00,     /* HRE [4],[15] is invalid - but correcting it does not work */
+  0xe9,0x8b,0xdf,0xe7,0x04,0x00,0x00,0x00,     /* HRE [4],[15] is invalid - but correcting it does yest work */
   0x00}},
  {{0x3d,0x31,0x31,0x81,0x37,0x1f,0x72,0xf0,    /* 0x02 */
   0x58,0x8c,0x57,0x57,0x73,0x20,0x00,0x05,
@@ -503,10 +503,10 @@ static const struct SiS_CRT1Table SiS300_CRT1Table[] =
  {{0xcd,0x8f,0x8f,0x91,0x9b,0x1b,0x7a,0xff,  /* 1152x864-60 */
    0x64,0x8c,0x5f,0x62,0x7b,0x10,0x00,0x07,
    0x41}}, /* 0x49 */
- {{0x5c,0x4f,0x4f,0x80,0x57,0x80,0xa3,0x1f, /* fake 640x400@60Hz (for LCD and TV, not actually used) */
+ {{0x5c,0x4f,0x4f,0x80,0x57,0x80,0xa3,0x1f, /* fake 640x400@60Hz (for LCD and TV, yest actually used) */
    0x98,0x8c,0x8f,0x96,0xa4,0x30,0x00,0x05,
    0x40}}, /* 0x4a */
- {{0x2c,0x27,0x27,0x90,0x2d,0x92,0xa4,0x1f, /* fake 320x200@60Hz (for LCD and TV, not actually used) */
+ {{0x2c,0x27,0x27,0x90,0x2d,0x92,0xa4,0x1f, /* fake 320x200@60Hz (for LCD and TV, yest actually used) */
    0x98,0x8c,0x8f,0x96,0xa5,0x30,0x00,0x04,
    0x00}}  /* 0x4b */
 };
@@ -610,9 +610,9 @@ static struct SiS_VCLKData SiS300_VCLKData[] =
 	{ 0x70,0x29, 81}, /* 0x46 */  /* unused */
 	{    0,   0,  0}, /* 0x47 custom (will be filled out) */
 	{ 0xce,0x25,189}, /* 0x48 */  /* Replacement for index 0x1b for 730 (and 540?) */
-	{ 0x15,0xe1, 20}, /* 0x49 */  /* 640x400@60 (fake, not actually used) */
+	{ 0x15,0xe1, 20}, /* 0x49 */  /* 640x400@60 (fake, yest actually used) */
 	{ 0x5f,0xc6, 33}, /* 0x4a */  /* 720x576@60 */
-	{ 0x37,0x5a, 10}, /* 0x4b */  /* 320x200@60 (fake, not actually used) */
+	{ 0x37,0x5a, 10}, /* 0x4b */  /* 320x200@60 (fake, yest actually used) */
 	{ 0x2b,0xc2, 35}  /* 0x4c */  /* 768@576@60 */
 };
 

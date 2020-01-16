@@ -4,8 +4,8 @@
  *
  * Platform Driver for Silicon Labs Si4713 FM Radio Transmitter:
  *
- * Copyright (c) 2008 Instituto Nokia de Tecnologia - INdT
- * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+ * Copyright (c) 2008 Instituto Nokia de Tecyeslogia - INdT
+ * Contact: Eduardo Valentin <eduardo.valentin@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -24,13 +24,13 @@
 #include "si4713.h"
 
 /* module parameters */
-static int radio_nr = -1;	/* radio device minor (-1 ==> auto assign) */
+static int radio_nr = -1;	/* radio device miyesr (-1 ==> auto assign) */
 module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr,
-		 "Minor number for radio device (-1 ==> auto assign)");
+		 "Miyesr number for radio device (-1 ==> auto assign)");
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
+MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@yeskia.com>");
 MODULE_DESCRIPTION("Platform driver for Si4713 FM Radio Transmitter");
 MODULE_VERSION("0.0.1");
 MODULE_ALIAS("platform:radio-si4713");
@@ -141,7 +141,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 	int rval = 0;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "Cannot proceed without platform data.\n");
+		dev_err(&pdev->dev, "Canyest proceed without platform data.\n");
 		rval = -EINVAL;
 		goto exit;
 	}
@@ -163,7 +163,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 	sd = i2c_get_clientdata(pdata->subdev);
 	rval = v4l2_device_register_subdev(&rsdev->v4l2_dev, sd);
 	if (rval) {
-		dev_err(&pdev->dev, "Cannot get v4l2 subdevice\n");
+		dev_err(&pdev->dev, "Canyest get v4l2 subdevice\n");
 		goto unregister_v4l2_dev;
 	}
 
@@ -175,7 +175,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 	rsdev->radio_dev.device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
 	video_set_drvdata(&rsdev->radio_dev, rsdev);
 	if (video_register_device(&rsdev->radio_dev, VFL_TYPE_RADIO, radio_nr)) {
-		dev_err(&pdev->dev, "Could not register video device.\n");
+		dev_err(&pdev->dev, "Could yest register video device.\n");
 		rval = -EIO;
 		goto unregister_v4l2_dev;
 	}

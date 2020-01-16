@@ -26,29 +26,29 @@ void pcpu_freelist_destroy(struct pcpu_freelist *s)
 }
 
 static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
-					 struct pcpu_freelist_node *node)
+					 struct pcpu_freelist_yesde *yesde)
 {
 	raw_spin_lock(&head->lock);
-	node->next = head->first;
-	head->first = node;
+	yesde->next = head->first;
+	head->first = yesde;
 	raw_spin_unlock(&head->lock);
 }
 
 void __pcpu_freelist_push(struct pcpu_freelist *s,
-			struct pcpu_freelist_node *node)
+			struct pcpu_freelist_yesde *yesde)
 {
 	struct pcpu_freelist_head *head = this_cpu_ptr(s->freelist);
 
-	___pcpu_freelist_push(head, node);
+	___pcpu_freelist_push(head, yesde);
 }
 
 void pcpu_freelist_push(struct pcpu_freelist *s,
-			struct pcpu_freelist_node *node)
+			struct pcpu_freelist_yesde *yesde)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__pcpu_freelist_push(s, node);
+	__pcpu_freelist_push(s, yesde);
 	local_irq_restore(flags);
 }
 
@@ -81,21 +81,21 @@ again:
 	local_irq_restore(flags);
 }
 
-struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)
+struct pcpu_freelist_yesde *__pcpu_freelist_pop(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
-	struct pcpu_freelist_node *node;
+	struct pcpu_freelist_yesde *yesde;
 	int orig_cpu, cpu;
 
 	orig_cpu = cpu = raw_smp_processor_id();
 	while (1) {
 		head = per_cpu_ptr(s->freelist, cpu);
 		raw_spin_lock(&head->lock);
-		node = head->first;
-		if (node) {
-			head->first = node->next;
+		yesde = head->first;
+		if (yesde) {
+			head->first = yesde->next;
 			raw_spin_unlock(&head->lock);
-			return node;
+			return yesde;
 		}
 		raw_spin_unlock(&head->lock);
 		cpu = cpumask_next(cpu, cpu_possible_mask);
@@ -106,9 +106,9 @@ struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)
 	}
 }
 
-struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
+struct pcpu_freelist_yesde *pcpu_freelist_pop(struct pcpu_freelist *s)
 {
-	struct pcpu_freelist_node *ret;
+	struct pcpu_freelist_yesde *ret;
 	unsigned long flags;
 
 	local_irq_save(flags);

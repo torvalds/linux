@@ -25,7 +25,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if yest, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -54,7 +54,7 @@
 #define XHI_SIZE_REG_OFFSET        0x800L
 /* offset into bram, read & write */
 #define XHI_BRAM_OFFSET_REG_OFFSET 0x804L
-/* Read not Configure, direction of transfer.  Write only */
+/* Read yest Configure, direction of transfer.  Write only */
 #define XHI_RNC_REG_OFFSET         0x808L
 /* Indicates transfer complete. Read only */
 #define XHI_STATUS_REG_OFFSET      0x80CL
@@ -147,7 +147,7 @@ static inline void buffer_icap_set_offset(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_set_rnc - Set the RNC (Readback not Configure) register.
+ * buffer_icap_set_rnc - Set the RNC (Readback yest Configure) register.
  * @base_address: contains the base address of the device.
  * @data: is the value to be written to the data register.
  *
@@ -251,7 +251,7 @@ static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
  *
  * Writing to the status register resets the ICAP logic in an internal
  * version of the core.  For the version of the core published in EDK,
- * this is a noop.
+ * this is a yesop.
  **/
 void buffer_icap_reset(struct hwicap_drvdata *drvdata)
 {

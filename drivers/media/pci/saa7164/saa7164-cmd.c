@@ -9,7 +9,7 @@
 
 #include "saa7164.h"
 
-static int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
+static int saa7164_cmd_alloc_seqyes(struct saa7164_dev *dev)
 {
 	int i, ret = -1;
 
@@ -19,7 +19,7 @@ static int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
 			dev->cmds[i].inuse = 1;
 			dev->cmds[i].signalled = 0;
 			dev->cmds[i].timeout = 0;
-			ret = dev->cmds[i].seqno;
+			ret = dev->cmds[i].seqyes;
 			break;
 		}
 	}
@@ -28,36 +28,36 @@ static int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
 	return ret;
 }
 
-static void saa7164_cmd_free_seqno(struct saa7164_dev *dev, u8 seqno)
+static void saa7164_cmd_free_seqyes(struct saa7164_dev *dev, u8 seqyes)
 {
 	mutex_lock(&dev->lock);
-	if ((dev->cmds[seqno].inuse == 1) &&
-		(dev->cmds[seqno].seqno == seqno)) {
-		dev->cmds[seqno].inuse = 0;
-		dev->cmds[seqno].signalled = 0;
-		dev->cmds[seqno].timeout = 0;
+	if ((dev->cmds[seqyes].inuse == 1) &&
+		(dev->cmds[seqyes].seqyes == seqyes)) {
+		dev->cmds[seqyes].inuse = 0;
+		dev->cmds[seqyes].signalled = 0;
+		dev->cmds[seqyes].timeout = 0;
 	}
 	mutex_unlock(&dev->lock);
 }
 
-static void saa7164_cmd_timeout_seqno(struct saa7164_dev *dev, u8 seqno)
+static void saa7164_cmd_timeout_seqyes(struct saa7164_dev *dev, u8 seqyes)
 {
 	mutex_lock(&dev->lock);
-	if ((dev->cmds[seqno].inuse == 1) &&
-		(dev->cmds[seqno].seqno == seqno)) {
-		dev->cmds[seqno].timeout = 1;
+	if ((dev->cmds[seqyes].inuse == 1) &&
+		(dev->cmds[seqyes].seqyes == seqyes)) {
+		dev->cmds[seqyes].timeout = 1;
 	}
 	mutex_unlock(&dev->lock);
 }
 
-static u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
+static u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqyes)
 {
 	int ret = 0;
 
 	mutex_lock(&dev->lock);
-	if ((dev->cmds[seqno].inuse == 1) &&
-		(dev->cmds[seqno].seqno == seqno)) {
-		ret = dev->cmds[seqno].timeout;
+	if ((dev->cmds[seqyes].inuse == 1) &&
+		(dev->cmds[seqyes].seqyes == seqyes)) {
+		ret = dev->cmds[seqyes].timeout;
 	}
 	mutex_unlock(&dev->lock);
 
@@ -83,14 +83,14 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 		if (ret != SAA_OK)
 			break;
 
-		q = &dev->cmds[tRsp.seqno].wait;
-		timeout = saa7164_cmd_timeout_get(dev, tRsp.seqno);
+		q = &dev->cmds[tRsp.seqyes].wait;
+		timeout = saa7164_cmd_timeout_get(dev, tRsp.seqyes);
 		dprintk(DBGLVL_CMD, "%s() timeout = %d\n", __func__, timeout);
 		if (!timeout) {
 			dprintk(DBGLVL_CMD,
-				"%s() signalled seqno(%d) (for dequeue)\n",
-				__func__, tRsp.seqno);
-			dev->cmds[tRsp.seqno].signalled = 1;
+				"%s() signalled seqyes(%d) (for dequeue)\n",
+				__func__, tRsp.seqyes);
+			dev->cmds[tRsp.seqyes].signalled = 1;
 			wake_up(q);
 		} else {
 			printk(KERN_ERR
@@ -136,8 +136,8 @@ static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 		if (ret != SAA_OK)
 			return ret;
 
-		q = &dev->cmds[tRsp.seqno].wait;
-		timeout = saa7164_cmd_timeout_get(dev, tRsp.seqno);
+		q = &dev->cmds[tRsp.seqyes].wait;
+		timeout = saa7164_cmd_timeout_get(dev, tRsp.seqyes);
 		dprintk(DBGLVL_CMD, "%s() timeout = %d\n", __func__, timeout);
 		if (timeout) {
 			printk(KERN_ERR "found timed out command on the bus\n");
@@ -155,15 +155,15 @@ static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 			if (tRsp.flags & PVC_CMDFLAG_CONTINUE)
 				printk(KERN_ERR "split response\n");
 			else
-				saa7164_cmd_free_seqno(dev, tRsp.seqno);
+				saa7164_cmd_free_seqyes(dev, tRsp.seqyes);
 
 			printk(KERN_ERR " timeout continue\n");
 			continue;
 		}
 
-		dprintk(DBGLVL_CMD, "%s() signalled seqno(%d) (for dequeue)\n",
-			__func__, tRsp.seqno);
-		dev->cmds[tRsp.seqno].signalled = 1;
+		dprintk(DBGLVL_CMD, "%s() signalled seqyes(%d) (for dequeue)\n",
+			__func__, tRsp.seqyes);
+		dev->cmds[tRsp.seqyes].signalled = 1;
 		wake_up(q);
 		return SAA_OK;
 	}
@@ -215,7 +215,7 @@ static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
 		cmd_sent = 1;
 	}
 
-	/* If not the last command... */
+	/* If yest the last command... */
 	if (idx != 0)
 		msg->flags &= ~SAA_CMDFLAG_CONTINUE;
 
@@ -242,7 +242,7 @@ out:
 /* Wait for a signal event, without holding a mutex. Either return TIMEOUT if
  * the event never occurred, or SAA_OK if it was signaled during the wait.
  */
-static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
+static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqyes)
 {
 	wait_queue_head_t *q = NULL;
 	int ret = SAA_BUS_TIMEOUT;
@@ -252,22 +252,22 @@ static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 	if (saa_debug >= 4)
 		saa7164_bus_dump(dev);
 
-	dprintk(DBGLVL_CMD, "%s(seqno=%d)\n", __func__, seqno);
+	dprintk(DBGLVL_CMD, "%s(seqyes=%d)\n", __func__, seqyes);
 
 	mutex_lock(&dev->lock);
-	if ((dev->cmds[seqno].inuse == 1) &&
-		(dev->cmds[seqno].seqno == seqno)) {
-		q = &dev->cmds[seqno].wait;
+	if ((dev->cmds[seqyes].inuse == 1) &&
+		(dev->cmds[seqyes].seqyes == seqyes)) {
+		q = &dev->cmds[seqyes].wait;
 	}
 	mutex_unlock(&dev->lock);
 
 	if (q) {
 		/* If we haven't been signalled we need to wait */
-		if (dev->cmds[seqno].signalled == 0) {
+		if (dev->cmds[seqyes].signalled == 0) {
 			stamp = jiffies;
 			dprintk(DBGLVL_CMD,
-				"%s(seqno=%d) Waiting (signalled=%d)\n",
-				__func__, seqno, dev->cmds[seqno].signalled);
+				"%s(seqyes=%d) Waiting (signalled=%d)\n",
+				__func__, seqyes, dev->cmds[seqyes].signalled);
 
 			/* Wait for signalled to be flagged or timeout */
 			/* In a highly stressed system this can easily extend
@@ -276,27 +276,27 @@ static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 			 * We typically are signalled in < 50ms but it can
 			 * take MUCH longer.
 			 */
-			wait_event_timeout(*q, dev->cmds[seqno].signalled,
+			wait_event_timeout(*q, dev->cmds[seqyes].signalled,
 				(HZ * waitsecs));
 			r = time_before(jiffies, stamp + (HZ * waitsecs));
 			if (r)
 				ret = SAA_OK;
 			else
-				saa7164_cmd_timeout_seqno(dev, seqno);
+				saa7164_cmd_timeout_seqyes(dev, seqyes);
 
-			dprintk(DBGLVL_CMD, "%s(seqno=%d) Waiting res = %d (signalled=%d)\n",
-				__func__, seqno, r,
-				dev->cmds[seqno].signalled);
+			dprintk(DBGLVL_CMD, "%s(seqyes=%d) Waiting res = %d (signalled=%d)\n",
+				__func__, seqyes, r,
+				dev->cmds[seqyes].signalled);
 		} else
 			ret = SAA_OK;
 	} else
-		printk(KERN_ERR "%s(seqno=%d) seqno is invalid\n",
-			__func__, seqno);
+		printk(KERN_ERR "%s(seqyes=%d) seqyes is invalid\n",
+			__func__, seqyes);
 
 	return ret;
 }
 
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
+void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqyes)
 {
 	int i;
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
@@ -305,8 +305,8 @@ void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
 	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
 		if (dev->cmds[i].inuse == 1) {
 			dprintk(DBGLVL_CMD,
-				"seqno %d inuse, sig = %d, t/out = %d\n",
-				dev->cmds[i].seqno,
+				"seqyes %d inuse, sig = %d, t/out = %d\n",
+				dev->cmds[i].seqyes,
 				dev->cmds[i].signalled,
 				dev->cmds[i].timeout);
 		}
@@ -315,7 +315,7 @@ void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
 	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
 		if ((dev->cmds[i].inuse == 1) && ((i == 0) ||
 			(dev->cmds[i].signalled) || (dev->cmds[i].timeout))) {
-			dprintk(DBGLVL_CMD, "%s(seqno=%d) calling wake_up\n",
+			dprintk(DBGLVL_CMD, "%s(seqyes=%d) calling wake_up\n",
 				__func__, i);
 			dev->cmds[i].signalled = 1;
 			wake_up(&dev->cmds[i].wait);
@@ -356,21 +356,21 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	command_t.size = size;
 
 	/* Allocate a unique sequence number */
-	ret = saa7164_cmd_alloc_seqno(dev);
+	ret = saa7164_cmd_alloc_seqyes(dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s() No free sequences\n", __func__);
 		ret = SAA_ERR_NO_RESOURCES;
 		goto out;
 	}
 
-	command_t.seqno = (u8)ret;
+	command_t.seqyes = (u8)ret;
 
 	/* Send Command */
 	resp_dsize = size;
 	pcommand_t->size = size;
 
-	dprintk(DBGLVL_CMD, "%s() pcommand_t.seqno = %d\n",
-		__func__, pcommand_t->seqno);
+	dprintk(DBGLVL_CMD, "%s() pcommand_t.seqyes = %d\n",
+		__func__, pcommand_t->seqyes);
 
 	dprintk(DBGLVL_CMD, "%s() pcommand_t.size = %d\n",
 		__func__, pcommand_t->size);
@@ -380,11 +380,11 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 		printk(KERN_ERR "%s() set command failed %d\n", __func__, ret);
 
 		if (ret != SAA_ERR_BUSY)
-			saa7164_cmd_free_seqno(dev, pcommand_t->seqno);
+			saa7164_cmd_free_seqyes(dev, pcommand_t->seqyes);
 		else
 			/* Flag a timeout, because at least one
 			 * command was sent */
-			saa7164_cmd_timeout_seqno(dev, pcommand_t->seqno);
+			saa7164_cmd_timeout_seqyes(dev, pcommand_t->seqyes);
 
 		goto out;
 	}
@@ -395,14 +395,14 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	while (loop) {
 		dprintk(DBGLVL_CMD, "%s() loop\n", __func__);
 
-		ret = saa7164_cmd_wait(dev, pcommand_t->seqno);
+		ret = saa7164_cmd_wait(dev, pcommand_t->seqyes);
 		dprintk(DBGLVL_CMD, "%s() loop ret = %d\n", __func__, ret);
 
-		/* if power is down and this is not a power command ... */
+		/* if power is down and this is yest a power command ... */
 
 		if (ret == SAA_BUS_TIMEOUT) {
 			printk(KERN_ERR "Event timed out\n");
-			saa7164_cmd_timeout_seqno(dev, pcommand_t->seqno);
+			saa7164_cmd_timeout_seqyes(dev, pcommand_t->seqyes);
 			return ret;
 		}
 
@@ -422,8 +422,8 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 			return ret;
 		}
 
-		dprintk(DBGLVL_CMD, "%s() presponse_t->seqno = %d\n",
-			__func__, presponse_t->seqno);
+		dprintk(DBGLVL_CMD, "%s() presponse_t->seqyes = %d\n",
+			__func__, presponse_t->seqyes);
 
 		dprintk(DBGLVL_CMD, "%s() presponse_t->flags = 0x%x\n",
 			__func__, presponse_t->flags);
@@ -432,11 +432,11 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 			__func__, presponse_t->size);
 
 		/* Check if the response was for our command */
-		if (presponse_t->seqno != pcommand_t->seqno) {
+		if (presponse_t->seqyes != pcommand_t->seqyes) {
 
 			dprintk(DBGLVL_CMD,
-				"wrong event: seqno = %d, expected seqno = %d, will dequeue regardless\n",
-				presponse_t->seqno, pcommand_t->seqno);
+				"wrong event: seqyes = %d, expected seqyes = %d, will dequeue regardless\n",
+				presponse_t->seqyes, pcommand_t->seqyes);
 
 			ret = saa7164_cmd_dequeue(dev);
 			if (ret != SAA_OK) {
@@ -462,7 +462,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 				return ret;
 			}
 
-			saa7164_cmd_free_seqno(dev, pcommand_t->seqno);
+			saa7164_cmd_free_seqyes(dev, pcommand_t->seqyes);
 
 			dprintk(DBGLVL_CMD, "%s() errdata %02x%02x%02x%02x\n",
 				__func__, errdata[0], errdata[1], errdata[2],
@@ -533,7 +533,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 			continue;
 		}
 
-		/* OK, now we're actually getting out correct response */
+		/* OK, yesw we're actually getting out correct response */
 		ret = saa7164_bus_get(dev, presponse_t, buf + data_recd, 0);
 		if (ret != SAA_OK) {
 			printk(KERN_ERR "get failed\n");
@@ -555,7 +555,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	} /* (loop) */
 
 	/* Release the sequence number allocation */
-	saa7164_cmd_free_seqno(dev, pcommand_t->seqno);
+	saa7164_cmd_free_seqyes(dev, pcommand_t->seqyes);
 
 	/* if powerdown signal all pending commands */
 

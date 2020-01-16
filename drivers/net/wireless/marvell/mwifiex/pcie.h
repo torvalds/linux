@@ -420,7 +420,7 @@ mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 }
 
 static inline int
-mwifiex_pcie_txbd_not_full(struct pcie_service_card *card)
+mwifiex_pcie_txbd_yest_full(struct pcie_service_card *card)
 {
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 

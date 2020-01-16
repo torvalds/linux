@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -92,7 +92,7 @@
 /*
  * Vendor id and device id defines
  *
- * NOTE: Do not add new defines, add entries directly to the id_table instead.
+ * NOTE: Do yest add new defines, add entries directly to the id_table instead.
  */
 #define USB_VENDOR_ID_BANDB              0x0856
 #define BANDB_DEVICE_ID_USO9ML2_2        0xAC22
@@ -364,7 +364,7 @@ static void mos7840_set_led_callback(struct urb *urb)
 			__func__, urb->status);
 		break;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero urb status: %d\n",
 			__func__, urb->status);
 	}
 }
@@ -440,7 +440,7 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
+		dev_dbg(&urb->dev->dev, "yesnzero read bulk status received: %d\n", status);
 		mos7840_port->read_urb_busy = false;
 		return;
 	}
@@ -492,7 +492,7 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 
 	if (status) {
-		dev_dbg(&port->dev, "nonzero write bulk status received:%d\n", status);
+		dev_dbg(&port->dev, "yesnzero write bulk status received:%d\n", status);
 		return;
 	}
 
@@ -674,7 +674,7 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 									Data);
 
 	dev_dbg(&port->dev, "port number is %d\n", port->port_number);
-	dev_dbg(&port->dev, "minor number is %d\n", port->minor);
+	dev_dbg(&port->dev, "miyesr number is %d\n", port->miyesr);
 	dev_dbg(&port->dev, "Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
 	dev_dbg(&port->dev, "BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
 	dev_dbg(&port->dev, "Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
@@ -727,7 +727,7 @@ err:
 
 /*****************************************************************************
  * mos7840_chars_in_buffer
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kyesw how many
  *	bytes of data we currently have outstanding in the port (data that has
  *	been written, but hasn't made it out the port yet)
  *	If successful, we return the number of bytes left to be written in the
@@ -803,7 +803,7 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	else
 		data = mos7840_port->shadowLCR & ~LCR_SET_BREAK;
 
-	/* FIXME: no locking on shadowLCR anywhere in driver */
+	/* FIXME: yes locking on shadowLCR anywhere in driver */
 	mos7840_port->shadowLCR = data;
 	dev_dbg(&port->dev, "%s mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
 	mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER,
@@ -812,7 +812,7 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 
 /*****************************************************************************
  * mos7840_write_room
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kyesw how many
  *	bytes of data we can accept for a specific port.
  *	If successful, we return the amount of room that we have for this port
  *	Otherwise we return a negative error number.
@@ -876,7 +876,7 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 
 	if (urb == NULL) {
-		dev_dbg(&port->dev, "%s - no more free urbs\n", __func__);
+		dev_dbg(&port->dev, "%s - yes more free urbs\n", __func__);
 		goto exit;
 	}
 
@@ -1241,7 +1241,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 		}
 
 	} else {
-		dev_dbg(&port->dev, "%s - parity = none\n", __func__);
+		dev_dbg(&port->dev, "%s - parity = yesne\n", __func__);
 	}
 
 	if (cflag & CMSPAR)
@@ -1361,7 +1361,7 @@ static void mos7840_set_termios(struct tty_struct *tty,
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, yest be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space.
  *****************************************************************************/
@@ -1393,7 +1393,7 @@ static int mos7840_get_serial_info(struct tty_struct *tty,
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 
 	ss->type = PORT_16550A;
-	ss->line = mos7840_port->port->minor;
+	ss->line = mos7840_port->port->miyesr;
 	ss->port = mos7840_port->port->port_number;
 	ss->irq = 0;
 	ss->xmit_fifo_size = NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
@@ -1581,11 +1581,11 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	mos7840_port->port = port;
 	spin_lock_init(&mos7840_port->pool_lock);
 
-	/* minor is not initialised until later by
-	 * usb-serial.c:get_free_serial() and cannot therefore be used
+	/* miyesr is yest initialised until later by
+	 * usb-serial.c:get_free_serial() and canyest therefore be used
 	 * to index device instances */
 	mos7840_port->port_num = pnum + 1;
-	dev_dbg(&port->dev, "port->minor = %d\n", port->minor);
+	dev_dbg(&port->dev, "port->miyesr = %d\n", port->miyesr);
 	dev_dbg(&port->dev, "mos7840_port->port_num = %d\n", mos7840_port->port_num);
 
 	if (mos7840_port->port_num == 1) {

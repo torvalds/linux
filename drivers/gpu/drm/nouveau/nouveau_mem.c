@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,9 +19,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_mem.h"
-#include "nouveau_drv.h"
-#include "nouveau_bo.h"
+#include "yesuveau_mem.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_bo.h"
 
 #include <drm/ttm/ttm_bo_driver.h>
 
@@ -33,7 +33,7 @@
 #include <nvif/if900d.h>
 
 int
-nouveau_mem_map(struct nouveau_mem *mem,
+yesuveau_mem_map(struct yesuveau_mem *mem,
 		struct nvif_vmm *vmm, struct nvif_vma *vma)
 {
 	union {
@@ -82,7 +82,7 @@ nouveau_mem_map(struct nouveau_mem *mem,
 }
 
 void
-nouveau_mem_fini(struct nouveau_mem *mem)
+yesuveau_mem_fini(struct yesuveau_mem *mem)
 {
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
@@ -92,18 +92,18 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 }
 
 int
-nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
+yesuveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct yesuveau_mem *mem = yesuveau_mem(reg);
+	struct yesuveau_cli *cli = mem->cli;
+	struct yesuveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	struct nvif_mem_ram_v0 args = {};
 	bool super = cli->base.super;
 	u8 type;
 	int ret;
 
-	if (!nouveau_drm_use_coherent_gpu_mapping(drm))
+	if (!yesuveau_drm_use_coherent_gpu_mapping(drm))
 		type = drm->ttm.type_ncoh[!!mem->kind];
 	else
 		type = drm->ttm.type_host[0];
@@ -130,11 +130,11 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 }
 
 int
-nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
+yesuveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct yesuveau_mem *mem = yesuveau_mem(reg);
+	struct yesuveau_cli *cli = mem->cli;
+	struct yesuveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	bool super = cli->base.super;
 	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
@@ -173,19 +173,19 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 }
 
 void
-nouveau_mem_del(struct ttm_mem_reg *reg)
+yesuveau_mem_del(struct ttm_mem_reg *reg)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	nouveau_mem_fini(mem);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
+	struct yesuveau_mem *mem = yesuveau_mem(reg);
+	yesuveau_mem_fini(mem);
+	kfree(reg->mm_yesde);
+	reg->mm_yesde = NULL;
 }
 
 int
-nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
+yesuveau_mem_new(struct yesuveau_cli *cli, u8 kind, u8 comp,
 		struct ttm_mem_reg *reg)
 {
-	struct nouveau_mem *mem;
+	struct yesuveau_mem *mem;
 
 	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
 		return -ENOMEM;
@@ -193,6 +193,6 @@ nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 	mem->kind = kind;
 	mem->comp = comp;
 
-	reg->mm_node = mem;
+	reg->mm_yesde = mem;
 	return 0;
 }

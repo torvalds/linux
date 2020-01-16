@@ -24,21 +24,21 @@
  * struct qrtr_hdr_v1 - (I|R)PCrouter packet header version 1
  * @version: protocol version
  * @type: packet type; one of QRTR_TYPE_*
- * @src_node_id: source node
+ * @src_yesde_id: source yesde
  * @src_port_id: source port
  * @confirm_rx: boolean; whether a resume-tx packet should be send in reply
  * @size: length of packet, excluding this header
- * @dst_node_id: destination node
+ * @dst_yesde_id: destination yesde
  * @dst_port_id: destination port
  */
 struct qrtr_hdr_v1 {
 	__le32 version;
 	__le32 type;
-	__le32 src_node_id;
+	__le32 src_yesde_id;
 	__le32 src_port_id;
 	__le32 confirm_rx;
 	__le32 size;
-	__le32 dst_node_id;
+	__le32 dst_yesde_id;
 	__le32 dst_port_id;
 } __packed;
 
@@ -49,9 +49,9 @@ struct qrtr_hdr_v1 {
  * @flags: bitmask of QRTR_FLAGS_*
  * @optlen: length of optional header data
  * @size: length of packet, excluding this header and optlen
- * @src_node_id: source node
+ * @src_yesde_id: source yesde
  * @src_port_id: source port
- * @dst_node_id: destination node
+ * @dst_yesde_id: destination yesde
  * @dst_port_id: destination port
  */
 struct qrtr_hdr_v2 {
@@ -60,18 +60,18 @@ struct qrtr_hdr_v2 {
 	u8 flags;
 	u8 optlen;
 	__le32 size;
-	__le16 src_node_id;
+	__le16 src_yesde_id;
 	__le16 src_port_id;
-	__le16 dst_node_id;
+	__le16 dst_yesde_id;
 	__le16 dst_port_id;
 };
 
 #define QRTR_FLAGS_CONFIRM_RX	BIT(0)
 
 struct qrtr_cb {
-	u32 src_node;
+	u32 src_yesde;
 	u32 src_port;
-	u32 dst_node;
+	u32 dst_yesde;
 	u32 dst_port;
 
 	u8 type;
@@ -96,28 +96,28 @@ static inline struct qrtr_sock *qrtr_sk(struct sock *sk)
 
 static unsigned int qrtr_local_nid = NUMA_NO_NODE;
 
-/* for node ids */
-static RADIX_TREE(qrtr_nodes, GFP_KERNEL);
+/* for yesde ids */
+static RADIX_TREE(qrtr_yesdes, GFP_KERNEL);
 /* broadcast list */
-static LIST_HEAD(qrtr_all_nodes);
-/* lock for qrtr_nodes, qrtr_all_nodes and node reference */
-static DEFINE_MUTEX(qrtr_node_lock);
+static LIST_HEAD(qrtr_all_yesdes);
+/* lock for qrtr_yesdes, qrtr_all_yesdes and yesde reference */
+static DEFINE_MUTEX(qrtr_yesde_lock);
 
 /* local port allocation management */
 static DEFINE_IDR(qrtr_ports);
 static DEFINE_MUTEX(qrtr_port_lock);
 
 /**
- * struct qrtr_node - endpoint node
+ * struct qrtr_yesde - endpoint yesde
  * @ep_lock: lock for endpoint management and callbacks
  * @ep: endpoint
- * @ref: reference count for node
- * @nid: node id
+ * @ref: reference count for yesde
+ * @nid: yesde id
  * @rx_queue: receive queue
  * @work: scheduled work struct for recv work
  * @item: list item for broadcast list
  */
-struct qrtr_node {
+struct qrtr_yesde {
 	struct mutex ep_lock;
 	struct qrtr_endpoint *ep;
 	struct kref ref;
@@ -128,51 +128,51 @@ struct qrtr_node {
 	struct list_head item;
 };
 
-static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+static int qrtr_local_enqueue(struct qrtr_yesde *yesde, struct sk_buff *skb,
 			      int type, struct sockaddr_qrtr *from,
 			      struct sockaddr_qrtr *to);
-static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+static int qrtr_bcast_enqueue(struct qrtr_yesde *yesde, struct sk_buff *skb,
 			      int type, struct sockaddr_qrtr *from,
 			      struct sockaddr_qrtr *to);
 
-/* Release node resources and free the node.
+/* Release yesde resources and free the yesde.
  *
- * Do not call directly, use qrtr_node_release.  To be used with
- * kref_put_mutex.  As such, the node mutex is expected to be locked on call.
+ * Do yest call directly, use qrtr_yesde_release.  To be used with
+ * kref_put_mutex.  As such, the yesde mutex is expected to be locked on call.
  */
-static void __qrtr_node_release(struct kref *kref)
+static void __qrtr_yesde_release(struct kref *kref)
 {
-	struct qrtr_node *node = container_of(kref, struct qrtr_node, ref);
+	struct qrtr_yesde *yesde = container_of(kref, struct qrtr_yesde, ref);
 
-	if (node->nid != QRTR_EP_NID_AUTO)
-		radix_tree_delete(&qrtr_nodes, node->nid);
+	if (yesde->nid != QRTR_EP_NID_AUTO)
+		radix_tree_delete(&qrtr_yesdes, yesde->nid);
 
-	list_del(&node->item);
-	mutex_unlock(&qrtr_node_lock);
+	list_del(&yesde->item);
+	mutex_unlock(&qrtr_yesde_lock);
 
-	cancel_work_sync(&node->work);
-	skb_queue_purge(&node->rx_queue);
-	kfree(node);
+	cancel_work_sync(&yesde->work);
+	skb_queue_purge(&yesde->rx_queue);
+	kfree(yesde);
 }
 
-/* Increment reference to node. */
-static struct qrtr_node *qrtr_node_acquire(struct qrtr_node *node)
+/* Increment reference to yesde. */
+static struct qrtr_yesde *qrtr_yesde_acquire(struct qrtr_yesde *yesde)
 {
-	if (node)
-		kref_get(&node->ref);
-	return node;
+	if (yesde)
+		kref_get(&yesde->ref);
+	return yesde;
 }
 
-/* Decrement reference to node and release as necessary. */
-static void qrtr_node_release(struct qrtr_node *node)
+/* Decrement reference to yesde and release as necessary. */
+static void qrtr_yesde_release(struct qrtr_yesde *yesde)
 {
-	if (!node)
+	if (!yesde)
 		return;
-	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_lock);
+	kref_put_mutex(&yesde->ref, __qrtr_yesde_release, &qrtr_yesde_lock);
 }
 
 /* Pass an outgoing packet socket buffer to the endpoint driver. */
-static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+static int qrtr_yesde_enqueue(struct qrtr_yesde *yesde, struct sk_buff *skb,
 			     int type, struct sockaddr_qrtr *from,
 			     struct sockaddr_qrtr *to)
 {
@@ -183,13 +183,13 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	hdr = skb_push(skb, sizeof(*hdr));
 	hdr->version = cpu_to_le32(QRTR_PROTO_VER_1);
 	hdr->type = cpu_to_le32(type);
-	hdr->src_node_id = cpu_to_le32(from->sq_node);
+	hdr->src_yesde_id = cpu_to_le32(from->sq_yesde);
 	hdr->src_port_id = cpu_to_le32(from->sq_port);
 	if (to->sq_port == QRTR_PORT_CTRL) {
-		hdr->dst_node_id = cpu_to_le32(node->nid);
+		hdr->dst_yesde_id = cpu_to_le32(yesde->nid);
 		hdr->dst_port_id = cpu_to_le32(QRTR_NODE_BCAST);
 	} else {
-		hdr->dst_node_id = cpu_to_le32(to->sq_node);
+		hdr->dst_yesde_id = cpu_to_le32(to->sq_yesde);
 		hdr->dst_port_id = cpu_to_le32(to->sq_port);
 	}
 
@@ -198,46 +198,46 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 
 	skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
 
-	mutex_lock(&node->ep_lock);
-	if (node->ep)
-		rc = node->ep->xmit(node->ep, skb);
+	mutex_lock(&yesde->ep_lock);
+	if (yesde->ep)
+		rc = yesde->ep->xmit(yesde->ep, skb);
 	else
 		kfree_skb(skb);
-	mutex_unlock(&node->ep_lock);
+	mutex_unlock(&yesde->ep_lock);
 
 	return rc;
 }
 
-/* Lookup node by id.
+/* Lookup yesde by id.
  *
- * callers must release with qrtr_node_release()
+ * callers must release with qrtr_yesde_release()
  */
-static struct qrtr_node *qrtr_node_lookup(unsigned int nid)
+static struct qrtr_yesde *qrtr_yesde_lookup(unsigned int nid)
 {
-	struct qrtr_node *node;
+	struct qrtr_yesde *yesde;
 
-	mutex_lock(&qrtr_node_lock);
-	node = radix_tree_lookup(&qrtr_nodes, nid);
-	node = qrtr_node_acquire(node);
-	mutex_unlock(&qrtr_node_lock);
+	mutex_lock(&qrtr_yesde_lock);
+	yesde = radix_tree_lookup(&qrtr_yesdes, nid);
+	yesde = qrtr_yesde_acquire(yesde);
+	mutex_unlock(&qrtr_yesde_lock);
 
-	return node;
+	return yesde;
 }
 
-/* Assign node id to node.
+/* Assign yesde id to yesde.
  *
- * This is mostly useful for automatic node id assignment, based on
+ * This is mostly useful for automatic yesde id assignment, based on
  * the source id in the incoming packet.
  */
-static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
+static void qrtr_yesde_assign(struct qrtr_yesde *yesde, unsigned int nid)
 {
-	if (node->nid != QRTR_EP_NID_AUTO || nid == QRTR_EP_NID_AUTO)
+	if (yesde->nid != QRTR_EP_NID_AUTO || nid == QRTR_EP_NID_AUTO)
 		return;
 
-	mutex_lock(&qrtr_node_lock);
-	radix_tree_insert(&qrtr_nodes, nid, node);
-	node->nid = nid;
-	mutex_unlock(&qrtr_node_lock);
+	mutex_lock(&qrtr_yesde_lock);
+	radix_tree_insert(&qrtr_yesdes, nid, yesde);
+	yesde->nid = nid;
+	mutex_unlock(&qrtr_yesde_lock);
 }
 
 /**
@@ -250,7 +250,7 @@ static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
  */
 int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 {
-	struct qrtr_node *node = ep->node;
+	struct qrtr_yesde *yesde = ep->yesde;
 	const struct qrtr_hdr_v1 *v1;
 	const struct qrtr_hdr_v2 *v2;
 	struct sk_buff *skb;
@@ -277,10 +277,10 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 		hdrlen = sizeof(*v1);
 
 		cb->type = le32_to_cpu(v1->type);
-		cb->src_node = le32_to_cpu(v1->src_node_id);
+		cb->src_yesde = le32_to_cpu(v1->src_yesde_id);
 		cb->src_port = le32_to_cpu(v1->src_port_id);
 		cb->confirm_rx = !!v1->confirm_rx;
-		cb->dst_node = le32_to_cpu(v1->dst_node_id);
+		cb->dst_yesde = le32_to_cpu(v1->dst_yesde_id);
 		cb->dst_port = le32_to_cpu(v1->dst_port_id);
 
 		size = le32_to_cpu(v1->size);
@@ -291,9 +291,9 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 
 		cb->type = v2->type;
 		cb->confirm_rx = !!(v2->flags & QRTR_FLAGS_CONFIRM_RX);
-		cb->src_node = le16_to_cpu(v2->src_node_id);
+		cb->src_yesde = le16_to_cpu(v2->src_yesde_id);
 		cb->src_port = le16_to_cpu(v2->src_port_id);
-		cb->dst_node = le16_to_cpu(v2->dst_node_id);
+		cb->dst_yesde = le16_to_cpu(v2->dst_yesde_id);
 		cb->dst_port = le16_to_cpu(v2->dst_port_id);
 
 		if (cb->src_port == (u16)QRTR_PORT_CTRL)
@@ -316,8 +316,8 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 
 	skb_put_data(skb, data + hdrlen, size);
 
-	skb_queue_tail(&node->rx_queue, skb);
-	schedule_work(&node->work);
+	skb_queue_tail(&yesde->rx_queue, skb);
+	schedule_work(&yesde->work);
 
 	return 0;
 
@@ -334,7 +334,7 @@ EXPORT_SYMBOL_GPL(qrtr_endpoint_post);
  *
  * Returns newly allocated sk_buff, or NULL on failure
  *
- * This function allocates a sk_buff large enough to carry a qrtr_ctrl_pkt and
+ * This function allocates a sk_buff large eyesugh to carry a qrtr_ctrl_pkt and
  * on success returns a reference to the control packet in @pkt.
  */
 static struct sk_buff *qrtr_alloc_ctrl_packet(struct qrtr_ctrl_pkt **pkt)
@@ -359,27 +359,27 @@ static void qrtr_port_put(struct qrtr_sock *ipc);
  *
  * This will auto-reply with resume-tx packet as necessary.
  */
-static void qrtr_node_rx_work(struct work_struct *work)
+static void qrtr_yesde_rx_work(struct work_struct *work)
 {
-	struct qrtr_node *node = container_of(work, struct qrtr_node, work);
+	struct qrtr_yesde *yesde = container_of(work, struct qrtr_yesde, work);
 	struct qrtr_ctrl_pkt *pkt;
 	struct sockaddr_qrtr dst;
 	struct sockaddr_qrtr src;
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&node->rx_queue)) != NULL) {
+	while ((skb = skb_dequeue(&yesde->rx_queue)) != NULL) {
 		struct qrtr_sock *ipc;
 		struct qrtr_cb *cb;
 		int confirm;
 
 		cb = (struct qrtr_cb *)skb->cb;
-		src.sq_node = cb->src_node;
+		src.sq_yesde = cb->src_yesde;
 		src.sq_port = cb->src_port;
-		dst.sq_node = cb->dst_node;
+		dst.sq_yesde = cb->dst_yesde;
 		dst.sq_port = cb->dst_port;
 		confirm = !!cb->confirm_rx;
 
-		qrtr_node_assign(node, cb->src_node);
+		qrtr_yesde_assign(yesde, cb->src_yesde);
 
 		ipc = qrtr_port_lookup(cb->dst_port);
 		if (!ipc) {
@@ -397,10 +397,10 @@ static void qrtr_node_rx_work(struct work_struct *work)
 				break;
 
 			pkt->cmd = cpu_to_le32(QRTR_TYPE_RESUME_TX);
-			pkt->client.node = cpu_to_le32(dst.sq_node);
+			pkt->client.yesde = cpu_to_le32(dst.sq_yesde);
 			pkt->client.port = cpu_to_le32(dst.sq_port);
 
-			if (qrtr_node_enqueue(node, skb, QRTR_TYPE_RESUME_TX,
+			if (qrtr_yesde_enqueue(yesde, skb, QRTR_TYPE_RESUME_TX,
 					      &dst, &src))
 				break;
 		}
@@ -410,35 +410,35 @@ static void qrtr_node_rx_work(struct work_struct *work)
 /**
  * qrtr_endpoint_register() - register a new endpoint
  * @ep: endpoint to register
- * @nid: desired node id; may be QRTR_EP_NID_AUTO for auto-assignment
+ * @nid: desired yesde id; may be QRTR_EP_NID_AUTO for auto-assignment
  * Return: 0 on success; negative error code on failure
  *
  * The specified endpoint must have the xmit function pointer set on call.
  */
 int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
 {
-	struct qrtr_node *node;
+	struct qrtr_yesde *yesde;
 
 	if (!ep || !ep->xmit)
 		return -EINVAL;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
-	INIT_WORK(&node->work, qrtr_node_rx_work);
-	kref_init(&node->ref);
-	mutex_init(&node->ep_lock);
-	skb_queue_head_init(&node->rx_queue);
-	node->nid = QRTR_EP_NID_AUTO;
-	node->ep = ep;
+	INIT_WORK(&yesde->work, qrtr_yesde_rx_work);
+	kref_init(&yesde->ref);
+	mutex_init(&yesde->ep_lock);
+	skb_queue_head_init(&yesde->rx_queue);
+	yesde->nid = QRTR_EP_NID_AUTO;
+	yesde->ep = ep;
 
-	qrtr_node_assign(node, nid);
+	qrtr_yesde_assign(yesde, nid);
 
-	mutex_lock(&qrtr_node_lock);
-	list_add(&node->item, &qrtr_all_nodes);
-	mutex_unlock(&qrtr_node_lock);
-	ep->node = node;
+	mutex_lock(&qrtr_yesde_lock);
+	list_add(&yesde->item, &qrtr_all_yesdes);
+	mutex_unlock(&qrtr_yesde_lock);
+	ep->yesde = yesde;
 
 	return 0;
 }
@@ -450,15 +450,15 @@ EXPORT_SYMBOL_GPL(qrtr_endpoint_register);
  */
 void qrtr_endpoint_unregister(struct qrtr_endpoint *ep)
 {
-	struct qrtr_node *node = ep->node;
-	struct sockaddr_qrtr src = {AF_QIPCRTR, node->nid, QRTR_PORT_CTRL};
+	struct qrtr_yesde *yesde = ep->yesde;
+	struct sockaddr_qrtr src = {AF_QIPCRTR, yesde->nid, QRTR_PORT_CTRL};
 	struct sockaddr_qrtr dst = {AF_QIPCRTR, qrtr_local_nid, QRTR_PORT_CTRL};
 	struct qrtr_ctrl_pkt *pkt;
 	struct sk_buff *skb;
 
-	mutex_lock(&node->ep_lock);
-	node->ep = NULL;
-	mutex_unlock(&node->ep_lock);
+	mutex_lock(&yesde->ep_lock);
+	yesde->ep = NULL;
+	mutex_unlock(&yesde->ep_lock);
 
 	/* Notify the local controller about the event */
 	skb = qrtr_alloc_ctrl_packet(&pkt);
@@ -467,8 +467,8 @@ void qrtr_endpoint_unregister(struct qrtr_endpoint *ep)
 		qrtr_local_enqueue(NULL, skb, QRTR_TYPE_BYE, &src, &dst);
 	}
 
-	qrtr_node_release(node);
-	ep->node = NULL;
+	qrtr_yesde_release(yesde);
+	ep->yesde = NULL;
 }
 EXPORT_SYMBOL_GPL(qrtr_endpoint_unregister);
 
@@ -507,13 +507,13 @@ static void qrtr_port_remove(struct qrtr_sock *ipc)
 	struct sockaddr_qrtr to;
 
 	to.sq_family = AF_QIPCRTR;
-	to.sq_node = QRTR_NODE_BCAST;
+	to.sq_yesde = QRTR_NODE_BCAST;
 	to.sq_port = QRTR_PORT_CTRL;
 
 	skb = qrtr_alloc_ctrl_packet(&pkt);
 	if (skb) {
 		pkt->cmd = cpu_to_le32(QRTR_TYPE_DEL_CLIENT);
-		pkt->client.node = cpu_to_le32(ipc->us.sq_node);
+		pkt->client.yesde = cpu_to_le32(ipc->us.sq_yesde);
 		pkt->client.port = cpu_to_le32(ipc->us.sq_port);
 
 		skb_set_owner_w(skb, &ipc->sk);
@@ -573,7 +573,7 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 	return 0;
 }
 
-/* Reset all non-control ports */
+/* Reset all yesn-control ports */
 static void qrtr_reset_ports(void)
 {
 	struct qrtr_sock *ipc;
@@ -638,7 +638,7 @@ static int qrtr_autobind(struct socket *sock)
 		return 0;
 
 	addr.sq_family = AF_QIPCRTR;
-	addr.sq_node = qrtr_local_nid;
+	addr.sq_yesde = qrtr_local_nid;
 	addr.sq_port = 0;
 
 	return __qrtr_bind(sock, &addr, 1);
@@ -655,7 +655,7 @@ static int qrtr_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	if (len < sizeof(*addr) || addr->sq_family != AF_QIPCRTR)
 		return -EINVAL;
 
-	if (addr->sq_node != ipc->us.sq_node)
+	if (addr->sq_yesde != ipc->us.sq_yesde)
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -666,7 +666,7 @@ static int qrtr_bind(struct socket *sock, struct sockaddr *saddr, int len)
 }
 
 /* Queue packet to local peer socket. */
-static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+static int qrtr_local_enqueue(struct qrtr_yesde *yesde, struct sk_buff *skb,
 			      int type, struct sockaddr_qrtr *from,
 			      struct sockaddr_qrtr *to)
 {
@@ -674,13 +674,13 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	struct qrtr_cb *cb;
 
 	ipc = qrtr_port_lookup(to->sq_port);
-	if (!ipc || &ipc->sk == skb->sk) { /* do not send to self */
+	if (!ipc || &ipc->sk == skb->sk) { /* do yest send to self */
 		kfree_skb(skb);
 		return -ENODEV;
 	}
 
 	cb = (struct qrtr_cb *)skb->cb;
-	cb->src_node = from->sq_node;
+	cb->src_yesde = from->sq_yesde;
 	cb->src_port = from->sq_port;
 
 	if (sock_queue_rcv_skb(&ipc->sk, skb)) {
@@ -695,23 +695,23 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 }
 
 /* Queue packet for broadcast. */
-static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
+static int qrtr_bcast_enqueue(struct qrtr_yesde *yesde, struct sk_buff *skb,
 			      int type, struct sockaddr_qrtr *from,
 			      struct sockaddr_qrtr *to)
 {
 	struct sk_buff *skbn;
 
-	mutex_lock(&qrtr_node_lock);
-	list_for_each_entry(node, &qrtr_all_nodes, item) {
+	mutex_lock(&qrtr_yesde_lock);
+	list_for_each_entry(yesde, &qrtr_all_yesdes, item) {
 		skbn = skb_clone(skb, GFP_KERNEL);
 		if (!skbn)
 			break;
 		skb_set_owner_w(skbn, skb->sk);
-		qrtr_node_enqueue(node, skbn, type, from, to);
+		qrtr_yesde_enqueue(yesde, skbn, type, from, to);
 	}
-	mutex_unlock(&qrtr_node_lock);
+	mutex_unlock(&qrtr_yesde_lock);
 
-	qrtr_local_enqueue(node, skb, type, from, to);
+	qrtr_local_enqueue(yesde, skb, type, from, to);
 
 	return 0;
 }
@@ -719,12 +719,12 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	DECLARE_SOCKADDR(struct sockaddr_qrtr *, addr, msg->msg_name);
-	int (*enqueue_fn)(struct qrtr_node *, struct sk_buff *, int,
+	int (*enqueue_fn)(struct qrtr_yesde *, struct sk_buff *, int,
 			  struct sockaddr_qrtr *, struct sockaddr_qrtr *);
 	__le32 qrtr_type = cpu_to_le32(QRTR_TYPE_DATA);
 	struct qrtr_sock *ipc = qrtr_sk(sock->sk);
 	struct sock *sk = sock->sk;
-	struct qrtr_node *node;
+	struct qrtr_yesde *yesde;
 	struct sk_buff *skb;
 	size_t plen;
 	u32 type;
@@ -761,19 +761,19 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		return -ENOTCONN;
 	}
 
-	node = NULL;
-	if (addr->sq_node == QRTR_NODE_BCAST) {
+	yesde = NULL;
+	if (addr->sq_yesde == QRTR_NODE_BCAST) {
 		enqueue_fn = qrtr_bcast_enqueue;
 		if (addr->sq_port != QRTR_PORT_CTRL) {
 			release_sock(sk);
 			return -ENOTCONN;
 		}
-	} else if (addr->sq_node == ipc->us.sq_node) {
+	} else if (addr->sq_yesde == ipc->us.sq_yesde) {
 		enqueue_fn = qrtr_local_enqueue;
 	} else {
-		enqueue_fn = qrtr_node_enqueue;
-		node = qrtr_node_lookup(addr->sq_node);
-		if (!node) {
+		enqueue_fn = qrtr_yesde_enqueue;
+		yesde = qrtr_yesde_lookup(addr->sq_yesde);
+		if (!yesde) {
 			release_sock(sk);
 			return -ECONNRESET;
 		}
@@ -783,21 +783,21 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	skb = sock_alloc_send_skb(sk, plen + QRTR_HDR_MAX_SIZE,
 				  msg->msg_flags & MSG_DONTWAIT, &rc);
 	if (!skb)
-		goto out_node;
+		goto out_yesde;
 
 	skb_reserve(skb, QRTR_HDR_MAX_SIZE);
 
 	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (rc) {
 		kfree_skb(skb);
-		goto out_node;
+		goto out_yesde;
 	}
 
 	if (ipc->us.sq_port == QRTR_PORT_CTRL) {
 		if (len < 4) {
 			rc = -EINVAL;
 			kfree_skb(skb);
-			goto out_node;
+			goto out_yesde;
 		}
 
 		/* control messages already require the type as 'command' */
@@ -805,12 +805,12 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	type = le32_to_cpu(qrtr_type);
-	rc = enqueue_fn(node, skb, type, &ipc->us, addr);
+	rc = enqueue_fn(yesde, skb, type, &ipc->us, addr);
 	if (rc >= 0)
 		rc = len;
 
-out_node:
-	qrtr_node_release(node);
+out_yesde:
+	qrtr_yesde_release(yesde);
 	release_sock(sk);
 
 	return rc;
@@ -853,7 +853,7 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 	if (addr) {
 		cb = (struct qrtr_cb *)skb->cb;
 		addr->sq_family = AF_QIPCRTR;
-		addr->sq_node = cb->src_node;
+		addr->sq_yesde = cb->src_yesde;
 		addr->sq_port = cb->src_port;
 		msg->msg_namelen = sizeof(*addr);
 	}
@@ -1017,21 +1017,21 @@ static const struct proto_ops qrtr_proto_ops = {
 	.family		= AF_QIPCRTR,
 	.bind		= qrtr_bind,
 	.connect	= qrtr_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.listen		= sock_no_listen,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.listen		= sock_yes_listen,
 	.sendmsg	= qrtr_sendmsg,
 	.recvmsg	= qrtr_recvmsg,
 	.getname	= qrtr_getname,
 	.ioctl		= qrtr_ioctl,
 	.gettstamp	= sock_gettstamp,
 	.poll		= datagram_poll,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
 	.release	= qrtr_release,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 
 static struct proto qrtr_proto = {
@@ -1060,7 +1060,7 @@ static int qrtr_create(struct net *net, struct socket *sock,
 
 	ipc = qrtr_sk(sk);
 	ipc->us.sq_family = AF_QIPCRTR;
-	ipc->us.sq_node = qrtr_local_nid;
+	ipc->us.sq_yesde = qrtr_local_nid;
 	ipc->us.sq_port = 0;
 
 	return 0;

@@ -77,9 +77,9 @@ static u32 fsf_qtcb_type[] = {
 	[FSF_QTCB_UPLOAD_CONTROL_FILE] =  FSF_SUPPORT_COMMAND
 };
 
-static void zfcp_fsf_class_not_supp(struct zfcp_fsf_req *req)
+static void zfcp_fsf_class_yest_supp(struct zfcp_fsf_req *req)
 {
-	dev_err(&req->adapter->ccw_device->dev, "FCP device not "
+	dev_err(&req->adapter->ccw_device->dev, "FCP device yest "
 		"operational because of an unsupported FC class\n");
 	zfcp_erp_adapter_shutdown(req->adapter, 0, "fscns_1");
 	req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -138,7 +138,7 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 	switch (link_down->error_code) {
 	case FSF_PSQ_LINK_NO_LIGHT:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "There is no light signal from the local "
+			 "There is yes light signal from the local "
 			 "fibre channel cable\n");
 		break;
 	case FSF_PSQ_LINK_WRAP_PLUG:
@@ -148,7 +148,7 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 		break;
 	case FSF_PSQ_LINK_NO_FCP:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The adjacent fibre channel node does not "
+			 "The adjacent fibre channel yesde does yest "
 			 "support FCP\n");
 		break;
 	case FSF_PSQ_LINK_FIRMWARE_UPDATE:
@@ -159,24 +159,24 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 	case FSF_PSQ_LINK_INVALID_WWPN:
 		dev_warn(&req->adapter->ccw_device->dev,
 			 "The FCP device detected a WWPN that is "
-			 "duplicate or not valid\n");
+			 "duplicate or yest valid\n");
 		break;
 	case FSF_PSQ_LINK_NO_NPIV_SUPPORT:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The fibre channel fabric does not support NPIV\n");
+			 "The fibre channel fabric does yest support NPIV\n");
 		break;
 	case FSF_PSQ_LINK_NO_FCP_RESOURCES:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The FCP adapter cannot support more NPIV ports\n");
+			 "The FCP adapter canyest support more NPIV ports\n");
 		break;
 	case FSF_PSQ_LINK_NO_FABRIC_RESOURCES:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The adjacent switch cannot support "
+			 "The adjacent switch canyest support "
 			 "more NPIV ports\n");
 		break;
 	case FSF_PSQ_LINK_FABRIC_LOGIN_UNABLE:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The FCP adapter could not log in to the "
+			 "The FCP adapter could yest log in to the "
 			 "fibre channel fabric\n");
 		break;
 	case FSF_PSQ_LINK_WWPN_ASSIGNMENT_CORRUPTED:
@@ -299,12 +299,12 @@ static void zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *req)
 	case FSF_SQ_NO_RECOM:
 		dev_err(&req->adapter->ccw_device->dev,
 			"The FCP adapter reported a problem "
-			"that cannot be recovered\n");
+			"that canyest be recovered\n");
 		zfcp_qdio_siosl(req->adapter);
 		zfcp_erp_adapter_shutdown(req->adapter, 0, "fsfsqe1");
 		break;
 	}
-	/* all non-return stats set FSFREQ_ERROR*/
+	/* all yesn-return stats set FSFREQ_ERROR*/
 	req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 }
 
@@ -316,7 +316,7 @@ static void zfcp_fsf_fsfstatus_eval(struct zfcp_fsf_req *req)
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_UNKNOWN_COMMAND:
 		dev_err(&req->adapter->ccw_device->dev,
-			"The FCP adapter does not recognize the command 0x%x\n",
+			"The FCP adapter does yest recognize the command 0x%x\n",
 			req->qtcb->header.fsf_command);
 		zfcp_erp_adapter_shutdown(req->adapter, 0, "fsfse_1");
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -346,7 +346,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		return;
 	case FSF_PROT_QTCB_VERSION_ERROR:
 		dev_err(&adapter->ccw_device->dev,
-			"QTCB version 0x%x not supported by FCP adapter "
+			"QTCB version 0x%x yest supported by FCP adapter "
 			"(0x%x to 0x%x)\n", FSF_QTCB_CURRENT_VERSION,
 			psq->word[0], psq->word[1]);
 		zfcp_erp_adapter_shutdown(adapter, 0, "fspse_1");
@@ -358,7 +358,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		break;
 	case FSF_PROT_UNSUPP_QTCB_TYPE:
 		dev_err(&adapter->ccw_device->dev,
-			"The QTCB type is not supported by the FCP adapter\n");
+			"The QTCB type is yest supported by the FCP adapter\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, "fspse_3");
 		break;
 	case FSF_PROT_HOST_CONNECTION_INITIALIZING:
@@ -387,7 +387,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		break;
 	default:
 		dev_err(&adapter->ccw_device->dev,
-			"0x%x is not a valid transfer protocol status\n",
+			"0x%x is yest a valid transfer protocol status\n",
 			qtcb->prefix.prot_status);
 		zfcp_qdio_siosl(adapter);
 		zfcp_erp_adapter_shutdown(adapter, 0, "fspse_9");
@@ -417,7 +417,7 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 	req->handler(req);
 
 	if (req->erp_action)
-		zfcp_erp_notify(req->erp_action, 0);
+		zfcp_erp_yestify(req->erp_action, 0);
 
 	if (likely(req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
 		zfcp_fsf_req_free(req);
@@ -503,7 +503,7 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
 	fc_host_port_name(shost) = be64_to_cpu(nsp->fl_wwpn);
-	fc_host_node_name(shost) = be64_to_cpu(nsp->fl_wwnn);
+	fc_host_yesde_name(shost) = be64_to_cpu(nsp->fl_wwnn);
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
 
 	adapter->timer_ticks = bottom->timer_interval & ZFCP_FSF_TIMER_INT_MASK;
@@ -515,8 +515,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 
 	zfcp_scsi_set_prot(adapter);
 
-	/* no error return above here, otherwise must fix call chains */
-	/* do not evaluate invalid fields */
+	/* yes error return above here, otherwise must fix call chains */
+	/* do yest evaluate invalid fields */
 	if (req->qtcb->header.fsf_status == FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE)
 		return 0;
 
@@ -544,7 +544,7 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		/* fall through */
 	default:
 		dev_err(&adapter->ccw_device->dev,
-			"Unknown or unsupported arbitrated loop "
+			"Unkyeswn or unsupported arbitrated loop "
 			"fibre channel topology detected\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, "fsece_1");
 		return -EIO;
@@ -557,7 +557,7 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_diag_header *const diag_hdr =
-		&adapter->diagnostics->config_data.header;
+		&adapter->diagyesstics->config_data.header;
 	struct fsf_qtcb *qtcb = req->qtcb;
 	struct fsf_qtcb_bottom_config *bottom = &qtcb->bottom.config;
 	struct Scsi_Host *shost = adapter->scsi_host;
@@ -598,7 +598,7 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		zfcp_diag_update_xdata(diag_hdr, bottom, true);
 		req->status |= ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE;
 
-		fc_host_node_name(shost) = 0;
+		fc_host_yesde_name(shost) = 0;
 		fc_host_port_name(shost) = 0;
 		fc_host_port_id(shost) = 0;
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
@@ -667,7 +667,7 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_diag_header *const diag_hdr =
-		&req->adapter->diagnostics->port_data.header;
+		&req->adapter->diagyesstics->port_data.header;
 	struct fsf_qtcb *qtcb = req->qtcb;
 	struct fsf_qtcb_bottom_port *bottom = &qtcb->bottom.port;
 
@@ -738,15 +738,15 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 	if (unlikely(!req))
 		return ERR_PTR(-ENOMEM);
 
-	if (adapter->req_no == 0)
-		adapter->req_no++;
+	if (adapter->req_yes == 0)
+		adapter->req_yes++;
 
 	INIT_LIST_HEAD(&req->list);
 	timer_setup(&req->timer, NULL, 0);
 	init_completion(&req->completion);
 
 	req->adapter = adapter;
-	req->req_id = adapter->req_no;
+	req->req_id = adapter->req_yes;
 
 	if (likely(fsf_cmd != FSF_QTCB_UNSOLICITED_STATUS)) {
 		if (likely(pool))
@@ -760,7 +760,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 			return ERR_PTR(-ENOMEM);
 		}
 
-		req->qtcb->prefix.req_seq_no = adapter->fsf_req_seq_no;
+		req->qtcb->prefix.req_seq_yes = adapter->fsf_req_seq_yes;
 		req->qtcb->prefix.req_id = req->req_id;
 		req->qtcb->prefix.ulp_info = 26;
 		req->qtcb->prefix.qtcb_type = fsf_qtcb_type[fsf_cmd];
@@ -799,7 +799,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	 *	 ONLY TOUCH SYNC req AGAIN ON req->completion.
 	 *
 	 * The request might complete and be freed concurrently at any point
-	 * now. This is not protected by the QDIO-lock (req_q_lock). So any
+	 * yesw. This is yest protected by the QDIO-lock (req_q_lock). So any
 	 * uncontrolled access after this might result in an use-after-free bug.
 	 * Only if the request doesn't have ZFCP_STATUS_FSFREQ_CLEANUP set, and
 	 * when it is completed via req->completion, is it safe to use req
@@ -808,8 +808,8 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 
 	/* Don't increase for unsolicited status */
 	if (!is_srb)
-		adapter->fsf_req_seq_no++;
-	adapter->req_no++;
+		adapter->fsf_req_seq_yes++;
+	adapter->req_yes++;
 
 	return 0;
 }
@@ -994,7 +994,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 		zfcp_dbf_san_res("fsscth2", req);
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		zfcp_fsf_class_not_supp(req);
+		zfcp_fsf_class_yest_supp(req);
 		break;
         case FSF_ADAPTER_STATUS_AVAILABLE:
                 switch (header->fsf_status_qual.word[0]){
@@ -1112,7 +1112,7 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
  * zfcp_fsf_send_ct - initiate a Generic Service request (FC-GS)
  * @wka_port: pointer to zfcp WKA port to send CT/GS to
  * @ct: pointer to struct zfcp_send_ct with data for request
- * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
+ * @pool: if yesn-null this mempool is used to allocate struct zfcp_fsf_req
  * @timeout: timeout that hardware should use, and a later software timeout
  */
 int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
@@ -1177,7 +1177,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 		zfcp_dbf_san_res("fsselh1", req);
 		break;
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		zfcp_fsf_class_not_supp(req);
+		zfcp_fsf_class_yest_supp(req);
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]){
@@ -1313,7 +1313,7 @@ out:
  *
  * Returns:
  * * 0		- Exchange Config Data was successful, @data is complete
- * * -EIO	- Exchange Config Data was not successful, @data is invalid
+ * * -EIO	- Exchange Config Data was yest successful, @data is invalid
  * * -EAGAIN	- @data contains incomplete data
  * * -ENOMEM	- Some memory allocation failed along the way
  */
@@ -1423,10 +1423,10 @@ out:
  *
  * Returns:
  * * 0		- Exchange Port Data was successful, @data is complete
- * * -EIO	- Exchange Port Data was not successful, @data is invalid
+ * * -EIO	- Exchange Port Data was yest successful, @data is invalid
  * * -EAGAIN	- @data contains incomplete data
  * * -ENOMEM	- Some memory allocation failed along the way
- * * -EOPNOTSUPP	- This operation is not supported
+ * * -EOPNOTSUPP	- This operation is yest supported
  */
 int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *qdio,
 				     struct fsf_qtcb_bottom_port *data)
@@ -1492,7 +1492,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "Not enough FCP adapter resources to open "
+			 "Not eyesugh FCP adapter resources to open "
 			 "remote port 0x%016Lx\n",
 			 (unsigned long long)port->wwpn);
 		zfcp_erp_set_port_status(port,
@@ -1502,7 +1502,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			/* no zfcp_fc_test_link() with failed open port */
+			/* yes zfcp_fc_test_link() with failed open port */
 			/* fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 		case FSF_SQ_NO_RETRY_POSSIBLE:
@@ -1514,21 +1514,21 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		port->handle = header->port_handle;
 		atomic_or(ZFCP_STATUS_COMMON_OPEN |
 				ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
-		atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_BOXED,
+		atomic_andyest(ZFCP_STATUS_COMMON_ACCESS_BOXED,
 		                  &port->status);
 		/* check whether D_ID has changed during open */
 		/*
-		 * FIXME: This check is not airtight, as the FCP channel does
-		 * not monitor closures of target port connections caused on
+		 * FIXME: This check is yest airtight, as the FCP channel does
+		 * yest monitor closures of target port connections caused on
 		 * the remote side. Thus, they might miss out on invalidating
 		 * locally cached WWPNs (and other N_Port parameters) of gone
 		 * target ports. So, our heroic attempt to make things safe
 		 * could be undermined by 'open port' response data tagged with
-		 * obsolete WWPNs. Another reason to monitor potential
+		 * obsolete WWPNs. Ayesther reason to monitor potential
 		 * connection closures ourself at least (by interpreting
 		 * incoming ELS' and unsolicited status). It just crosses my
 		 * mind that one should be able to cross-check by means of
-		 * another GID_PN straight after a port has been opened.
+		 * ayesther GID_PN straight after a port has been opened.
 		 * Alternately, an ADISC/PDISC ELS should suffice, as well.
 		 */
 		plogi = (struct fc_els_flogi *) req->qtcb->bottom.support.els;
@@ -1808,11 +1808,11 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_PORT_BOXED:
 		/* can't use generic zfcp_erp_modify_port_status because
-		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port */
-		atomic_andnot(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
+		 * ZFCP_STATUS_COMMON_OPEN must yest be reset for the port */
+		atomic_andyest(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		shost_for_each_device(sdev, port->adapter->scsi_host)
 			if (sdev_to_zfcp(sdev)->port == port)
-				atomic_andnot(ZFCP_STATUS_COMMON_OPEN,
+				atomic_andyest(ZFCP_STATUS_COMMON_OPEN,
 						  &sdev_to_zfcp(sdev)->status);
 		zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_ACCESS_BOXED);
 		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
@@ -1830,12 +1830,12 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_GOOD:
 		/* can't use generic zfcp_erp_modify_port_status because
-		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port
+		 * ZFCP_STATUS_COMMON_OPEN must yest be reset for the port
 		 */
-		atomic_andnot(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
+		atomic_andyest(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		shost_for_each_device(sdev, port->adapter->scsi_host)
 			if (sdev_to_zfcp(sdev)->port == port)
-				atomic_andnot(ZFCP_STATUS_COMMON_OPEN,
+				atomic_andyest(ZFCP_STATUS_COMMON_OPEN,
 						  &sdev_to_zfcp(sdev)->status);
 		break;
 	}
@@ -1899,7 +1899,7 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 
 	zfcp_sdev = sdev_to_zfcp(sdev);
 
-	atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_DENIED |
+	atomic_andyest(ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			  ZFCP_STATUS_COMMON_ACCESS_BOXED,
 			  &zfcp_sdev->status);
 
@@ -2047,7 +2047,7 @@ static void zfcp_fsf_close_lun_handler(struct zfcp_fsf_req *req)
 		}
 		break;
 	case FSF_GOOD:
-		atomic_andnot(ZFCP_STATUS_COMMON_OPEN, &zfcp_sdev->status);
+		atomic_andyest(ZFCP_STATUS_COMMON_OPEN, &zfcp_sdev->status);
 		break;
 	}
 }
@@ -2187,7 +2187,7 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req,
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		zfcp_fsf_class_not_supp(req);
+		zfcp_fsf_class_yest_supp(req);
 		break;
 	case FSF_DIRECTION_INDICATOR_NOT_VALID:
 		dev_err(&req->adapter->ccw_device->dev,
@@ -2278,7 +2278,7 @@ skip_fsfstatus:
 	 * We must hold this lock until scsi_done has been called.
 	 * Otherwise we may call scsi_done after abort regarding this
 	 * command has completed.
-	 * Note: scsi_done must not block!
+	 * Note: scsi_done must yest block!
 	 */
 	read_unlock_irqrestore(&req->adapter->abort_lock, flags);
 }
@@ -2515,11 +2515,11 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 
 		if (!fsf_req) {
 			/*
-			 * Unknown request means that we have potentially memory
+			 * Unkyeswn request means that we have potentially memory
 			 * corruption and must stop the machine immediately.
 			 */
 			zfcp_qdio_siosl(adapter);
-			panic("error: unknown req_id (%lx) on adapter %s.\n",
+			panic("error: unkyeswn req_id (%lx) on adapter %s.\n",
 			      req_id, dev_name(&adapter->ccw_device->dev));
 		}
 

@@ -58,7 +58,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 			break;
 	}
 	if (i == 0) {
-		dev_warn(dev->class_dev, "no devices specified\n");
+		dev_warn(dev->class_dev, "yes devices specified\n");
 		return -EINVAL;
 	}
 
@@ -71,7 +71,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 		iobase = it->options[i];
 
 		/*
-		 * __comedi_request_region() does not set dev->iobase.
+		 * __comedi_request_region() does yest set dev->iobase.
 		 *
 		 * For 8255 devices that are manually attached using
 		 * comedi_config, the 'iobase' is the actual I/O port
@@ -85,7 +85,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 			if (ret) {
 				/*
 				 * Release the I/O port region here, as the
-				 * "detach" handler cannot find it.
+				 * "detach" handler canyest find it.
 				 */
 				release_region(iobase, I8255_SIZE);
 				s->type = COMEDI_SUBD_UNUSED;

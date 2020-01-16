@@ -539,14 +539,14 @@ static irqreturn_t adxl372_trigger_handler(int irq, void  *p)
 	    ADXL372_STATUS_1_FIFO_FULL(status1)) {
 		/*
 		 * When reading data from multiple axes from the FIFO,
-		 * to ensure that data is not overwritten and stored out
+		 * to ensure that data is yest overwritten and stored out
 		 * of order at least one sample set must be left in the
 		 * FIFO after every read.
 		 */
 		fifo_entries -= st->fifo_set_size;
 
 		/* Read data from the FIFO */
-		ret = regmap_noinc_read(st->regmap, ADXL372_FIFO_DATA,
+		ret = regmap_yesinc_read(st->regmap, ADXL372_FIFO_DATA,
 					st->fifo_buf,
 					fifo_entries * sizeof(u16));
 		if (ret < 0)
@@ -557,7 +557,7 @@ static irqreturn_t adxl372_trigger_handler(int irq, void  *p)
 			iio_push_to_buffers(indio_dev, &st->fifo_buf[i]);
 	}
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -706,7 +706,7 @@ static int adxl372_write_raw(struct iio_dev *indio_dev,
 			return ret;
 		/*
 		 * The maximum bandwidth is constrained to at most half of
-		 * the ODR to ensure that the Nyquist criteria is not violated
+		 * the ODR to ensure that the Nyquist criteria is yest violated
 		 */
 		if (st->bw > odr_index)
 			ret = adxl372_set_bandwidth(st, odr_index);
@@ -910,11 +910,11 @@ static const struct iio_info adxl372_info = {
 	.hwfifo_set_watermark = adxl372_set_watermark,
 };
 
-bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
+bool adxl372_readable_yesinc_reg(struct device *dev, unsigned int reg)
 {
 	return (reg == ADXL372_FIFO_DATA);
 }
-EXPORT_SYMBOL_GPL(adxl372_readable_noinc_reg);
+EXPORT_SYMBOL_GPL(adxl372_readable_yesinc_reg);
 
 int adxl372_probe(struct device *dev, struct regmap *regmap,
 		  int irq, const char *name)

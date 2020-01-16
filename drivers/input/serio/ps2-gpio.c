@@ -81,7 +81,7 @@ static int __ps2_gpio_write(struct serio *serio, unsigned char val)
 {
 	struct ps2_gpio_data *drvdata = serio->port_data;
 
-	disable_irq_nosync(drvdata->irq);
+	disable_irq_yessync(drvdata->irq);
 	gpiod_direction_output(drvdata->gpio_clk, 0);
 
 	drvdata->mode = PS2_MODE_TX;
@@ -179,8 +179,8 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 				goto err;
 		}
 
-		/* Do not send spurious ACK's and NACK's when write fn is
-		 * not provided.
+		/* Do yest send spurious ACK's and NACK's when write fn is
+		 * yest provided.
 		 */
 		if (!drvdata->write_enable) {
 			if (byte == PS2_DEV_RET_NACK)
@@ -191,7 +191,7 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 
 		/* Let's send the data without waiting for the stop bit to be
 		 * sent. It may happen that we miss the stop bit. When this
-		 * happens we have no way to recover from this, certainly
+		 * happens we have yes way to recover from this, certainly
 		 * missing the parity bit would be recognized when processing
 		 * the stop bit. When missing both, data is lost.
 		 */
@@ -272,7 +272,7 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 		break;
 	case PS2_TX_TIMEOUT:
 		/* Devices generate one extra clock pulse before sending the
-		 * acknowledgment.
+		 * ackyeswledgment.
 		 */
 		break;
 	case PS2_ACK_BIT:
@@ -387,7 +387,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	serio->id.type = SERIO_8042;
 	serio->open = ps2_gpio_open;
 	serio->close = ps2_gpio_close;
-	/* Write can be enabled in platform/dt data, but possibly it will not
+	/* Write can be enabled in platform/dt data, but possibly it will yest
 	 * work because of the tough timings.
 	 */
 	serio->write = drvdata->write_enable ? ps2_gpio_write : NULL;

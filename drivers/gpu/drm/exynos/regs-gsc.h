@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* linux/drivers/gpu/drm/exynos/regs-gsc.h
+/* linux/drivers/gpu/drm/exyyess/regs-gsc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -266,7 +266,7 @@
 #define GSC_CLK_INIT_COUNT		0xC00
 #define GSC_CLK_GATE_MODE_INIT_CNT(x)	((x) << 0)
 
-/* G-Scaler clock snoop count */
+/* G-Scaler clock syesop count */
 #define GSC_CLK_SNOOP_COUNT		0xC04
 #define GSC_CLK_GATE_MODE_SNOOP_CNT(x)	((x) << 0)
 

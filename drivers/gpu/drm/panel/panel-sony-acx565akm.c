@@ -7,7 +7,7 @@
  * Based on the omapdrm-specific panel-sony-acx565akm driver
  *
  * Copyright (C) 2010 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 /*
@@ -170,7 +170,7 @@ static unsigned int acx565akm_get_hw_cabc_mode(struct acx565akm_panel *lcd)
 }
 
 static const char * const acx565akm_cabc_modes[] = {
-	"off",		/* always used when CABC is not supported */
+	"off",		/* always used when CABC is yest supported */
 	"ui",
 	"still-image",
 	"moving-image",
@@ -189,7 +189,7 @@ static ssize_t cabc_mode_show(struct device *dev,
 	else
 		mode = acx565akm_get_cabc_mode(lcd);
 
-	mode_str = "unknown";
+	mode_str = "unkyeswn";
 	if (mode >= 0 && mode < ARRAY_SIZE(acx565akm_cabc_modes))
 		mode_str = acx565akm_cabc_modes[mode];
 
@@ -597,8 +597,8 @@ static int acx565akm_detect(struct acx565akm_panel *lcd)
 		lcd->name = "ls041y3";
 		break;
 	default:
-		lcd->name = "unknown";
-		dev_err(&lcd->spi->dev, "unknown display ID\n");
+		lcd->name = "unkyeswn";
+		dev_err(&lcd->spi->dev, "unkyeswn display ID\n");
 		ret = -ENODEV;
 		goto done;
 	}

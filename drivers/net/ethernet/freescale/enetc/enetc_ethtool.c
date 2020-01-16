@@ -170,12 +170,12 @@ static const struct {
 	{ ENETC_PM0_TSCOL,  "MAC tx single collisions" },
 	{ ENETC_PM0_TLCOL,  "MAC tx late collisions" },
 	{ ENETC_PM0_TECOL,  "MAC tx excessive collisions" },
-	{ ENETC_UFDMF,      "SI MAC nomatch u-cast discards" },
-	{ ENETC_MFDMF,      "SI MAC nomatch m-cast discards" },
-	{ ENETC_PBFDSIR,    "SI MAC nomatch b-cast discards" },
-	{ ENETC_PUFDVFR,    "SI VLAN nomatch u-cast discards" },
-	{ ENETC_PMFDVFR,    "SI VLAN nomatch m-cast discards" },
-	{ ENETC_PBFDVFR,    "SI VLAN nomatch b-cast discards" },
+	{ ENETC_UFDMF,      "SI MAC yesmatch u-cast discards" },
+	{ ENETC_MFDMF,      "SI MAC yesmatch m-cast discards" },
+	{ ENETC_PBFDSIR,    "SI MAC yesmatch b-cast discards" },
+	{ ENETC_PUFDVFR,    "SI VLAN yesmatch u-cast discards" },
+	{ ENETC_PMFDVFR,    "SI VLAN yesmatch m-cast discards" },
+	{ ENETC_PBFDVFR,    "SI VLAN yesmatch b-cast discards" },
 	{ ENETC_PFDMSAPR,   "SI pruning discarded frames" },
 	{ ENETC_PICDR(0),   "ICM DR0 discarded frames" },
 	{ ENETC_PICDR(1),   "ICM DR1 discarded frames" },
@@ -339,7 +339,7 @@ l4ip4:
 		rfse.dport_h = ntohs(l4ip4_h->pdst);
 		rfse.dport_m = ntohs(l4ip4_m->pdst);
 		if (l4ip4_m->tos)
-			netdev_warn(si->ndev, "ToS field is not supported and was ignored\n");
+			netdev_warn(si->ndev, "ToS field is yest supported and was igyesred\n");
 		rfse.ethtype_h = ETH_P_IP; /* IPv4 */
 		rfse.ethtype_m = 0xffff;
 		break;
@@ -352,7 +352,7 @@ l4ip4:
 		rfse.dip_h[0] = l3ip4_h->ip4dst;
 		rfse.dip_m[0] = l3ip4_m->ip4dst;
 		if (l3ip4_m->tos)
-			netdev_warn(si->ndev, "ToS field is not supported and was ignored\n");
+			netdev_warn(si->ndev, "ToS field is yest supported and was igyesred\n");
 		rfse.ethtype_h = ETH_P_IP; /* IPv4 */
 		rfse.ethtype_m = 0xffff;
 		break;

@@ -2,7 +2,7 @@
 
 ip_forward - BOOLEAN
 	0 - disabled (default)
-	not 0 - enabled
+	yest 0 - enabled
 
 	Forward Packets between interfaces.
 
@@ -11,11 +11,11 @@ ip_forward - BOOLEAN
 	for routers)
 
 ip_default_ttl - INTEGER
-	Default value of TTL field (Time To Live) for outgoing (but not
+	Default value of TTL field (Time To Live) for outgoing (but yest
 	forwarded) IP packets. Should be between 1 and 255 inclusive.
 	Default: 64 (as recommended by RFC1700)
 
-ip_no_pmtu_disc - INTEGER
+ip_yes_pmtu_disc - INTEGER
 	Disable Path MTU Discovery. If enabled in mode 1 and a
 	fragmentation-required ICMP is received, the PMTU to this
 	destination will be set to min_pmtu (see below). You will need
@@ -29,9 +29,9 @@ ip_no_pmtu_disc - INTEGER
 	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
-	protocols for which pmtu events will be honored are TCP, SCTP
+	protocols for which pmtu events will be hoyesred are TCP, SCTP
 	and DCCP as they verify e.g. the sequence number or the
-	association. This mode should not be enabled globally but is
+	association. This mode should yest be enabled globally but is
 	only intended to secure e.g. name servers in namespaces where
 	TCP path mtu must still work but path MTU information of other
 	protocols should be discarded. If enabled globally this mode
@@ -49,7 +49,7 @@ ip_forward_use_pmtu - BOOLEAN
 	fragmentation by the router.
 	You only need to enable this if you have user-space software
 	which tries to discover path mtus by itself and depends on the
-	kernel honoring this information. This is normally not the
+	kernel hoyesring this information. This is yesrmally yest the
 	case.
 	Default: 0 (disabled)
 	Possible values:
@@ -57,7 +57,7 @@ ip_forward_use_pmtu - BOOLEAN
 	1 - enabled
 
 fwmark_reflect - BOOLEAN
-	Controls the fwmark of kernel-generated IPv4 reply packets that are not
+	Controls the fwmark of kernel-generated IPv4 reply packets that are yest
 	associated with a socket for example, TCP RSTs or ICMP echo replies).
 	If unset, these packets have a fwmark of zero. If set, they have the
 	fwmark of the packet they are replying to.
@@ -65,7 +65,7 @@ fwmark_reflect - BOOLEAN
 
 fib_multipath_use_neigh - BOOLEAN
 	Use status of existing neighbor entry when determining nexthop for
-	multipath routes. If disabled, neighbor information is not used and
+	multipath routes. If disabled, neighbor information is yest used and
 	packets could be directed to a failed nexthop. Only valid for kernels
 	built with CONFIG_IP_ROUTE_MULTIPATH enabled.
 	Default: 0 (disabled)
@@ -93,17 +93,17 @@ ip_forward_update_priority - INTEGER
 	according to an rt_tos2priority table (see e.g. man tc-prio).
 	Default: 1 (Update priority.)
 	Possible values:
-	0 - Do not update priority.
+	0 - Do yest update priority.
 	1 - Update priority.
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
 	From linux kernel 3.6 onwards, this is deprecated for ipv4
-	as route cache is no longer used.
+	as route cache is yes longer used.
 
 neigh/default/gc_thresh1 - INTEGER
-	Minimum number of entries to keep.  Garbage collector will not
+	Minimum number of entries to keep.  Garbage collector will yest
 	purge entries if there are fewer than this number.
 	Default: 128
 
@@ -114,7 +114,7 @@ neigh/default/gc_thresh2 - INTEGER
 	Default: 512
 
 neigh/default/gc_thresh3 - INTEGER
-	Maximum number of non-PERMANENT neighbor entries allowed.  Increase
+	Maximum number of yesn-PERMANENT neighbor entries allowed.  Increase
 	this when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
 	Default: 1024
@@ -126,7 +126,7 @@ neigh/default/unres_qlen_bytes - INTEGER
 	Setting negative value is meaningless and will return error.
 	Default: SK_WMEM_MAX, (same as net.core.wmem_default).
 		Exact value depends on architecture and kernel options,
-		but should be enough to allow queuing 256 packets
+		but should be eyesugh to allow queuing 256 packets
 		of medium size.
 
 neigh/default/unres_qlen - INTEGER
@@ -161,10 +161,10 @@ ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.
 
 ipfrag_max_dist - INTEGER
-	ipfrag_max_dist is a non-negative integer value which defines the
+	ipfrag_max_dist is a yesn-negative integer value which defines the
 	maximum "disorder" which is allowed among fragments which share a
 	common IP source address. Note that reordering of packets is
-	not unusual, but if a large number of fragments arrive from a source
+	yest unusual, but if a large number of fragments arrive from a source
 	IP address while a particular fragment queue remains incomplete, it
 	probably indicates that one or more fragments belonging to that queue
 	have been lost. When ipfrag_max_dist is positive, an additional check
@@ -176,7 +176,7 @@ ipfrag_max_dist - INTEGER
 	started. An ipfrag_max_dist value of zero disables this check.
 
 	Using a very small value, e.g. 1 or 2, for ipfrag_max_dist can
-	result in unnecessarily dropping fragment queues when normal
+	result in unnecessarily dropping fragment queues when yesrmal
 	reordering of packets occurs, which could lead to poor application
 	performance. Using a very large value, e.g. 50000, increases the
 	likelihood of incorrectly reassembling IP fragments that originate
@@ -192,21 +192,21 @@ inet_peer_threshold - INTEGER
 	passes.  More entries, less time-to-live, less GC interval.
 
 inet_peer_minttl - INTEGER
-	Minimum time-to-live of entries.  Should be enough to cover fragment
+	Minimum time-to-live of entries.  Should be eyesugh to cover fragment
 	time-to-live on the reassembling side.  This minimum time-to-live  is
 	guaranteed if the pool size is less than inet_peer_threshold.
 	Measured in seconds.
 
 inet_peer_maxttl - INTEGER
 	Maximum time-to-live of entries.  Unused entries will expire after
-	this period of time if there is no memory pressure on the pool (i.e.
+	this period of time if there is yes memory pressure on the pool (i.e.
 	when the number of entries in the pool is very small).
 	Measured in seconds.
 
 TCP variables:
 
 somaxconn - INTEGER
-	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
+	Limit of socket listen() backlog, kyeswn in userspace as SOMAXCONN.
 	Defaults to 4096. (Was 128 before linux-5.4)
 	See also tcp_max_syn_backlog for additional tuning for TCP sockets.
 
@@ -215,7 +215,7 @@ tcp_abort_on_overflow - BOOLEAN
 	reset them. Default state is FALSE. It means that if overflow
 	occurred due to a burst, connection will recover. Enable this
 	option _only_ if you are really sure that listening daemon
-	cannot be tuned to accept connections faster. Enabling this
+	canyest be tuned to accept connections faster. Enabling this
 	option can harm clients of your server.
 
 tcp_adv_win_scale - INTEGER
@@ -226,14 +226,14 @@ tcp_adv_win_scale - INTEGER
 	Default: 1
 
 tcp_allowed_congestion_control - STRING
-	Show/set the congestion control choices available to non-privileged
+	Show/set the congestion control choices available to yesn-privileged
 	processes. The list is a subset of those listed in
 	tcp_available_congestion_control.
-	Default is "reno" and the default setting (tcp_congestion_control).
+	Default is "reyes" and the default setting (tcp_congestion_control).
 
 tcp_app_win - INTEGER
 	Reserve max(window/2^tcp_app_win, mss) of window for application
-	buffer. Value 0 is special, it means that nothing is reserved.
+	buffer. Value 0 is special, it means that yesthing is reserved.
 	Default: 31
 
 tcp_autocorking - BOOLEAN
@@ -243,13 +243,13 @@ tcp_autocorking - BOOLEAN
 	total amount of sent packets. This is done if at least one prior
 	packet for the flow is waiting in Qdisc queues or device transmit
 	queue. Applications can still use TCP_CORK for optimal behavior
-	when they know how/when to uncork their sockets.
+	when they kyesw how/when to uncork their sockets.
 	Default : 1
 
 tcp_available_congestion_control - STRING
 	Shows the available congestion control choices that are registered.
 	More congestion control algorithms may be available as modules,
-	but not loaded.
+	but yest loaded.
 
 tcp_base_mss - INTEGER
 	The initial value of search_low to be used by the packetization layer
@@ -272,7 +272,7 @@ tcp_min_snd_mss - INTEGER
 
 tcp_congestion_control - STRING
 	Set the congestion control algorithm to be used for new
-	connections. The algorithm "reno" is always available, but
+	connections. The algorithm "reyes" is always available, but
 	additional choices may be available based on kernel configuration.
 	Default is set as part of kernel configuration.
 	For passive connections, the listener congestion control choice
@@ -298,27 +298,27 @@ tcp_ecn - INTEGER
 	to congestion by allowing supporting routers to signal
 	congestion before having to drop packets.
 	Possible values are:
-		0 Disable ECN.  Neither initiate nor accept ECN.
+		0 Disable ECN.  Neither initiate yesr accept ECN.
 		1 Enable ECN when requested by incoming connections and
 		  also request ECN on outgoing connection attempts.
 		2 Enable ECN when requested by incoming connections
-		  but do not request ECN on outgoing connections.
+		  but do yest request ECN on outgoing connections.
 	Default: 2
 
 tcp_ecn_fallback - BOOLEAN
 	If the kernel detects that ECN connection misbehaves, enable fall
-	back to non-ECN. Currently, this knob implements the fallback
+	back to yesn-ECN. Currently, this kyesb implements the fallback
 	from RFC3168, section 6.1.1.1., but we reserve that in future,
 	additional detection mechanisms could be implemented under this
-	knob. The value	is not used, if tcp_ecn or per route (or congestion
+	kyesb. The value	is yest used, if tcp_ecn or per route (or congestion
 	control) ECN settings are disabled.
 	Default: 1 (fallback enabled)
 
 tcp_fack - BOOLEAN
-	This is a legacy option, it has no effect anymore.
+	This is a legacy option, it has yes effect anymore.
 
 tcp_fin_timeout - INTEGER
-	The length of time an orphaned (no longer referenced by any
+	The length of time an orphaned (yes longer referenced by any
 	application) connection will remain in the FIN_WAIT_2 state
 	before it is aborted at the local end.  While a perfectly
 	valid "receive only" state for an un-orphaned connection, an
@@ -332,12 +332,12 @@ tcp_frto - INTEGER
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
 	timeouts.  It is particularly beneficial in networks where the
 	RTT fluctuates (e.g., wireless). F-RTO is sender-side only
-	modification. It does not require any support from the peer.
+	modification. It does yest require any support from the peer.
 
-	By default it's enabled with a non-zero value. 0 disables F-RTO.
+	By default it's enabled with a yesn-zero value. 0 disables F-RTO.
 
 tcp_fwmark_accept - BOOLEAN
-	If set, incoming connections to listening sockets that do not have a
+	If set, incoming connections to listening sockets that do yest have a
 	socket mark will set the mark of the accepting socket to the fwmark of
 	the incoming SYN packet. This will cause all packets on that connection
 	(starting from the first SYNACK) to be sent with that fwmark. The
@@ -348,12 +348,12 @@ tcp_fwmark_accept - BOOLEAN
 	Default: 0
 
 tcp_invalid_ratelimit - INTEGER
-	Limit the maximal rate for sending duplicate acknowledgments
+	Limit the maximal rate for sending duplicate ackyeswledgments
 	in response to incoming TCP packets that are for an existing
 	connection but that are invalid due to any of these reasons:
 
 	  (a) out-of-window sequence number,
-	  (b) out-of-window acknowledgment number, or
+	  (b) out-of-window ackyeswledgment number, or
 	  (c) PAWS (Protection Against Wrapped Sequence numbers) check failure
 
 	This can help mitigate simple "ack loop" DoS attacks, wherein
@@ -361,7 +361,7 @@ tcp_invalid_ratelimit - INTEGER
 	rewrite TCP header fields in manner that causes each endpoint
 	to think that the other is sending invalid TCP segments, thus
 	causing each side to send an unterminating stream of duplicate
-	acknowledgments for invalid segments.
+	ackyeswledgments for invalid segments.
 
 	Using 0 disables rate-limiting of dupacks in response to
 	invalid segments; otherwise this value specifies the minimal
@@ -379,7 +379,7 @@ tcp_keepalive_probes - INTEGER
 
 tcp_keepalive_intvl - INTEGER
 	How frequently the probes are send out. Multiplied by
-	tcp_keepalive_probes it is time to kill not responding connection,
+	tcp_keepalive_probes it is time to kill yest responding connection,
 	after probes started. Default value: 75sec i.e. connection
 	will be aborted after ~11 minutes of retries.
 
@@ -393,13 +393,13 @@ tcp_l3mdev_accept - BOOLEAN
         Default: 0 (disabled)
 
 tcp_low_latency - BOOLEAN
-	This is a legacy option, it has no effect anymore.
+	This is a legacy option, it has yes effect anymore.
 
 tcp_max_orphans - INTEGER
-	Maximal number of TCP sockets not attached to any user file handle,
+	Maximal number of TCP sockets yest attached to any user file handle,
 	held by system.	If this number is exceeded orphaned connections are
 	reset immediately and warning is printed. This limit exists
-	only to prevent simple DoS attacks, you _must_ not rely on this
+	only to prevent simple DoS attacks, you _must_ yest rely on this
 	or lower the limit artificially, but rather increase it
 	(probably, after increasing installed memory),
 	if network conditions require more than default value,
@@ -409,7 +409,7 @@ tcp_max_orphans - INTEGER
 
 tcp_max_syn_backlog - INTEGER
 	Maximal number of remembered connection requests (SYN_RECV),
-	which have not received an acknowledgment from connecting client.
+	which have yest received an ackyeswledgment from connecting client.
 	This is a per-listener limit.
 	The minimal value is 128 for low memory machines, and it will
 	increase in proportion to the memory of machine.
@@ -421,12 +421,12 @@ tcp_max_tw_buckets - INTEGER
 	Maximal number of timewait sockets held by system simultaneously.
 	If this number is exceeded time-wait socket is immediately destroyed
 	and warning is printed. This limit exists only to prevent
-	simple DoS attacks, you _must_ not lower the limit artificially,
+	simple DoS attacks, you _must_ yest lower the limit artificially,
 	but rather increase it (probably, after increasing installed memory),
 	if network conditions require more than default value.
 
 tcp_mem - vector of 3 INTEGERs: min, pressure, max
-	min: below this number of pages TCP is not bothered about its
+	min: below this number of pages TCP is yest bothered about its
 	memory appetite.
 
 	pressure: when amount of memory allocated by TCP exceeds this number
@@ -450,7 +450,7 @@ tcp_min_rtt_wlen - INTEGER
 
 tcp_moderate_rcvbuf - BOOLEAN
 	If set, TCP performs receive buffer auto-tuning, attempting to
-	automatically size the buffer (no greater than tcp_rmem[2]) to
+	automatically size the buffer (yes greater than tcp_rmem[2]) to
 	match the size required by the path for full throughput.  Enabled by
 	default.
 
@@ -471,17 +471,17 @@ tcp_probe_threshold - INTEGER
 	will stop in respect to the width of search range in bytes. Default
 	is 8 bytes.
 
-tcp_no_metrics_save - BOOLEAN
+tcp_yes_metrics_save - BOOLEAN
 	By default, TCP saves various connection metrics in the route cache
 	when the connection closes, so that connections established in the
 	near future can use these to set initial conditions.  Usually, this
 	increases overall performance, but may sometimes cause performance
-	degradation.  If set, TCP will not cache metrics on closing
+	degradation.  If set, TCP will yest cache metrics on closing
 	connections.
 
 tcp_orphan_retries - INTEGER
 	This value influences the timeout of a locally closed TCP connection,
-	when RTO retransmissions remain unacknowledged.
+	when RTO retransmissions remain unackyeswledged.
 	See tcp_retries2 for more details.
 
 	The default value is 8.
@@ -520,7 +520,7 @@ tcp_retrans_collapse - BOOLEAN
 
 tcp_retries1 - INTEGER
 	This value influences the time, after which TCP decides, that
-	something is wrong due to unacknowledged RTO retransmissions,
+	something is wrong due to unackyeswledged RTO retransmissions,
 	and reports this suspicion to the network layer.
 	See tcp_retries2 for more details.
 
@@ -529,7 +529,7 @@ tcp_retries1 - INTEGER
 
 tcp_retries2 - INTEGER
 	This value influences the timeout of an alive TCP connection,
-	when RTO retransmissions remain unacknowledged.
+	when RTO retransmissions remain unackyeswledged.
 	Given a value of N, a hypothetical TCP connection following
 	exponential backoff with an initial RTO of TCP_RTO_MIN would
 	retransmit N times before killing the connection at the (N+1)th RTO.
@@ -544,7 +544,7 @@ tcp_retries2 - INTEGER
 
 tcp_rfc1337 - BOOLEAN
 	If set, the TCP stack behaves conforming to RFC1337. If unset,
-	we are not conforming to RFC, but prevent TCP TIME_WAIT
+	we are yest conforming to RFC, but prevent TCP TIME_WAIT
 	assassination.
 	Default: 0
 
@@ -561,18 +561,18 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	less for default tcp_app_win. See below about these variables.
 
 	max: maximal size of receive buffer allowed for automatically
-	selected receiver buffers for TCP socket. This value does not override
+	selected receiver buffers for TCP socket. This value does yest override
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
-	case this value is ignored.
+	case this value is igyesred.
 	Default: between 87380B and 6MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
-	Enable select acknowledgments (SACKS).
+	Enable select ackyeswledgments (SACKS).
 
 tcp_comp_sack_delay_ns - LONG INTEGER
 	TCP tries to reduce number of SACK sent, using a timer
-	based on 5% of SRTT, capped by this sysctl, in nano seconds.
+	based on 5% of SRTT, capped by this sysctl, in nayes seconds.
 	The default is 1ms, based on TSO autosizing period.
 
 	Default : 1,000,000 ns (1 ms)
@@ -586,19 +586,19 @@ tcp_comp_sack_nr - INTEGER
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion
 	window after an idle period.  An idle period is defined at
-	the current RTO.  If unset, the congestion window will not
+	the current RTO.  If unset, the congestion window will yest
 	be timed out after an idle period.
 	Default: 1
 
 tcp_stdurg - BOOLEAN
 	Use the Host requirements interpretation of the TCP urgent pointer field.
 	Most hosts use the older BSD interpretation, so if you turn this on
-	Linux might not communicate correctly with them.
+	Linux might yest communicate correctly with them.
 	Default: FALSE
 
 tcp_synack_retries - INTEGER
 	Number of times SYNACKs for a passive TCP connection attempt will
-	be retransmitted. Should not be higher than 255. Default value
+	be retransmitted. Should yest be higher than 255. Default value
 	is 5, which corresponds to 31seconds till the last retransmission
 	with the current initial RTO of 1second. With this the final timeout
 	for a passive TCP connection will happen after 63seconds.
@@ -614,18 +614,18 @@ tcp_syncookies - INTEGER
 	against legal connection rate. If you see SYN flood warnings
 	in your logs, but investigation	shows that they occur
 	because of overload with legal connections, you should tune
-	another parameters until this warning disappear.
+	ayesther parameters until this warning disappear.
 	See: tcp_max_syn_backlog, tcp_synack_retries, tcp_abort_on_overflow.
 
-	syncookies seriously violate TCP protocol, do not allow
+	syncookies seriously violate TCP protocol, do yest allow
 	to use TCP extensions, can result in serious degradation
-	of some services (f.e. SMTP relaying), visible not by you,
+	of some services (f.e. SMTP relaying), visible yest by you,
 	but your clients and relays, contacting you. While you see
-	SYN flood warnings in logs not being really flooded, your server
+	SYN flood warnings in logs yest being really flooded, your server
 	is seriously misconfigured.
 
 	If you want to test which effects syncookies have to your
-	network connections you can set this knob to 2 to enable
+	network connections you can set this kyesb to 2 to enable
 	unconditionally generation of syncookies.
 
 tcp_fastopen - INTEGER
@@ -637,7 +637,7 @@ tcp_fastopen - INTEGER
 	rather than connect() to send data in SYN.
 
 	The server support is enabled by flag 0x2 (off by default). Then
-	either enable for all listeners with another flag (0x400) or
+	either enable for all listeners with ayesther flag (0x400) or
 	enable individual listeners via TCP_FASTOPEN socket option with
 	the option value being the length of the syn-data backlog.
 
@@ -674,7 +674,7 @@ tcp_fastopen_key - list of comma separated 32-digit hexadecimal INTEGERs
 
 	A randomly chosen primary key may be configured by the kernel if
 	the tcp_fastopen sysctl is set to 0x400 (see above), or if the
-	TCP_FASTOPEN setsockopt() optname is set and a key has not been
+	TCP_FASTOPEN setsockopt() optname is set and a key has yest been
 	previously configured via sysctl. If keys are configured via
 	setsockopt() by using the TCP_FASTOPEN_KEY optname, then those
 	per-socket keys will be used instead of any keys that are specified via
@@ -688,7 +688,7 @@ tcp_fastopen_key - list of comma separated 32-digit hexadecimal INTEGERs
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
-	will be retransmitted. Should not be higher than 127. Default value
+	will be retransmitted. Should yest be higher than 127. Default value
 	is 6, which corresponds to 63seconds till the last retransmission
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
@@ -738,7 +738,7 @@ tcp_tw_reuse - INTEGER
 	0 - disable
 	1 - global enable
 	2 - enable for loopback traffic only
-	It should not be changed without advice/request of technical
+	It should yest be changed without advice/request of technical
 	experts.
 	Default: 2
 
@@ -756,30 +756,30 @@ tcp_wmem - vector of 3 INTEGERs: min, default, max
 	Default: 16K
 
 	max: Maximal amount of memory allowed for automatically tuned
-	send buffers for TCP sockets. This value does not override
+	send buffers for TCP sockets. This value does yest override
 	net.core.wmem_max.  Calling setsockopt() with SO_SNDBUF disables
 	automatic tuning of that socket's send buffer size, in which case
-	this value is ignored.
+	this value is igyesred.
 	Default: between 64K and 4MB, depending on RAM size.
 
-tcp_notsent_lowat - UNSIGNED INTEGER
+tcp_yestsent_lowat - UNSIGNED INTEGER
 	A TCP socket can control the amount of unsent bytes in its write queue,
 	thanks to TCP_NOTSENT_LOWAT socket option. poll()/select()/epoll()
 	reports POLLOUT events if the amount of unsent bytes is below a per
-	socket value, and if the write queue is not full. sendmsg() will
-	also not add new buffers if the limit is hit.
+	socket value, and if the write queue is yest full. sendmsg() will
+	also yest add new buffers if the limit is hit.
 
 	This global variable controls the amount of unsent data for
-	sockets not using TCP_NOTSENT_LOWAT. For these sockets, a change
+	sockets yest using TCP_NOTSENT_LOWAT. For these sockets, a change
 	to the global variable has immediate effect.
 
 	Default: UINT_MAX (0xFFFFFFFF)
 
 tcp_workaround_signed_windows - BOOLEAN
-	If set, assume no receipt of a window scaling option means the
+	If set, assume yes receipt of a window scaling option means the
 	remote TCP is broken and treats the window as a signed quantity.
-	If unset, assume the remote TCP is not broken even if we do
-	not receive a window scaling option from them.
+	If unset, assume the remote TCP is yest broken even if we do
+	yest receive a window scaling option from them.
 	Default: 0
 
 tcp_thin_linear_timeouts - BOOLEAN
@@ -789,7 +789,7 @@ tcp_thin_linear_timeouts - BOOLEAN
 	As long as the stream is found to be thin, up to 6 linear
 	timeouts may be performed before exponential backoff mode is
 	initiated. This improves retransmission latency for
-	non-aggressive thin streams, often found to be time-dependent.
+	yesn-aggressive thin streams, often found to be time-dependent.
 	For more information on thin streams, see
 	Documentation/networking/tcp-thin.txt
 	Default: 0
@@ -797,7 +797,7 @@ tcp_thin_linear_timeouts - BOOLEAN
 tcp_limit_output_bytes - INTEGER
 	Controls TCP Small Queue limit per tcp socket.
 	TCP bulk sender tends to increase packets in flight until it
-	gets losses notifications. With SNDBUF autotuning, this can
+	gets losses yestifications. With SNDBUF autotuning, this can
 	result in a large amount of packets queued on the local machine
 	(e.g.: qdiscs, CPU backlog, or device) hurting latency of other
 	flows, for typical pfifo_fast qdiscs.  tcp_limit_output_bytes
@@ -831,7 +831,7 @@ udp_l3mdev_accept - BOOLEAN
 udp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all UDP sockets.
 
-	min: Below this number of pages UDP is not bothered about its
+	min: Below this number of pages UDP is yest bothered about its
 	memory appetite. When amount of memory allocated by UDP exceeds
 	this number, UDP starts to moderate memory usage.
 
@@ -867,7 +867,7 @@ CIPSOv4 Variables:
 
 cipso_cache_enable - BOOLEAN
 	If set, enable additions to and lookups from the CIPSO label mapping
-	cache.  If unset, additions are ignored and lookups always result in a
+	cache.  If unset, additions are igyesred and lookups always result in a
 	miss.  However, regardless of the setting the cache is still
 	invalidated when required when means you can safely toggle this on and
 	off and the cache will always be "safe".
@@ -910,8 +910,8 @@ ip_local_port_range - 2 INTEGERS
 	The default values are 32768 and 60999 respectively.
 
 ip_local_reserved_ports - list of comma separated ranges
-	Specify the ports which are reserved for known third-party
-	applications. These ports will not be used by automatic port
+	Specify the ports which are reserved for kyeswn third-party
+	applications. These ports will yest be used by automatic port
 	assignments (e.g. when calling connect() or bind() with port
 	number 0). Explicit port allocation behavior is unchanged.
 
@@ -926,7 +926,7 @@ ip_local_reserved_ports - list of comma separated ranges
 	when determining which ports are available for automatic port
 	assignments.
 
-	You can reserve ports which are not in the current
+	You can reserve ports which are yest in the current
 	ip_local_port_range, e.g.:
 
 	$ cat /proc/sys/net/ipv4/ip_local_port_range
@@ -944,19 +944,19 @@ ip_unprivileged_port_start - INTEGER
 	This is a per-namespace sysctl.  It defines the first
 	unprivileged port in the network namespace.  Privileged ports
 	require root or CAP_NET_BIND_SERVICE in order to bind to them.
-	To disable all privileged ports, set this to 0.  They must not
+	To disable all privileged ports, set this to 0.  They must yest
 	overlap with the ip_local_port_range.
 
 	Default: 1024
 
-ip_nonlocal_bind - BOOLEAN
-	If set, allows processes to bind() to non-local IP addresses,
+ip_yesnlocal_bind - BOOLEAN
+	If set, allows processes to bind() to yesn-local IP addresses,
 	which can be quite useful - but may break some applications.
 	Default: 0
 
 ip_dynaddr - BOOLEAN
-	If set non-zero, enables support for dynamic addresses.
-	If set to a non-zero value larger than 1, a kernel log
+	If set yesn-zero, enables support for dynamic addresses.
+	If set to a yesn-zero value larger than 1, a kernel log
 	message will be printed when dynamic address rewriting
 	occurs.
 	Default: 0
@@ -979,13 +979,13 @@ udp_early_demux - BOOLEAN
 	your system could experience more unconnected load.
 	Default: 1
 
-icmp_echo_ignore_all - BOOLEAN
-	If set non-zero, then the kernel will ignore all ICMP ECHO
+icmp_echo_igyesre_all - BOOLEAN
+	If set yesn-zero, then the kernel will igyesre all ICMP ECHO
 	requests sent to it.
 	Default: 0
 
-icmp_echo_ignore_broadcasts - BOOLEAN
-	If set non-zero, then the kernel will ignore all ICMP ECHO and
+icmp_echo_igyesre_broadcasts - BOOLEAN
+	If set yesn-zero, then the kernel will igyesre all ICMP ECHO and
 	TIMESTAMP requests sent to it via broadcast/multicast.
 	Default: 1
 
@@ -994,7 +994,7 @@ icmp_ratelimit - INTEGER
 	icmp_ratemask (see below) to specific targets.
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
-	Note that another sysctl, icmp_msgs_per_sec limits the number
+	Note that ayesther sysctl, icmp_msgs_per_sec limits the number
 	of ICMP packets	sent on all targets.
 	Default: 1000
 
@@ -1031,10 +1031,10 @@ icmp_ratemask - INTEGER
 
 	* These are rate limited by default (see default mask above)
 
-icmp_ignore_bogus_error_responses - BOOLEAN
+icmp_igyesre_bogus_error_responses - BOOLEAN
 	Some routers violate RFC1122 by sending bogus responses to broadcast
-	frames.  Such violations are normally logged via a kernel warning.
-	If this is set to TRUE, the kernel will not give such warnings, which
+	frames.  Such violations are yesrmally logged via a kernel warning.
+	If this is set to TRUE, the kernel will yest give such warnings, which
 	will avoid log file clutter.
 	Default: 1
 
@@ -1043,14 +1043,14 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 	If zero, icmp error messages are sent with the primary address of
 	the exiting interface.
 
-	If non-zero, the message will be sent with the primary address of
+	If yesn-zero, the message will be sent with the primary address of
 	the interface that received the packet that caused the icmp error.
 	This is the behaviour network many administrators will expect from
 	a router. And it can make debugging complicated network layouts
 	much easier.
 
-	Note that if no primary address exists for the interface selected,
-	then the primary address of the first non-loopback interface that
+	Note that if yes primary address exists for the interface selected,
+	then the primary address of the first yesn-loopback interface that
 	has one will be used regardless of this setting.
 
 	Default: 0
@@ -1070,11 +1070,11 @@ igmp_max_memberships - INTEGER
 	M = 65536-sizeof (ip header)/(sizeof(Group record))
 
 	Group records are variable length, with a minimum of 12 bytes.
-	So net.ipv4.igmp_max_memberships should not be set higher than:
+	So net.ipv4.igmp_max_memberships should yest be set higher than:
 
 	(65536-24) / 12 = 5459
 
-	The value 5459 assumes no IP header options, so in practice
+	The value 5459 assumes yes IP header options, so in practice
 	this number may be lower.
 
 igmp_max_msf - INTEGER
@@ -1097,9 +1097,9 @@ force_igmp_version - INTEGER
 	    IGMPv1 query message. Will reply report if receive IGMPv3 query.
 	3 - Enforce to use IGMP version 3. The same react with default 0.
 
-	Note: this is not the same with force_mld_version because IGMPv3 RFC3376
-	Security Considerations does not have clear description that we could
-	ignore other version messages completely as MLDv2 RFC3810. So make
+	Note: this is yest the same with force_mld_version because IGMPv3 RFC3376
+	Security Considerations does yest have clear description that we could
+	igyesre other version messages completely as MLDv2 RFC3810. So make
 	this value as default 0 is recommended.
 
 conf/interface/*  changes special settings per interface (where
@@ -1140,7 +1140,7 @@ medium_id - INTEGER
 	are attached to. Two devices can have different id values when
 	the broadcast packets are received only on one of them.
 	The default value 0 means that the device is the only interface
-	to its medium, value of -1 means that medium is not known.
+	to its medium, value of -1 means that medium is yest kyeswn.
 
 	Currently, it is used to change the proxy_arp behavior:
 	the proxy_arp feature is enabled for packets forwarded between
@@ -1165,7 +1165,7 @@ proxy_arp_pvlan - BOOLEAN
 	router by proxy_arp'ing. Don't need to be used together with
 	proxy_arp.
 
-	This technology is known by different names:
+	This techyeslogy is kyeswn by different names:
 	  In RFC 3069 it is called VLAN Aggregation.
 	  Cisco and Allied Telesyn call it Private VLAN.
 	  Hewlett-Packard call it Source-Port filtering or port-isolation.
@@ -1198,7 +1198,7 @@ send_redirects - BOOLEAN
 
 bootp_relay - BOOLEAN
 	Accept packets with source address 0.b.c.d destined
-	not to this host as local ones. It is supposed, that
+	yest to this host as local ones. It is supposed, that
 	BOOTP relay daemon will catch and forward such packets.
 	conf/all/bootp_relay must also be set to TRUE to enable BOOTP relay
 	for the interface
@@ -1219,7 +1219,7 @@ accept_local - BOOLEAN
 	default FALSE
 
 route_localnet - BOOLEAN
-	Do not consider loopback addresses as martian source or destination
+	Do yest consider loopback addresses as martian source or destination
 	while routing. This enables the use of 127/8 for local routing purposes.
 	default FALSE
 
@@ -1227,11 +1227,11 @@ rp_filter - INTEGER
 	0 - No source validation.
 	1 - Strict mode as defined in RFC3704 Strict Reverse Path
 	    Each incoming packet is tested against the FIB and if the interface
-	    is not the best reverse path the packet check will fail.
+	    is yest the best reverse path the packet check will fail.
 	    By default failed packets are discarded.
 	2 - Loose mode as defined in RFC3704 Loose Reverse Path
 	    Each incoming packet's source address is also tested against the FIB
-	    and if the source address is not reachable via any interface
+	    and if the source address is yest reachable via any interface
 	    the packet check will fail.
 
 	Current recommended practice in RFC3704 is to enable strict mode
@@ -1247,7 +1247,7 @@ rp_filter - INTEGER
 arp_filter - BOOLEAN
 	1 - Allows you to have multiple network interfaces on the same
 	subnet, and have the ARPs for each interface be answered
-	based on whether or not the kernel would route a packet from
+	based on whether or yest the kernel would route a packet from
 	the ARP'd IP out that interface (therefore you must use source
 	based routing for this to work). In other words it allows control
 	of which cards (usually 1) will respond to an arp request.
@@ -1255,7 +1255,7 @@ arp_filter - BOOLEAN
 	0 - (default) The kernel can respond to arp requests with addresses
 	from other interfaces. This may seem wrong but it usually makes
 	sense, because it increases the chance of successful communication.
-	IP addresses are owned by the complete host on Linux, not by
+	IP addresses are owned by the complete host on Linux, yest by
 	particular interfaces. Only for more complex setups like load-
 	balancing, does this behaviour cause problems.
 
@@ -1263,38 +1263,38 @@ arp_filter - BOOLEAN
 	conf/{all,interface}/arp_filter is set to TRUE,
 	it will be disabled otherwise
 
-arp_announce - INTEGER
-	Define different restriction levels for announcing the local
+arp_anyesunce - INTEGER
+	Define different restriction levels for anyesuncing the local
 	source IP address from IP packets in ARP requests sent on
 	interface:
 	0 - (default) Use any local address, configured on any interface
-	1 - Try to avoid local addresses that are not in the target's
+	1 - Try to avoid local addresses that are yest in the target's
 	subnet for this interface. This mode is useful when target
 	hosts reachable via this interface require the source IP
 	address in ARP requests to be part of their logical network
 	configured on the receiving interface. When we generate the
 	request we will check all our subnets that include the
 	target IP and will preserve the source address if it is from
-	such subnet. If there is no such subnet we select source
+	such subnet. If there is yes such subnet we select source
 	address according to the rules for level 2.
 	2 - Always use the best local address for this target.
-	In this mode we ignore the source address in the IP packet
+	In this mode we igyesre the source address in the IP packet
 	and try to select local address that we prefer for talks with
 	the target host. Such local address is selected by looking
 	for primary IP addresses on all our subnets on the outgoing
-	interface that include the target IP address. If no suitable
+	interface that include the target IP address. If yes suitable
 	local address is found we select the first local address
 	we have on the outgoing interface or on all other interfaces,
 	with the hope we will receive reply for our request and
-	even sometimes no matter the source IP address we announce.
+	even sometimes yes matter the source IP address we anyesunce.
 
-	The max value from conf/{all,interface}/arp_announce is used.
+	The max value from conf/{all,interface}/arp_anyesunce is used.
 
 	Increasing the restriction level gives more chance for
 	receiving answer from the resolved target while decreasing
-	the level announces more valid sender's information.
+	the level anyesunces more valid sender's information.
 
-arp_ignore - INTEGER
+arp_igyesre - INTEGER
 	Define different modes for sending replies in response to
 	received ARP requests that resolve local target IP addresses:
 	0 - (default): reply for any local target IP address, configured
@@ -1304,22 +1304,22 @@ arp_ignore - INTEGER
 	2 - reply only if the target IP address is local address
 	configured on the incoming interface and both with the
 	sender's IP address are part from same subnet on this interface
-	3 - do not reply for local addresses configured with scope host,
+	3 - do yest reply for local addresses configured with scope host,
 	only resolutions for global and link addresses are replied
 	4-7 - reserved
-	8 - do not reply for all local addresses
+	8 - do yest reply for all local addresses
 
-	The max value from conf/{all,interface}/arp_ignore is used
+	The max value from conf/{all,interface}/arp_igyesre is used
 	when ARP request is received on the {interface}
 
-arp_notify - BOOLEAN
-	Define mode for notification of address and device changes.
-	0 - (default): do nothing
+arp_yestify - BOOLEAN
+	Define mode for yestification of address and device changes.
+	0 - (default): do yesthing
 	1 - Generate gratuitous arp requests when device is brought up
 	    or hardware address changes.
 
 arp_accept - BOOLEAN
-	Define behavior for gratuitous ARP frames who's IP is not
+	Define behavior for gratuitous ARP frames who's IP is yest
 	already present in the ARP table:
 	0 - don't create new entries in the ARP table
 	1 - create new entries in the ARP table
@@ -1333,7 +1333,7 @@ arp_accept - BOOLEAN
 
 mcast_solicit - INTEGER
 	The maximum number of multicast probes in INCOMPLETE state,
-	when the associated hardware address is unknown.  Defaults
+	when the associated hardware address is unkyeswn.  Defaults
 	to 3.
 
 ucast_solicit - INTEGER
@@ -1378,9 +1378,9 @@ drop_unicast_in_l2_multicast - BOOLEAN
 	Default: off (0)
 
 drop_gratuitous_arp - BOOLEAN
-	Drop all gratuitous ARP frames, for example if there's a known
-	good ARP proxy on the network and such frames need not be used
-	(or in the case of 802.11, must not be used to prevent attacks.)
+	Drop all gratuitous ARP frames, for example if there's a kyeswn
+	good ARP proxy on the network and such frames need yest be used
+	(or in the case of 802.11, must yest be used to prevent attacks.)
 	Default: off (0)
 
 
@@ -1413,7 +1413,7 @@ delon.nicolas@wanadoo.fr
 
 /proc/sys/net/ipv6/* Variables:
 
-IPv6 has no global variables such as tcp_*.  tcp_* settings under ipv4/ also
+IPv6 has yes global variables such as tcp_*.  tcp_* settings under ipv4/ also
 apply to IPv6 [XXX?].
 
 bindv6only - BOOLEAN
@@ -1444,7 +1444,7 @@ auto_flowlabels - INTEGER
 	   socket option
 	2: automatic flow labels are allowed, they may be enabled on a
 	   per socket basis using the IPV6_AUTOFLOWLABEL socket option
-	3: automatic flow labels are enabled and enforced, they cannot
+	3: automatic flow labels are enabled and enforced, they canyest
 	   be disabled by the socket option
 	Default: 1
 
@@ -1469,7 +1469,7 @@ flowlabel_reflect - INTEGER
 	in "tcp: change IPv6 flow-label upon receiving spurious retransmission"
 	and "tcp: Change txhash on every SYN and RTO retransmit"
 
-	2: enabled for TCP RESET packets (no active listener)
+	2: enabled for TCP RESET packets (yes active listener)
 	If set, a RST packet sent in response to a SYN packet on a closed
 	port will reflect the incoming flow label.
 
@@ -1509,16 +1509,16 @@ mld_qrv - INTEGER
 	Minimum: 1 (as specified by RFC6636 4.5)
 
 max_dst_opts_number - INTEGER
-	Maximum number of non-padding TLVs allowed in a Destination
+	Maximum number of yesn-padding TLVs allowed in a Destination
 	options extension header. If this value is less than zero
-	then unknown options are disallowed and the number of known
+	then unkyeswn options are disallowed and the number of kyeswn
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
 max_hbh_opts_number - INTEGER
-	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
+	Maximum number of yesn-padding TLVs allowed in a Hop-by-Hop
 	options extension header. If this value is less than zero
-	then unknown options are disallowed and the number of known
+	then unkyeswn options are disallowed and the number of kyeswn
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
@@ -1532,9 +1532,9 @@ max_hbh_length - INTEGER
 	header.
 	Default: INT_MAX (unlimited)
 
-skip_notify_on_dev_down - BOOLEAN
+skip_yestify_on_dev_down - BOOLEAN
 	Controls whether an RTM_DELROUTE message is generated for routes
-	removed when a device is taken down or deleted. IPv4 does not
+	removed when a device is taken down or deleted. IPv4 does yest
 	generate this message; IPv6 does by default. Setting this sysctl
 	to true skips the message, making IPv4 and IPv6 on par in relying
 	on userspace caches to track link events and evict routes.
@@ -1580,7 +1580,7 @@ conf/all/forwarding - BOOLEAN
 	Enable global IPv6 forwarding between all interfaces.
 
 	IPv4 and IPv6 work differently here; e.g. netfilter must be used
-	to control which interfaces may forward packets and which not.
+	to control which interfaces may forward packets and which yest.
 
 	This also sets all interfaces' Host/Router setting
 	'forwarding' to the specified value.  See below for details.
@@ -1591,7 +1591,7 @@ proxy_ndp - BOOLEAN
 	Do proxy ndp.
 
 fwmark_reflect - BOOLEAN
-	Controls the fwmark of kernel-generated IPv6 reply packets that are not
+	Controls the fwmark of kernel-generated IPv6 reply packets that are yest
 	associated with a socket for example, TCP RSTs or ICMPv6 echo replies).
 	If unset, these packets have a fwmark of zero. If set, they have the
 	fwmark of the packet they are replying to.
@@ -1601,18 +1601,18 @@ conf/interface/*:
 	Change special settings per interface.
 
 	The functional behaviour for certain settings is different
-	depending on whether local forwarding is enabled or not.
+	depending on whether local forwarding is enabled or yest.
 
 accept_ra - INTEGER
 	Accept Router Advertisements; autoconfigure using them.
 
-	It also determines whether or not to transmit Router
+	It also determines whether or yest to transmit Router
 	Solicitations. If and only if the functional setting is to
 	accept Router Advertisements, Router Solicitations will be
 	transmitted.
 
 	Possible values are:
-		0 Do not accept Router Advertisements.
+		0 Do yest accept Router Advertisements.
 		1 Accept Router Advertisements if forwarding is disabled.
 		2 Overrule forwarding behaviour. Accept Router Advertisements
 		  even if forwarding is enabled.
@@ -1642,7 +1642,7 @@ accept_ra_min_hop_limit - INTEGER
 	Minimum hop limit Information in Router Advertisement.
 
 	Hop limit Information in Router Advertisement less than this
-	variable shall be ignored.
+	variable shall be igyesred.
 
 	Default: 1
 
@@ -1656,7 +1656,7 @@ accept_ra_rt_info_min_plen - INTEGER
 	Minimum prefix length of Route Information in RA.
 
 	Route Information w/ prefix smaller than this variable shall
-	be ignored.
+	be igyesred.
 
 	Functional default: 0 if accept_ra_rtr_pref is enabled.
 			    -1 if accept_ra_rtr_pref is disabled.
@@ -1665,7 +1665,7 @@ accept_ra_rt_info_max_plen - INTEGER
 	Maximum prefix length of Route Information in RA.
 
 	Route Information w/ prefix larger than this variable shall
-	be ignored.
+	be igyesred.
 
 	Functional default: 0 if accept_ra_rtr_pref is enabled.
 			    -1 if accept_ra_rtr_pref is disabled.
@@ -1678,7 +1678,7 @@ accept_ra_rtr_pref - BOOLEAN
 
 accept_ra_mtu - BOOLEAN
 	Apply the MTU value specified in RA option 5 (RFC4861). If
-	disabled, the MTU specified in the RA will be ignored.
+	disabled, the MTU specified in the RA will be igyesred.
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
@@ -1693,7 +1693,7 @@ accept_source_route - INTEGER
 	Accept source routing (routing extension header).
 
 	>= 0: Accept only routing header type 2.
-	< 0: Do not accept routing header.
+	< 0: Do yest accept routing header.
 
 	Default: 0
 
@@ -1722,7 +1722,7 @@ forwarding - INTEGER
 
 	By default, Host behaviour is assumed.  This means:
 
-	1. IsRouter flag is not set in Neighbour Advertisements.
+	1. IsRouter flag is yest set in Neighbour Advertisements.
 	2. If accept_ra is TRUE (default), transmit Router
 	   Solicitations.
 	3. If accept_ra is TRUE (default), accept Router
@@ -1735,9 +1735,9 @@ forwarding - INTEGER
 	This means exactly the reverse from the above:
 
 	1. IsRouter flag is set in Neighbour Advertisements.
-	2. Router Solicitations are not sent unless accept_ra is 2.
-	3. Router Advertisements are ignored unless accept_ra is 2.
-	4. Redirects are ignored.
+	2. Router Solicitations are yest sent unless accept_ra is 2.
+	3. Router Advertisements are igyesred unless accept_ra is 2.
+	4. Redirects are igyesred.
 
 	Default: 0 (disabled) if global forwarding is disabled (default),
 		 otherwise 1 (enabled).
@@ -1750,8 +1750,8 @@ mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
 
-ip_nonlocal_bind - BOOLEAN
-	If set, allows processes to bind() to non-local IPv6 addresses,
+ip_yesnlocal_bind - BOOLEAN
+	If set, allows processes to bind() to yesn-local IPv6 addresses,
 	which can be quite useful - but may break some applications.
 	Default: 0
 
@@ -1771,7 +1771,7 @@ router_solicitation_interval - INTEGER
 	Default: 4
 
 router_solicitations - INTEGER
-	Number of Router Solicitations to send until assuming no
+	Number of Router Solicitations to send until assuming yes
 	routers are present.
 	Default: 3
 
@@ -1802,7 +1802,7 @@ temp_prefered_lft - INTEGER
 
 keep_addr_on_down - INTEGER
 	Keep all IPv6 addresses on an interface down event. If set static
-	global addresses with no expiration time are not flushed.
+	global addresses with yes expiration time are yest flushed.
 	  >0 : enabled
 	   0 : system default
 	  <0 : disabled
@@ -1823,7 +1823,7 @@ regen_max_retry - INTEGER
 
 max_addresses - INTEGER
 	Maximum number of autoconfigured addresses per interface.  Setting
-	to zero disables the limitation.  It is not recommended to set this
+	to zero disables the limitation.  It is yest recommended to set this
 	value too large (or to zero) because it would be an easy way to
 	crash the kernel by allowing too many addresses to be created.
 	Default: 16
@@ -1840,7 +1840,7 @@ disable_ipv6 - BOOLEAN
 
 	When this value is changed from 0 to 1 (IPv6 is being disabled),
 	it will dynamically delete all addresses and routes on the given
-	interface. From now on it will not possible to add addresses/routes
+	interface. From yesw on it will yest possible to add addresses/routes
 	to the selected interface.
 
 accept_dad - INTEGER
@@ -1861,19 +1861,19 @@ force_tllao - BOOLEAN
 	Quoting from RFC 2461, section 4.4, Target link-layer address:
 
 	"The option MUST be included for multicast solicitations in order to
-	avoid infinite Neighbor Solicitation "recursion" when the peer node
-	does not have a cache entry to return a Neighbor Advertisements
+	avoid infinite Neighbor Solicitation "recursion" when the peer yesde
+	does yest have a cache entry to return a Neighbor Advertisements
 	message.  When responding to unicast solicitations, the option can be
 	omitted since the sender of the solicitation has the correct link-
-	layer address; otherwise it would not have be able to send the unicast
+	layer address; otherwise it would yest have be able to send the unicast
 	solicitation in the first place. However, including the link-layer
 	address in this case adds little overhead and eliminates a potential
 	race condition where the sender deletes the cached link-layer address
 	prior to receiving a response to a previous solicitation."
 
-ndisc_notify - BOOLEAN
-	Define mode for notification of address and device changes.
-	0 - (default): do nothing
+ndisc_yestify - BOOLEAN
+	Define mode for yestification of address and device changes.
+	0 - (default): do yesthing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
 
@@ -1917,7 +1917,7 @@ optimistic_dad - BOOLEAN
 	it will be disabled otherwise.
 
 use_optimistic - BOOLEAN
-	If enabled, do not classify optimistic addresses as deprecated during
+	If enabled, do yest classify optimistic addresses as deprecated during
 	source address selection.  Preferred addresses will still be chosen
 	before optimistic addresses, subject to other ranking in the source
 	address selection algorithm.
@@ -1945,7 +1945,7 @@ addr_gen_mode - INTEGER
 	Defines how link-local and autoconf addresses are generated.
 
 	0: generate address based on EUI64 (default)
-	1: do no generate a link-local address, use EUI64 for addresses generated
+	1: do yes generate a link-local address, use EUI64 for addresses generated
 	   from autoconf
 	2: generate stable privacy addresses, using the secret from
 	   stable_secret (RFC7217)
@@ -1959,17 +1959,17 @@ drop_unicast_in_l2_multicast - BOOLEAN
 
 drop_unsolicited_na - BOOLEAN
 	Drop all unsolicited neighbor advertisements, for example if there's
-	a known good NA proxy on the network and such frames need not be used
-	(or in the case of 802.11, must not be used to prevent attacks.)
+	a kyeswn good NA proxy on the network and such frames need yest be used
+	(or in the case of 802.11, must yest be used to prevent attacks.)
 
 	By default this is turned off.
 
 enhanced_dad - BOOLEAN
-	Include a nonce option in the IPv6 neighbor solicitation messages used for
+	Include a yesnce option in the IPv6 neighbor solicitation messages used for
 	duplicate address detection per RFC7527. A received DAD NS will only signal
-	a duplicate address if the nonce is different. This avoids any false
+	a duplicate address if the yesnce is different. This avoids any false
 	detection of duplicates due to loopback of the NS messages that we send.
-	The nonce option will be sent on an interface unless both of
+	The yesnce option will be sent on an interface unless both of
 	conf/{all,interface}/enhanced_dad are set to FALSE.
 	Default: TRUE
 
@@ -1995,18 +1995,18 @@ ratemask - list of comma separated ranges
 
 	Default: 0-1,3-127 (rate limit ICMPv6 errors except Packet Too Big)
 
-echo_ignore_all - BOOLEAN
-	If set non-zero, then the kernel will ignore all ICMP ECHO
+echo_igyesre_all - BOOLEAN
+	If set yesn-zero, then the kernel will igyesre all ICMP ECHO
 	requests sent to it over the IPv6 protocol.
 	Default: 0
 
-echo_ignore_multicast - BOOLEAN
-	If set non-zero, then the kernel will ignore all ICMP ECHO
+echo_igyesre_multicast - BOOLEAN
+	If set yesn-zero, then the kernel will igyesre all ICMP ECHO
 	requests sent to it over the IPv6 protocol via multicast.
 	Default: 0
 
-echo_ignore_anycast - BOOLEAN
-	If set non-zero, then the kernel will ignore all ICMP ECHO
+echo_igyesre_anycast - BOOLEAN
+	If set yesn-zero, then the kernel will igyesre all ICMP ECHO
 	requests sent to it over the IPv6 protocol destined to anycast address.
 	Default: 0
 
@@ -2053,7 +2053,7 @@ bridge-nf-pass-vlan-input-dev - BOOLEAN
 	1: if bridge-nf-filter-vlan-tagged is enabled, try to find a vlan
 	interface on the bridge and set the netfilter input device to the vlan.
 	This allows use of e.g. "iptables -i br0.1" and makes the REDIRECT
-	target work with vlan-on-top-of-bridge interfaces.  When no matching
+	target work with vlan-on-top-of-bridge interfaces.  When yes matching
 	vlan interface is found, or this switch is off, the input device is
 	set to the bridge interface.
 	0: disable bridge netfilter vlan interface lookup.
@@ -2096,12 +2096,12 @@ pf_expose - INTEGER
 	Unset or enable/disable pf (pf is short for potentially failed) state
 	exposure.  Applications can control the exposure of the PF path state
 	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
-	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
+	sockopt.   When it's unset, yes SCTP_PEER_ADDR_CHANGE event with
 	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
 	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
 	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
 	SCTP_PF state and a SCTP_PF-state transport info can be got via
-	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, no
+	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, yes
 	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
 	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
 	sockopt.
@@ -2114,12 +2114,12 @@ pf_expose - INTEGER
 
 	Default: 0
 
-addip_noauth_enable - BOOLEAN
+addip_yesauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
 	addresses.  This requirement is mandated so that unauthorized hosts
-	would not be able to hijack associations.  However, older
-	implementations may not have implemented this requirement while
+	would yest be able to hijack associations.  However, older
+	implementations may yest have implemented this requirement while
 	allowing the ADD-IP extension.  For reasons of interoperability,
 	we provide this variable to control the enforcement of the
 	authentication requirement.
@@ -2145,7 +2145,7 @@ auth_enable - BOOLEAN
 
 prsctp_enable - BOOLEAN
 	Enable or disable the Partial Reliability extension (RFC3758) which
-	is used to notify peers that a given DATA should no longer be expected.
+	is used to yestify peers that a given DATA should yes longer be expected.
 
 	1: Enable extension
 	0: Disable
@@ -2199,7 +2199,7 @@ pf_retrans - INTEGER
 ps_retrans - INTEGER
 	Primary.Switchover.Max.Retrans (PSMR), it's a tunable parameter coming
 	from section-5 "Primary Path Switchover" in rfc7829.  The primary path
-	will be changed to another active path when the path error counter on
+	will be changed to ayesther active path when the path error counter on
 	the old primary path exceeds PSMR, so that "the SCTP sender is allowed
 	to continue data transmission on a new working path even when the old
 	primary destination address becomes active again".   Note this feature
@@ -2261,13 +2261,13 @@ cookie_hmac_alg - STRING
 	Valid values are:
 	* md5
 	* sha1
-	* none
+	* yesne
 	Ability to assign md5 or sha1 as the selected alg is predicated on the
 	configuration of those algorithms at build time (CONFIG_CRYPTO_MD5 and
 	CONFIG_CRYPTO_SHA1).
 
 	Default: Dependent on configuration.  MD5 if available, else SHA1 if
-	available, else none.
+	available, else yesne.
 
 rcvbuf_policy - INTEGER
 	Determines if the receive buffer is attributed to the socket or to
@@ -2296,7 +2296,7 @@ sndbuf_policy - INTEGER
 sctp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all SCTP sockets.
 
-	min: Below this number of pages SCTP is not bothered about its
+	min: Below this number of pages SCTP is yest bothered about its
 	memory appetite. When amount of memory allocated by SCTP exceeds
 	this number, SCTP starts to moderate memory usage.
 
@@ -2308,16 +2308,16 @@ sctp_mem - vector of 3 INTEGERs: min, pressure, max
 
 sctp_rmem - vector of 3 INTEGERs: min, default, max
 	Only the first value ("min") is used, "default" and "max" are
-	ignored.
+	igyesred.
 
 	min: Minimal size of receive buffer used by SCTP socket.
-	It is guaranteed to each SCTP socket (but not association) even
+	It is guaranteed to each SCTP socket (but yest association) even
 	under moderate memory pressure.
 
 	Default: 4K
 
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
-	Currently this tunable has no effect.
+	Currently this tunable has yes effect.
 
 addr_scope_policy - INTEGER
 	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00

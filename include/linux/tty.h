@@ -19,7 +19,7 @@
 /*
  * Lock subclasses for tty locks
  *
- * TTY_LOCK_NORMAL is for normal ttys and master ptys.
+ * TTY_LOCK_NORMAL is for yesrmal ttys and master ptys.
  * TTY_LOCK_SLAVE is for slave ptys only.
  *
  * Lock subclasses are necessary for handling nested locking with pty pairs.
@@ -41,7 +41,7 @@ enum {
 };
 
 /*
- * (Note: the *_driver.minor_start values 1, 64, 128, 192 are
+ * (Note: the *_driver.miyesr_start values 1, 64, 128, 192 are
  * hardcoded at present.)
  */
 #define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
@@ -49,16 +49,16 @@ enum {
 #define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
 
 /*
- * This character is the same as _POSIX_VDISABLE: it cannot be used as
+ * This character is the same as _POSIX_VDISABLE: it canyest be used as
  * a c_cc[] character, but indicates that a particular special character
- * isn't in use (eg VINTR has no character etc)
+ * isn't in use (eg VINTR has yes character etc)
  */
 #define __DISABLED_CHAR '\0'
 
 struct tty_buffer {
 	union {
 		struct tty_buffer *next;
-		struct llist_node free;
+		struct llist_yesde free;
 	};
 	int used;
 	int size;
@@ -70,7 +70,7 @@ struct tty_buffer {
 };
 
 /* Values for .flags field of tty_buffer */
-#define TTYB_NORMAL	1	/* buffer has no flags buffer */
+#define TTYB_NORMAL	1	/* buffer has yes flags buffer */
 
 static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
 {
@@ -208,7 +208,7 @@ struct tty_port_operations {
 	/* Control the DTR line */
 	void (*dtr_rts)(struct tty_port *port, int raise);
 	/* Called when the last close completes or a hangup finishes
-	   IFF the port was initialized. Do not use to free resources. Called
+	   IFF the port was initialized. Do yest use to free resources. Called
 	   under the port mutex to serialize against activate/shutdowns */
 	void (*shutdown)(struct tty_port *port);
 	/* Called under the port mutex from tty_port_open, serialized using
@@ -245,7 +245,7 @@ struct tty_port {
 	unsigned char		*xmit_buf;	/* Optional buffer */
 	unsigned int		close_delay;	/* Close port delay */
 	unsigned int		closing_wait;	/* Delay for output */
-	int			drain_delay;	/* Set to zero if no pure time
+	int			drain_delay;	/* Set to zero if yes pure time
 						   based drain is needed else
 						   set to size of fifo */
 	struct kref		kref;		/* Ref counter */
@@ -270,7 +270,7 @@ struct tty_port {
  * Where all of the state associated with a tty is kept while the tty
  * is open.  Since the termios state should be kept even if the tty
  * has been closed --- for things like the baud rate, etc --- it is
- * not stored here, but rather a pointer to the real state is stored
+ * yest stored here, but rather a pointer to the real state is stored
  * here.  Possible the winsize structure should have the same
  * treatment, but (1) the default 80x24 is usually right and (2) it's
  * most often used by a windowing system, which will set the correct
@@ -288,7 +288,7 @@ struct tty_struct {
 	const struct tty_operations *ops;
 	int index;
 
-	/* Protects ldisc changes: Lock tty not pty */
+	/* Protects ldisc changes: Lock tty yest pty */
 	struct ld_semaphore ldisc_sem;
 	struct tty_ldisc *ldisc;
 
@@ -357,7 +357,7 @@ struct tty_file_private {
  * clear_bit() to make things atomic.
  */
 #define TTY_THROTTLED 		0	/* Call unthrottle() at threshold min */
-#define TTY_IO_ERROR 		1	/* Cause an I/O error (may be no ldisc too) */
+#define TTY_IO_ERROR 		1	/* Cause an I/O error (may be yes ldisc too) */
 #define TTY_OTHER_CLOSED 	2	/* Other side (if any) has closed */
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
@@ -366,7 +366,7 @@ struct tty_file_private {
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_HUPPING		19	/* Hangup in progress */
-#define TTY_LDISC_CHANGING	20	/* Change pending - non-block IO */
+#define TTY_LDISC_CHANGING	20	/* Change pending - yesn-block IO */
 #define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
 /* Values for tty->flow_change */
@@ -384,7 +384,7 @@ static inline void tty_set_flow_change(struct tty_struct *tty, int val)
 	smp_mb();
 }
 
-static inline bool tty_io_nonblock(struct tty_struct *tty, struct file *file)
+static inline bool tty_io_yesnblock(struct tty_struct *tty, struct file *file)
 {
 	return file->f_flags & O_NONBLOCK ||
 		test_bit(TTY_LDISC_CHANGING, &tty->flags);
@@ -435,7 +435,7 @@ static inline struct tty_struct *get_current_tty(void)
 static inline int __init tty_init(void)
 { return 0; }
 static inline const char *tty_name(const struct tty_struct *tty)
-{ return "(none)"; }
+{ return "(yesne)"; }
 static inline struct tty_struct *tty_kopen(dev_t device)
 { return ERR_PTR(-ENODEV); }
 static inline void tty_kclose(struct tty_struct *tty)
@@ -455,7 +455,7 @@ extern struct class *tty_class;
  *	@tty: tty device
  *
  *	Return a new reference to a tty object. The caller must hold
- *	sufficient locks/counts to ensure that their existing reference cannot
+ *	sufficient locks/counts to ensure that their existing reference canyest
  *	go away
  */
 
@@ -504,7 +504,7 @@ extern void __do_SAK(struct tty_struct *tty);
 extern void tty_open_proc_set_tty(struct file *filp, struct tty_struct *tty);
 extern int tty_signal_session_leader(struct tty_struct *tty, int exit_session);
 extern void session_clear_tty(struct pid *session);
-extern void no_tty(void);
+extern void yes_tty(void);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
 extern void tty_buffer_init(struct tty_port *port);
@@ -527,7 +527,7 @@ extern void tty_encode_baud_rate(struct tty_struct *tty,
  *	termios lock must be held by the caller and the terminal bit
  *	flags may be updated.
  *
- *	Locking: none
+ *	Locking: yesne
  */
 static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 {
@@ -561,7 +561,7 @@ extern void tty_add_file(struct tty_struct *tty, struct file *file);
 extern void tty_free_file(struct file *file);
 extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx);
 extern void tty_release_struct(struct tty_struct *tty, int idx);
-extern int tty_release(struct inode *inode, struct file *filp);
+extern int tty_release(struct iyesde *iyesde, struct file *filp);
 extern void tty_init_termios(struct tty_struct *tty);
 extern void tty_save_termios(struct tty_struct *tty);
 extern int tty_standard_install(struct tty_driver *driver,
@@ -785,7 +785,7 @@ static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
 
 #define tty_debug(tty, f, ...)	tty_msg(pr_debug, tty, f, ##__VA_ARGS__)
 #define tty_info(tty, f, ...)	tty_msg(pr_info, tty, f, ##__VA_ARGS__)
-#define tty_notice(tty, f, ...)	tty_msg(pr_notice, tty, f, ##__VA_ARGS__)
+#define tty_yestice(tty, f, ...)	tty_msg(pr_yestice, tty, f, ##__VA_ARGS__)
 #define tty_warn(tty, f, ...)	tty_msg(pr_warn, tty, f, ##__VA_ARGS__)
 #define tty_err(tty, f, ...)	tty_msg(pr_err, tty, f, ##__VA_ARGS__)
 

@@ -4,7 +4,7 @@
  *
  * Authors:	Thomas Graf <tgraf@suug.ch>
  *
- * Note: Quantum tunneling is not supported.
+ * Note: Quantum tunneling is yest supported.
  */
 
 #include <linux/init.h>

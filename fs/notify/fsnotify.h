@@ -3,68 +3,68 @@
 #define __FS_NOTIFY_FSNOTIFY_H_
 
 #include <linux/list.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/srcu.h>
 #include <linux/types.h>
 
 #include "../mount.h"
 
-static inline struct inode *fsnotify_conn_inode(
-				struct fsnotify_mark_connector *conn)
+static inline struct iyesde *fsyestify_conn_iyesde(
+				struct fsyestify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct inode, i_fsnotify_marks);
+	return container_of(conn->obj, struct iyesde, i_fsyestify_marks);
 }
 
-static inline struct mount *fsnotify_conn_mount(
-				struct fsnotify_mark_connector *conn)
+static inline struct mount *fsyestify_conn_mount(
+				struct fsyestify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
+	return container_of(conn->obj, struct mount, mnt_fsyestify_marks);
 }
 
-static inline struct super_block *fsnotify_conn_sb(
-				struct fsnotify_mark_connector *conn)
+static inline struct super_block *fsyestify_conn_sb(
+				struct fsyestify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+	return container_of(conn->obj, struct super_block, s_fsyestify_marks);
 }
 
-/* destroy all events sitting in this groups notification queue */
-extern void fsnotify_flush_notify(struct fsnotify_group *group);
+/* destroy all events sitting in this groups yestification queue */
+extern void fsyestify_flush_yestify(struct fsyestify_group *group);
 
-/* protects reads of inode and vfsmount marks list */
-extern struct srcu_struct fsnotify_mark_srcu;
+/* protects reads of iyesde and vfsmount marks list */
+extern struct srcu_struct fsyestify_mark_srcu;
 
 /* compare two groups for sorting of marks lists */
-extern int fsnotify_compare_groups(struct fsnotify_group *a,
-				   struct fsnotify_group *b);
+extern int fsyestify_compare_groups(struct fsyestify_group *a,
+				   struct fsyestify_group *b);
 
 /* Destroy all marks attached to an object via connector */
-extern void fsnotify_destroy_marks(fsnotify_connp_t *connp);
-/* run the list of all marks associated with inode and destroy them */
-static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
+extern void fsyestify_destroy_marks(fsyestify_connp_t *connp);
+/* run the list of all marks associated with iyesde and destroy them */
+static inline void fsyestify_clear_marks_by_iyesde(struct iyesde *iyesde)
 {
-	fsnotify_destroy_marks(&inode->i_fsnotify_marks);
+	fsyestify_destroy_marks(&iyesde->i_fsyestify_marks);
 }
 /* run the list of all marks associated with vfsmount and destroy them */
-static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
+static inline void fsyestify_clear_marks_by_mount(struct vfsmount *mnt)
 {
-	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
+	fsyestify_destroy_marks(&real_mount(mnt)->mnt_fsyestify_marks);
 }
 /* run the list of all marks associated with sb and destroy them */
-static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
+static inline void fsyestify_clear_marks_by_sb(struct super_block *sb)
 {
-	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
+	fsyestify_destroy_marks(&sb->s_fsyestify_marks);
 }
 
 /*
- * update the dentry->d_flags of all of inode's children to indicate if inode cares
+ * update the dentry->d_flags of all of iyesde's children to indicate if iyesde cares
  * about events that happen to its children.
  */
-extern void __fsnotify_update_child_dentry_flags(struct inode *inode);
+extern void __fsyestify_update_child_dentry_flags(struct iyesde *iyesde);
 
-/* allocate and destroy and event holder to attach events to notification/access queues */
-extern struct fsnotify_event_holder *fsnotify_alloc_event_holder(void);
-extern void fsnotify_destroy_event_holder(struct fsnotify_event_holder *holder);
+/* allocate and destroy and event holder to attach events to yestification/access queues */
+extern struct fsyestify_event_holder *fsyestify_alloc_event_holder(void);
+extern void fsyestify_destroy_event_holder(struct fsyestify_event_holder *holder);
 
-extern struct kmem_cache *fsnotify_mark_connector_cachep;
+extern struct kmem_cache *fsyestify_mark_connector_cachep;
 
 #endif	/* __FS_NOTIFY_FSNOTIFY_H_ */

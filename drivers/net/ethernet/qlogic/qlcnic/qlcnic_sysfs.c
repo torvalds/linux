@@ -221,7 +221,7 @@ static ssize_t qlcnic_store_beacon(struct device *dev,
 
 	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(dev,
-			 "LED test not supported in non privileged mode\n");
+			 "LED test yest supported in yesn privileged mode\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1302,7 +1302,7 @@ void qlcnic_register_hwmon_dev(struct qlcnic_adapter *adapter)
 						      adapter,
 						      qlcnic_hwmon_groups);
 	if (IS_ERR(hwmon_dev)) {
-		dev_err(dev, "Cannot register with hwmon, err=%ld\n",
+		dev_err(dev, "Canyest register with hwmon, err=%ld\n",
 			PTR_ERR(hwmon_dev));
 		hwmon_dev = NULL;
 	}

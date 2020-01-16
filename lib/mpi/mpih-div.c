@@ -6,7 +6,7 @@
  * This file is part of GnuPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -27,18 +27,18 @@
 /* Divide num (NP/NSIZE) by den (DP/DSIZE) and write
  * the NSIZE-DSIZE least significant quotient limbs at QP
  * and the DSIZE long remainder at NP.	If QEXTRA_LIMBS is
- * non-zero, generate that many fraction bits and append them after the
+ * yesn-zero, generate that many fraction bits and append them after the
  * other quotient limbs.
  * Return the most significant limb of the quotient, this is always 0 or 1.
  *
  * Preconditions:
  * 0. NSIZE >= DSIZE.
  * 1. The most significant bit of the divisor must be set.
- * 2. QP must either not overlap with the input operands at all, or
+ * 2. QP must either yest overlap with the input operands at all, or
  *    QP + DSIZE >= NP must hold true.	(This means that it's
  *    possible to put the quotient in the high part of NUM, right after the
  *    remainder in NUM.
- * 3. NSIZE >= DSIZE, even if QEXTRA_LIMBS is non-zero.
+ * 3. NSIZE >= DSIZE, even if QEXTRA_LIMBS is yesn-zero.
  */
 
 mpi_limb_t
@@ -50,10 +50,10 @@ mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 	switch (dsize) {
 	case 0:
 		/* We are asked to divide by zero, so go ahead and do it!  (To make
-		   the compiler not remove this statement, return the value.)  */
+		   the compiler yest remove this statement, return the value.)  */
 		/*
 		 * existing clients of this function have been modified
-		 * not to call it with dsize == 0, so this should not happen
+		 * yest to call it with dsize == 0, so this should yest happen
 		 */
 		return 1 / dsize;
 
@@ -111,7 +111,7 @@ mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 
 				if (n1 == d1) {
 					/* Q should be either 111..111 or 111..110.  Need special
-					 * treatment of this rare case as normal division would
+					 * treatment of this rare case as yesrmal division would
 					 * give overflow.  */
 					q = ~(mpi_limb_t) 0;
 
@@ -136,7 +136,7 @@ q_test:
 					q--;
 					sub_ddmmss(n1, n0, n1, n0, 0, d0);
 					r += d1;
-					if (r >= d1)	/* If not carry, test Q again.  */
+					if (r >= d1)	/* If yest carry, test Q again.  */
 						goto q_test;
 				}
 
@@ -182,7 +182,7 @@ q_test:
 				}
 
 				if (n0 == dX) {
-					/* This might over-estimate q, but it's probably not worth
+					/* This might over-estimate q, but it's probably yest worth
 					 * the extra code here to find out.  */
 					q = ~(mpi_limb_t) 0;
 				} else {

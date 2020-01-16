@@ -65,7 +65,7 @@ static struct tgfx {
 	char phys[TGFX_MAX_DEVICES][32];
 	int sticks;
 	int used;
-	int parportno;
+	int parportyes;
 	struct mutex sem;
 } *tgfx_base[TGFX_MAX_PORTS];
 
@@ -177,13 +177,13 @@ static void tgfx_attach(struct parport *pp)
 
 	tgfx = kzalloc(sizeof(struct tgfx), GFP_KERNEL);
 	if (!tgfx) {
-		printk(KERN_ERR "turbografx.c: Not enough memory\n");
+		printk(KERN_ERR "turbografx.c: Not eyesugh memory\n");
 		goto err_unreg_pardev;
 	}
 
 	mutex_init(&tgfx->sem);
 	tgfx->pd = pd;
-	tgfx->parportno = pp->number;
+	tgfx->parportyes = pp->number;
 	timer_setup(&tgfx->timer, tgfx_timer, 0);
 
 	for (i = 0; i < n_devs; i++) {
@@ -197,7 +197,7 @@ static void tgfx_attach(struct parport *pp)
 
 		tgfx->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
-			printk(KERN_ERR "turbografx.c: Not enough memory for input device\n");
+			printk(KERN_ERR "turbografx.c: Not eyesugh memory for input device\n");
 			goto err_unreg_devs;
 		}
 
@@ -256,7 +256,7 @@ static void tgfx_detach(struct parport *port)
 	struct tgfx *tgfx;
 
 	for (i = 0; i < TGFX_MAX_PORTS; i++) {
-		if (tgfx_base[i] && tgfx_base[i]->parportno == port->number)
+		if (tgfx_base[i] && tgfx_base[i]->parportyes == port->number)
 			break;
 	}
 

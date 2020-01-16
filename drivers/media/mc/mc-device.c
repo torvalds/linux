@@ -20,7 +20,7 @@
 #include <linux/version.h>
 
 #include <media/media-device.h>
-#include <media/media-devnode.h>
+#include <media/media-devyesde.h>
 #include <media/media-entity.h>
 #include <media/media-request.h>
 
@@ -123,8 +123,8 @@ static long media_device_enum_entities(struct media_device *mdev, void *arg)
 	 * Ranges.
 	 *
 	 * Non-subdevices are expected to be at the MEDIA_ENT_F_OLD_BASE,
-	 * or, otherwise, will be silently ignored by media-ctl when
-	 * printing the graphviz diagram. So, map them into the devnode
+	 * or, otherwise, will be silently igyesred by media-ctl when
+	 * printing the graphviz diagram. So, map them into the devyesde
 	 * old range.
 	 */
 	if (ent->function < MEDIA_ENT_F_OLD_BASE ||
@@ -177,7 +177,7 @@ static long media_device_enum_links(struct media_device *mdev, void *arg)
 		list_for_each_entry(link, &entity->links, list) {
 			struct media_link_desc klink_desc;
 
-			/* Ignore backlinks. */
+			/* Igyesre backlinks. */
 			if (link->source->entity != entity)
 				continue;
 			memset(&klink_desc, 0, sizeof(klink_desc));
@@ -256,7 +256,7 @@ static long media_device_get_topology(struct media_device *mdev, void *arg)
 			continue;
 		}
 
-		/* Copy fields to userspace struct if not error */
+		/* Copy fields to userspace struct if yest error */
 		memset(&kentity, 0, sizeof(kentity));
 		kentity.id = entity->graph_obj.id;
 		kentity.function = entity->function;
@@ -292,12 +292,12 @@ static long media_device_get_topology(struct media_device *mdev, void *arg)
 		kintf.flags = intf->flags;
 
 		if (media_type(&intf->graph_obj) == MEDIA_GRAPH_INTF_DEVNODE) {
-			struct media_intf_devnode *devnode;
+			struct media_intf_devyesde *devyesde;
 
-			devnode = intf_to_devnode(intf);
+			devyesde = intf_to_devyesde(intf);
 
-			kintf.devnode.major = devnode->major;
-			kintf.devnode.minor = devnode->minor;
+			kintf.devyesde.major = devyesde->major;
+			kintf.devyesde.miyesr = devyesde->miyesr;
 		}
 
 		if (copy_to_user(uintf, &kintf, sizeof(kintf)))
@@ -437,8 +437,8 @@ static const struct media_ioctl_info ioctl_info[] = {
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long __arg)
 {
-	struct media_devnode *devnode = media_devnode_data(filp);
-	struct media_device *dev = devnode->media_dev;
+	struct media_devyesde *devyesde = media_devyesde_data(filp);
+	struct media_device *dev = devyesde->media_dev;
 	const struct media_ioctl_info *info;
 	void __user *arg = (void __user *)__arg;
 	char __karg[256], *karg = __karg;
@@ -521,8 +521,8 @@ static long media_device_enum_links32(struct media_device *mdev,
 static long media_device_compat_ioctl(struct file *filp, unsigned int cmd,
 				      unsigned long arg)
 {
-	struct media_devnode *devnode = media_devnode_data(filp);
-	struct media_device *dev = devnode->media_dev;
+	struct media_devyesde *devyesde = media_devyesde_data(filp);
+	struct media_device *dev = devyesde->media_dev;
 	long ret;
 
 	switch (cmd) {
@@ -558,8 +558,8 @@ static const struct media_file_operations media_device_fops = {
 static ssize_t show_model(struct device *cd,
 			  struct device_attribute *attr, char *buf)
 {
-	struct media_devnode *devnode = to_media_devnode(cd);
-	struct media_device *mdev = devnode->media_dev;
+	struct media_devyesde *devyesde = to_media_devyesde(cd);
+	struct media_device *mdev = devyesde->media_dev;
 
 	return sprintf(buf, "%.*s\n", (int)sizeof(mdev->model), mdev->model);
 }
@@ -570,9 +570,9 @@ static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
  * Registration/unregistration
  */
 
-static void media_device_release(struct media_devnode *devnode)
+static void media_device_release(struct media_devyesde *devyesde)
 {
-	dev_dbg(devnode->parent, "Media device released\n");
+	dev_dbg(devyesde->parent, "Media device released\n");
 }
 
 static void __media_device_unregister_entity(struct media_entity *entity)
@@ -602,7 +602,7 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	/* Remove the entity */
 	media_gobj_destroy(&entity->graph_obj);
 
-	/* invoke entity_notify callbacks to handle entity removal?? */
+	/* invoke entity_yestify callbacks to handle entity removal?? */
 
 	entity->graph_obj.mdev = NULL;
 }
@@ -615,14 +615,14 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity)
 {
-	struct media_entity_notify *notify, *next;
+	struct media_entity_yestify *yestify, *next;
 	unsigned int i;
 	int ret;
 
 	if (entity->function == MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN ||
 	    entity->function == MEDIA_ENT_F_UNKNOWN)
 		dev_warn(mdev->dev,
-			 "Entity type for entity %s was not initialized!\n",
+			 "Entity type for entity %s was yest initialized!\n",
 			 entity->name);
 
 	/* Warn if we apparently re-register an entity */
@@ -649,9 +649,9 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 		media_gobj_create(mdev, MEDIA_GRAPH_PAD,
 			       &entity->pads[i].graph_obj);
 
-	/* invoke entity_notify callbacks */
-	list_for_each_entry_safe(notify, next, &mdev->entity_notify, list)
-		notify->notify(entity, notify->notify_data);
+	/* invoke entity_yestify callbacks */
+	list_for_each_entry_safe(yestify, next, &mdev->entity_yestify, list)
+		yestify->yestify(entity, yestify->yestify_data);
 
 	if (mdev->entity_internal_idx_max
 	    >= mdev->pm_count_walk.ent_enum.idx_max) {
@@ -659,7 +659,7 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 
 		/*
 		 * Initialise the new graph walk before cleaning up
-		 * the old one in order not to spoil the graph walk
+		 * the old one in order yest to spoil the graph walk
 		 * object of the media device if graph walk init fails.
 		 */
 		ret = media_graph_walk_init(&new, mdev);
@@ -706,7 +706,7 @@ void media_device_init(struct media_device *mdev)
 	INIT_LIST_HEAD(&mdev->interfaces);
 	INIT_LIST_HEAD(&mdev->pads);
 	INIT_LIST_HEAD(&mdev->links);
-	INIT_LIST_HEAD(&mdev->entity_notify);
+	INIT_LIST_HEAD(&mdev->entity_yestify);
 
 	mutex_init(&mdev->req_queue_mutex);
 	mutex_init(&mdev->graph_mutex);
@@ -731,35 +731,35 @@ EXPORT_SYMBOL_GPL(media_device_cleanup);
 int __must_check __media_device_register(struct media_device *mdev,
 					 struct module *owner)
 {
-	struct media_devnode *devnode;
+	struct media_devyesde *devyesde;
 	int ret;
 
-	devnode = kzalloc(sizeof(*devnode), GFP_KERNEL);
-	if (!devnode)
+	devyesde = kzalloc(sizeof(*devyesde), GFP_KERNEL);
+	if (!devyesde)
 		return -ENOMEM;
 
-	/* Register the device node. */
-	mdev->devnode = devnode;
-	devnode->fops = &media_device_fops;
-	devnode->parent = mdev->dev;
-	devnode->release = media_device_release;
+	/* Register the device yesde. */
+	mdev->devyesde = devyesde;
+	devyesde->fops = &media_device_fops;
+	devyesde->parent = mdev->dev;
+	devyesde->release = media_device_release;
 
 	/* Set version 0 to indicate user-space that the graph is static */
 	mdev->topology_version = 0;
 
-	ret = media_devnode_register(mdev, devnode, owner);
+	ret = media_devyesde_register(mdev, devyesde, owner);
 	if (ret < 0) {
-		/* devnode free is handled in media_devnode_*() */
-		mdev->devnode = NULL;
+		/* devyesde free is handled in media_devyesde_*() */
+		mdev->devyesde = NULL;
 		return ret;
 	}
 
-	ret = device_create_file(&devnode->dev, &dev_attr_model);
+	ret = device_create_file(&devyesde->dev, &dev_attr_model);
 	if (ret < 0) {
-		/* devnode free is handled in media_devnode_*() */
-		mdev->devnode = NULL;
-		media_devnode_unregister_prepare(devnode);
-		media_devnode_unregister(devnode);
+		/* devyesde free is handled in media_devyesde_*() */
+		mdev->devyesde = NULL;
+		media_devyesde_unregister_prepare(devyesde);
+		media_devyesde_unregister(devyesde);
 		return ret;
 	}
 
@@ -769,40 +769,40 @@ int __must_check __media_device_register(struct media_device *mdev,
 }
 EXPORT_SYMBOL_GPL(__media_device_register);
 
-int __must_check media_device_register_entity_notify(struct media_device *mdev,
-					struct media_entity_notify *nptr)
+int __must_check media_device_register_entity_yestify(struct media_device *mdev,
+					struct media_entity_yestify *nptr)
 {
 	mutex_lock(&mdev->graph_mutex);
-	list_add_tail(&nptr->list, &mdev->entity_notify);
+	list_add_tail(&nptr->list, &mdev->entity_yestify);
 	mutex_unlock(&mdev->graph_mutex);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(media_device_register_entity_notify);
+EXPORT_SYMBOL_GPL(media_device_register_entity_yestify);
 
 /*
  * Note: Should be called with mdev->lock held.
  */
-static void __media_device_unregister_entity_notify(struct media_device *mdev,
-					struct media_entity_notify *nptr)
+static void __media_device_unregister_entity_yestify(struct media_device *mdev,
+					struct media_entity_yestify *nptr)
 {
 	list_del(&nptr->list);
 }
 
-void media_device_unregister_entity_notify(struct media_device *mdev,
-					struct media_entity_notify *nptr)
+void media_device_unregister_entity_yestify(struct media_device *mdev,
+					struct media_entity_yestify *nptr)
 {
 	mutex_lock(&mdev->graph_mutex);
-	__media_device_unregister_entity_notify(mdev, nptr);
+	__media_device_unregister_entity_yestify(mdev, nptr);
 	mutex_unlock(&mdev->graph_mutex);
 }
-EXPORT_SYMBOL_GPL(media_device_unregister_entity_notify);
+EXPORT_SYMBOL_GPL(media_device_unregister_entity_yestify);
 
 void media_device_unregister(struct media_device *mdev)
 {
 	struct media_entity *entity;
 	struct media_entity *next;
 	struct media_interface *intf, *tmp_intf;
-	struct media_entity_notify *notify, *nextp;
+	struct media_entity_yestify *yestify, *nextp;
 
 	if (mdev == NULL)
 		return;
@@ -810,21 +810,21 @@ void media_device_unregister(struct media_device *mdev)
 	mutex_lock(&mdev->graph_mutex);
 
 	/* Check if mdev was ever registered at all */
-	if (!media_devnode_is_registered(mdev->devnode)) {
+	if (!media_devyesde_is_registered(mdev->devyesde)) {
 		mutex_unlock(&mdev->graph_mutex);
 		return;
 	}
 
-	/* Clear the devnode register bit to avoid races with media dev open */
-	media_devnode_unregister_prepare(mdev->devnode);
+	/* Clear the devyesde register bit to avoid races with media dev open */
+	media_devyesde_unregister_prepare(mdev->devyesde);
 
 	/* Remove all entities from the media device */
 	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
 		__media_device_unregister_entity(entity);
 
-	/* Remove all entity_notify callbacks from the media device */
-	list_for_each_entry_safe(notify, nextp, &mdev->entity_notify, list)
-		__media_device_unregister_entity_notify(mdev, notify);
+	/* Remove all entity_yestify callbacks from the media device */
+	list_for_each_entry_safe(yestify, nextp, &mdev->entity_yestify, list)
+		__media_device_unregister_entity_yestify(mdev, yestify);
 
 	/* Remove all interfaces from the media device */
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
@@ -842,10 +842,10 @@ void media_device_unregister(struct media_device *mdev)
 
 	dev_dbg(mdev->dev, "Media device unregistered\n");
 
-	device_remove_file(&mdev->devnode->dev, &dev_attr_model);
-	media_devnode_unregister(mdev->devnode);
-	/* devnode free is handled in media_devnode_*() */
-	mdev->devnode = NULL;
+	device_remove_file(&mdev->devyesde->dev, &dev_attr_model);
+	media_devyesde_unregister(mdev->devyesde);
+	/* devyesde free is handled in media_devyesde_*() */
+	mdev->devyesde = NULL;
 }
 EXPORT_SYMBOL_GPL(media_device_unregister);
 
@@ -888,7 +888,7 @@ void __media_device_usb_init(struct media_device *mdev,
 	else if (udev->product)
 		strscpy(mdev->model, udev->product, sizeof(mdev->model));
 	else
-		strscpy(mdev->model, "unknown model", sizeof(mdev->model));
+		strscpy(mdev->model, "unkyeswn model", sizeof(mdev->model));
 	if (udev->serial)
 		strscpy(mdev->serial, udev->serial, sizeof(mdev->serial));
 	usb_make_path(udev, mdev->bus_info, sizeof(mdev->bus_info));

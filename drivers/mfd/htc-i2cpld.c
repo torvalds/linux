@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  htc-i2cpld.c
- *  Chip driver for an unknown CPLD chip found on omap850 HTC devices like
+ *  Chip driver for an unkyeswn CPLD chip found on omap850 HTC devices like
  *  the HTC Wizard and HTC Herald.
  *  The cpld is located on the i2c bus and acts as an input/output GPIO
  *  extender.
@@ -9,7 +9,7 @@
  *  Copyright (C) 2009 Cory Maccarrone <darkstar6262@gmail.com>
  *
  *  Based on work done in the linwizard project
- *  Copyright (C) 2008-2009 Angelo Arrifano <miknix@gmail.com>
+ *  Copyright (C) 2008-2009 Angelo Arrifayes <miknix@gmail.com>
  */
 
 #include <linux/kernel.h>
@@ -66,8 +66,8 @@ struct htcpld_data {
 	unsigned int       nchips;
 };
 
-/* There does not appear to be a way to proactively mask interrupts
- * on the htcpld chip itself.  So, we simply ignore interrupts that
+/* There does yest appear to be a way to proactively mask interrupts
+ * on the htcpld chip itself.  So, we simply igyesre interrupts that
  * aren't desired. */
 static void htcpld_mask(struct irq_data *data)
 {
@@ -126,7 +126,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 	 * desired.  The interrupts will be triggered from LSB to MSB (i.e.
 	 * bit 0 first, then bit 1, etc.)
 	 *
-	 * For chips that have no interrupt range specified, just skip 'em.
+	 * For chips that have yes interrupt range specified, just skip 'em.
 	 */
 	for (i = 0; i < htcpld->nchips; i++) {
 		struct htcpld_chip *chip = &htcpld->chip[i];
@@ -337,14 +337,14 @@ static int htcpld_register_chip_i2c(
 
 	adapter = i2c_get_adapter(pdata->i2c_adapter_id);
 	if (!adapter) {
-		/* Eek, no such I2C adapter!  Bail out. */
+		/* Eek, yes such I2C adapter!  Bail out. */
 		dev_warn(dev, "Chip at i2c address 0x%x: Invalid i2c adapter %d\n",
 			 plat_chip_data->addr, pdata->i2c_adapter_id);
 		return -ENODEV;
 	}
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
-		dev_warn(dev, "i2c adapter %d non-functional\n",
+		dev_warn(dev, "i2c adapter %d yesn-functional\n",
 			 pdata->i2c_adapter_id);
 		return -EINVAL;
 	}
@@ -524,7 +524,7 @@ static int htcpld_core_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(dev);
 	if (!pdata) {
-		dev_warn(dev, "Platform data not found for htcpld core!\n");
+		dev_warn(dev, "Platform data yest found for htcpld core!\n");
 		return -ENXIO;
 	}
 
@@ -567,7 +567,7 @@ static int htcpld_core_probe(struct platform_device *pdev)
 			 * If it failed, that sucks, but we can probably
 			 * continue on without it.
 			 */
-			dev_warn(dev, "Unable to request int_reset_gpio_hi -- interrupts may not work\n");
+			dev_warn(dev, "Unable to request int_reset_gpio_hi -- interrupts may yest work\n");
 			htcpld->int_reset_gpio_hi = 0;
 		} else {
 			htcpld->int_reset_gpio_hi = pdata->int_reset_gpio_hi;
@@ -582,7 +582,7 @@ static int htcpld_core_probe(struct platform_device *pdev)
 			 * If it failed, that sucks, but we can probably
 			 * continue on without it.
 			 */
-			dev_warn(dev, "Unable to request int_reset_gpio_lo -- interrupts may not work\n");
+			dev_warn(dev, "Unable to request int_reset_gpio_lo -- interrupts may yest work\n");
 			htcpld->int_reset_gpio_lo = 0;
 		} else {
 			htcpld->int_reset_gpio_lo = pdata->int_reset_gpio_lo;

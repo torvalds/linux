@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -131,7 +131,7 @@ tu102_fault_intr(struct nvkm_fault *fault)
 static void
 tu102_fault_fini(struct nvkm_fault *fault)
 {
-	nvkm_notify_put(&fault->nrpfb);
+	nvkm_yestify_put(&fault->nrpfb);
 	if (fault->buffer[0])
 		fault->func->buffer.fini(fault->buffer[0]);
 	/*XXX: disable priv faults */
@@ -142,7 +142,7 @@ tu102_fault_init(struct nvkm_fault *fault)
 {
 	/*XXX: enable priv faults */
 	fault->func->buffer.init(fault->buffer[0]);
-	nvkm_notify_get(&fault->nrpfb);
+	nvkm_yestify_get(&fault->nrpfb);
 }
 
 static const struct nvkm_fault_func

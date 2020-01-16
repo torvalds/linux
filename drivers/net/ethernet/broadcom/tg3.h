@@ -2517,7 +2517,7 @@
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
  * exist only in the cards on-chip SRAM.  All 16 send bds are under
- * the same mode, they may not be configured individually.
+ * the same mode, they may yest be configured individually.
  *
  * This driver always uses host memory TX descriptors.
  *
@@ -2543,7 +2543,7 @@
  *	   b) Set TG3_BDINFO_NIC_ADDR to NIC_SRAM_TX_BUFFER_DESC
  *	   c) TG3_BDINFO_MAXLEN_FLAGS is don't care.
  *	3) Access TX descriptors directly in on-chip SRAM
- *	   using normal {read,write}l().  (and not using
+ *	   using yesrmal {read,write}l().  (and yest using
  *         pointer dereferencing of ioremap()'d memory like
  *	   the broken Broadcom driver does)
  *
@@ -2851,9 +2851,9 @@ struct tg3_ocir {
 };
 
 
-/* 'mapping' is superfluous as the chip does not write into
+/* 'mapping' is superfluous as the chip does yest write into
  * the tx/rx post rings so we could just fetch it from there.
- * But the cache behavior is better how we are doing it now.
+ * But the cache behavior is better how we are doing it yesw.
  *
  * This driver uses new build_skb() API :
  * RX ring buffer contains pointer to kmalloc() data only,
@@ -3010,7 +3010,7 @@ struct tg3_napi {
 	u32				last_tag;
 	u32				last_irq_tag;
 	u32				int_mbox;
-	u32				coal_now;
+	u32				coal_yesw;
 
 	u32				consmbox ____cacheline_aligned;
 	u32				rx_rcb_ptr;
@@ -3137,15 +3137,15 @@ struct tg3 {
 
 	/* If the IRQ handler (which runs lockless) needs to be
 	 * quiesced, the following bitmask state is used.  The
-	 * SYNC flag is set by non-IRQ context code to initiate
+	 * SYNC flag is set by yesn-IRQ context code to initiate
 	 * the quiescence.
 	 *
-	 * When the IRQ handler notices that SYNC is set, it
+	 * When the IRQ handler yestices that SYNC is set, it
 	 * disables interrupts and returns.
 	 *
 	 * When all outstanding IRQ handlers have returned after
 	 * the SYNC flag has been set, the setter can be assured
-	 * that interrupts will no longer get run.
+	 * that interrupts will yes longer get run.
 	 *
 	 * In this way all SMP driver locks are never acquired
 	 * in hw IRQ context, only sw IRQ context or lower.
@@ -3184,7 +3184,7 @@ struct tg3 {
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
-	u32				coal_now;
+	u32				coal_yesw;
 	u32				msg_enable;
 
 	struct ptp_clock_info		ptp_info;

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Driver for ORISE Technology OTM3225A SOC for TFT LCD
+/* Driver for ORISE Techyeslogy OTM3225A SOC for TFT LCD
  * Copyright (C) 2017, EETS GmbH, Felix Brack <fb@ltec.ch>
  *
  * This driver implements a lcd device for the ORISE OTM3225A display
  * controller. The control interface to the display is SPI and the display's
  * memory is updated over the 16-bit RGB interface.
  * The main source of information for writing this driver was provided by the
- * OTM3225A datasheet from ORISE Technology. Some information arise from the
+ * OTM3225A datasheet from ORISE Techyeslogy. Some information arise from the
  * ILI9328 datasheet from ILITEK as well as from the datasheets and sample code
  * provided by Crystalfontz America Inc. who sells the CFAF240320A-032T, a 3.2"
  * TFT LC display using the OTM3225A controller.

@@ -22,7 +22,7 @@
 #include <linux/platform_data/max6639.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* The MAX6639 registers, valid channel numbers: 0, 1 */
 #define MAX6639_REG_TEMP(ch)			(0x00 + (ch))
@@ -584,7 +584,7 @@ static struct i2c_driver max6639_driver = {
 	.probe = max6639_probe,
 	.id_table = max6639_id,
 	.detect = max6639_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(max6639_driver);

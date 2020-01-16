@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -61,7 +61,7 @@ MODULE_PARM_DESC(debug_logging_sleep, "Packet Debug Logging Sleep");
  * The value of these module parameters is used to set the priority for each
  * algo type when this driver registers algos with the kernel crypto API.
  * To use a priority other than the default, set the priority in the insmod or
- * modprobe. Changing the module priority after init time has no effect.
+ * modprobe. Changing the module priority after init time has yes effect.
  *
  * The default priorities are chosen to be lower (less preferred) than ARMv8 CE
  * algos, but more preferred than generic software algos.
@@ -87,7 +87,7 @@ MODULE_PARM_DESC(aead_pri, "Priority for AEAD algos");
  */
 static char BCMHEADER[] = { 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28 };
 /*
- * Some SPU hw does not use BCM header on SPU messages. So BCM_HDR_LEN
+ * Some SPU hw does yest use BCM header on SPU messages. So BCM_HDR_LEN
  * is set dynamically after reading SPU type from device tree.
  */
 #define BCM_HDR_LEN  iproc_priv.bcm_hdr_len
@@ -256,13 +256,13 @@ static int mailbox_send_message(struct brcm_message *mssg, u32 flags,
 		while ((err == -ENOBUFS) && (retry_cnt < SPU_MB_RETRY_MAX)) {
 			/*
 			 * Mailbox queue is full. Since MAY_SLEEP is set, assume
-			 * not in atomic context and we can wait and try again.
+			 * yest in atomic context and we can wait and try again.
 			 */
 			retry_cnt++;
 			usleep_range(MBOX_SLEEP_MIN, MBOX_SLEEP_MAX);
 			err = mbox_send_message(iproc_priv.mbox[chan_idx],
 						mssg);
-			atomic_inc(&iproc_priv.mb_no_spc);
+			atomic_inc(&iproc_priv.mb_yes_spc);
 		}
 	}
 	if (err < 0) {
@@ -293,11 +293,11 @@ static int mailbox_send_message(struct brcm_message *mssg, u32 flags,
  * the response callback. When requests are broken into multiple SPU
  * messages, we assume subsequent messages depend on previous results, and
  * thus always wait for previous results before submitting the next message.
- * Because requests are submitted in lock step like this, there is no need
+ * Because requests are submitted in lock step like this, there is yes need
  * to synchronize access to request data structures.
  *
  * Return: -EINPROGRESS: request has been accepted and result will be returned
- *			 asynchronously
+ *			 asynchroyesusly
  *         Any other value indicates an error
  */
 static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
@@ -355,7 +355,7 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 	if ((ctx->cipher.mode == CIPHER_MODE_CBC) &&
 	    rctx->is_encrypt && chunk_start)
 		/*
-		 * Encrypting non-first first chunk. Copy last block of
+		 * Encrypting yesn-first first chunk. Copy last block of
 		 * previous result to IV for this chunk.
 		 */
 		sg_copy_part_to_buf(req->dst, rctx->msg_buf.iv_ctr,
@@ -384,7 +384,7 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 			 * for the next chunk, if there is one. Note that for
 			 * this chunk, the counter has already been copied to
 			 * local_iv_ctr. We can assume a block size of 16,
-			 * because we only support CTR mode for AES, not for
+			 * because we only support CTR mode for AES, yest for
 			 * any other cipher alg.
 			 */
 			add_to_ctr(rctx->msg_buf.iv_ctr, chunksize >> 4);
@@ -395,7 +395,7 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 		rx_frag_num++;
 		if (chunk_start) {
 			/*
-			 * for non-first RC4 chunks, use SUPDT from previous
+			 * for yesn-first RC4 chunks, use SUPDT from previous
 			 * response as key for this chunk.
 			 */
 			cipher_parms.key_buf = rctx->msg_buf.c.supdt_tweak;
@@ -427,7 +427,7 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 
 	/*
 	 * Pass SUPDT field as key. Key field in finish() call is only used
-	 * when update_key has been set above for RC4. Will be ignored in
+	 * when update_key has been set above for RC4. Will be igyesred in
 	 * all other cases.
 	 */
 	spu->spu_cipher_req_finish(rctx->msg_buf.bcm_spu_req_hdr + BCM_HDR_LEN,
@@ -661,7 +661,7 @@ spu_ahash_tx_sg_create(struct brcm_message *mssg,
 }
 
 /**
- * handle_ahash_req() - Process an asynchronous hash request from the crypto
+ * handle_ahash_req() - Process an asynchroyesus hash request from the crypto
  * API.
  * @rctx:  Crypto request context
  *
@@ -675,14 +675,14 @@ spu_ahash_tx_sg_create(struct brcm_message *mssg,
  * Because some operations require the response from one chunk before the next
  * chunk can be submitted, we always wait for the response for the previous
  * chunk before submitting the next chunk. Because requests are submitted in
- * lock step like this, there is no need to synchronize access to request data
+ * lock step like this, there is yes need to synchronize access to request data
  * structures.
  *
  * Return:
  *   -EINPROGRESS: request has been submitted to SPU and response will be
- *		   returned asynchronously
- *   -EAGAIN:      non-final request included a small amount of data, which for
- *		   efficiency we did not submit to the SPU, but instead stored
+ *		   returned asynchroyesusly
+ *   -EAGAIN:      yesn-final request included a small amount of data, which for
+ *		   efficiency we did yest submit to the SPU, but instead stored
  *		   to be submitted to the SPU with the next part of the request
  *   other:        an error code
  */
@@ -701,7 +701,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 	int err = 0;
 	unsigned int chunksize = 0;	/* length of hash carry + new data */
 	/*
-	 * length of new data, not from hash carry, to be submitted in
+	 * length of new data, yest from hash carry, to be submitted in
 	 * this hw request
 	 */
 	unsigned int new_data_len;
@@ -766,7 +766,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 		chunksize = ctx->max_payload;
 
 	/*
-	 * If this is not a final request and the request data is not a multiple
+	 * If this is yest a final request and the request data is yest a multiple
 	 * of a full block, then simply park the extra data and prefix it to the
 	 * data for the next request.
 	 */
@@ -776,7 +776,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 
 		rem = chunksize % blocksize;   /* remainder */
 		if (rem) {
-			/* chunksize not a multiple of blocksize */
+			/* chunksize yest a multiple of blocksize */
 			chunksize -= rem;
 			if (chunksize == 0) {
 				/* Don't have a full block to submit to hw */
@@ -827,7 +827,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 							   blocksize);
 
 	/*
-	 * If a non-first chunk, then include the digest returned from the
+	 * If a yesn-first chunk, then include the digest returned from the
 	 * previous chunk so that hw can add to it (except for AES types).
 	 */
 	if ((hash_parms.type == HASH_TYPE_UPDT) &&
@@ -921,12 +921,12 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 }
 
 /**
- * spu_hmac_outer_hash() - Request synchonous software compute of the outer hash
+ * spu_hmac_outer_hash() - Request synchoyesus software compute of the outer hash
  * for an HMAC request.
  * @req:  The HMAC request from the crypto API
  * @ctx:  The session context
  *
- * Return: 0 if synchronous hash operation successful
+ * Return: 0 if synchroyesus hash operation successful
  *         -EINVAL if the hash algo is unrecognized
  *         any other value indicates an error
  */
@@ -964,7 +964,7 @@ static int spu_hmac_outer_hash(struct ahash_request *req,
 			      req->result, ctx->digestsize, NULL, 0);
 		break;
 	default:
-		pr_err("%s() Error : unknown hmac type\n", __func__);
+		pr_err("%s() Error : unkyeswn hmac type\n", __func__);
 		rc = -EINVAL;
 	}
 	return rc;
@@ -1092,7 +1092,7 @@ static int spu_aead_rx_sg_create(struct brcm_message *mssg,
 	u8 data_padlen = 0;
 
 	if (ctx->is_rfc4543) {
-		/* RFC4543: only pad after data, not after AAD */
+		/* RFC4543: only pad after data, yest after AAD */
 		data_padlen = spu->spu_gcm_ccm_pad_len(ctx->cipher.mode,
 							  assoc_len + resp_len);
 		assoc_buf_len = assoc_len;
@@ -1290,7 +1290,7 @@ static int spu_aead_tx_sg_create(struct brcm_message *mssg,
  * response to aead requests. So digestsize is always ctx->digestsize here.
  *
  * Return: -EINPROGRESS: crypto request has been accepted and result will be
- *			 returned asynchronously
+ *			 returned asynchroyesusly
  *         Any other value indicates an error
  */
 static int handle_aead_req(struct iproc_reqctx_s *rctx)
@@ -1358,7 +1358,7 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 	if (ctx->is_esp && !ctx->is_rfc4543) {
 		/*
 		 * 8-byte IV is included assoc data in request. SPU2
-		 * expects AAD to include just SPI and seqno. So
+		 * expects AAD to include just SPI and seqyes. So
 		 * subtract off the IV len.
 		 */
 		aead_parms.assoc_size -= GCM_RFC4106_IV_SIZE;
@@ -1520,12 +1520,12 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 	if (((ctx->cipher.mode == CIPHER_MODE_GCM) ||
 	     (ctx->cipher.mode == CIPHER_MODE_CCM)) && !rctx->is_encrypt) {
 		/*
-		 * Input is ciphertxt plus ICV, but ICV not incl
+		 * Input is ciphertxt plus ICV, but ICV yest incl
 		 * in output.
 		 */
 		resp_len -= ctx->digestsize;
 		if (resp_len == 0)
-			/* no rx frags to catch output data */
+			/* yes rx frags to catch output data */
 			rx_frag_num -= rctx->dst_nents;
 	}
 
@@ -1635,9 +1635,9 @@ static void spu_chunk_cleanup(struct iproc_reqctx_s *rctx)
 
 /**
  * finish_req() - Used to invoke the complete callback from the requester when
- * a request has been handled asynchronously.
+ * a request has been handled asynchroyesusly.
  * @rctx:  Request context
- * @err:   Indicates whether the request was successful or not
+ * @err:   Indicates whether the request was successful or yest
  *
  * Ensures that cleanup has been done for request
  */
@@ -1669,7 +1669,7 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 	rctx = mssg->ctx;
 	if (unlikely(!rctx)) {
 		/* This is fatal */
-		pr_err("%s(): no request context", __func__);
+		pr_err("%s(): yes request context", __func__);
 		err = -EFAULT;
 		goto cb_finish;
 	}
@@ -1700,7 +1700,7 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 	}
 
 	/*
-	 * If this response does not complete the request, then send the next
+	 * If this response does yest complete the request, then send the next
 	 * request chunk.
 	 */
 	if (rctx->total_sent < rctx->total_todo) {
@@ -1744,7 +1744,7 @@ cb_finish:
  * @encrypt:	true if encrypting; false if decrypting
  *
  * Return: -EINPROGRESS if request accepted and result will be returned
- *			asynchronously
+ *			asynchroyesusly
  *	   < 0 if an error
  */
 static int skcipher_enqueue(struct skcipher_request *req, bool encrypt)
@@ -1792,7 +1792,7 @@ static int skcipher_enqueue(struct skcipher_request *req, bool encrypt)
 	rctx->chan_idx = select_channel();
 	err = handle_skcipher_req(rctx);
 	if (err != -EINPROGRESS)
-		/* synchronous result */
+		/* synchroyesus result */
 		spu_chunk_cleanup(rctx);
 
 	return err;
@@ -1900,7 +1900,7 @@ static int skcipher_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		err = rc4_setkey(cipher, key, keylen);
 		break;
 	default:
-		pr_err("%s() Error: unknown cipher alg\n", __func__);
+		pr_err("%s() Error: unkyeswn cipher alg\n", __func__);
 		err = -EINVAL;
 	}
 	if (err)
@@ -1988,12 +1988,12 @@ static int ahash_enqueue(struct ahash_request *req)
 	rctx->dst_skip = 0;
 	rctx->dst_nents = 0;
 
-	/* SPU2 hardware does not compute hash of zero length data */
+	/* SPU2 hardware does yest compute hash of zero length data */
 	if ((rctx->is_final == 1) && (rctx->total_todo == 0) &&
 	    (iproc_priv.spu.spu_type == SPU_TYPE_SPU2)) {
 		alg_name = crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
 		flow_log("Doing %sfinal %s zero-len hash request in software\n",
-			 rctx->is_final ? "" : "non-", alg_name);
+			 rctx->is_final ? "" : "yesn-", alg_name);
 		err = do_shash((unsigned char *)alg_name, req->result,
 			       NULL, 0, NULL, 0, ctx->authkey,
 			       ctx->authkeylen);
@@ -2006,7 +2006,7 @@ static int ahash_enqueue(struct ahash_request *req)
 
 	err = handle_ahash_req(rctx);
 	if (err != -EINPROGRESS)
-		/* synchronous result */
+		/* synchroyesus result */
 		spu_chunk_cleanup(rctx);
 
 	if (err == -EAGAIN)
@@ -2050,19 +2050,19 @@ static int __ahash_init(struct ahash_request *req)
 }
 
 /**
- * spu_no_incr_hash() - Determine whether incremental hashing is supported.
+ * spu_yes_incr_hash() - Determine whether incremental hashing is supported.
  * @ctx:  Crypto session context
  *
- * SPU-2 does not support incremental hashing (we'll have to revisit and
+ * SPU-2 does yest support incremental hashing (we'll have to revisit and
  * condition based on chip revision or device tree entry if future versions do
  * support incremental hash)
  *
  * SPU-M also doesn't support incremental hashing of AES-XCBC
  *
- * Return: true if incremental hashing is not supported
+ * Return: true if incremental hashing is yest supported
  *         false otherwise
  */
-static bool spu_no_incr_hash(struct iproc_ctx_s *ctx)
+static bool spu_yes_incr_hash(struct iproc_ctx_s *ctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
 
@@ -2086,11 +2086,11 @@ static int ahash_init(struct ahash_request *req)
 	int ret;
 	gfp_t gfp;
 
-	if (spu_no_incr_hash(ctx)) {
+	if (spu_yes_incr_hash(ctx)) {
 		/*
-		 * If we get an incremental hashing request and it's not
+		 * If we get an incremental hashing request and it's yest
 		 * supported by the hardware, we need to handle it in software
-		 * by calling synchronous hash functions.
+		 * by calling synchroyesus hash functions.
 		 */
 		alg_name = crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
 		hash = crypto_alloc_shash(alg_name, 0, 0);
@@ -2159,11 +2159,11 @@ static int ahash_update(struct ahash_request *req)
 	int nents;
 	gfp_t gfp;
 
-	if (spu_no_incr_hash(ctx)) {
+	if (spu_yes_incr_hash(ctx)) {
 		/*
-		 * If we get an incremental hashing request and it's not
+		 * If we get an incremental hashing request and it's yest
 		 * supported by the hardware, we need to handle it in software
-		 * by calling synchronous hash functions.
+		 * by calling synchroyesus hash functions.
 		 */
 		if (req->src)
 			nents = sg_nents(req->src);
@@ -2183,7 +2183,7 @@ static int ahash_update(struct ahash_request *req)
 			return -EINVAL;
 		}
 
-		/* Call synchronous update */
+		/* Call synchroyesus update */
 		ret = crypto_shash_update(ctx->shash, tmpbuf, req->nbytes);
 		kfree(tmpbuf);
 	} else {
@@ -2211,15 +2211,15 @@ static int ahash_final(struct ahash_request *req)
 	struct iproc_ctx_s *ctx = crypto_ahash_ctx(tfm);
 	int ret;
 
-	if (spu_no_incr_hash(ctx)) {
+	if (spu_yes_incr_hash(ctx)) {
 		/*
-		 * If we get an incremental hashing request and it's not
+		 * If we get an incremental hashing request and it's yest
 		 * supported by the hardware, we need to handle it in software
-		 * by calling synchronous hash functions.
+		 * by calling synchroyesus hash functions.
 		 */
 		ret = crypto_shash_final(ctx->shash, req->result);
 
-		/* Done with hash, can deallocate it now */
+		/* Done with hash, can deallocate it yesw */
 		crypto_free_shash(ctx->shash->tfm);
 		kfree(ctx->shash);
 
@@ -2253,11 +2253,11 @@ static int ahash_finup(struct ahash_request *req)
 	int nents;
 	gfp_t gfp;
 
-	if (spu_no_incr_hash(ctx)) {
+	if (spu_yes_incr_hash(ctx)) {
 		/*
-		 * If we get an incremental hashing request and it's not
+		 * If we get an incremental hashing request and it's yest
 		 * supported by the hardware, we need to handle it in software
-		 * by calling synchronous hash functions.
+		 * by calling synchroyesus hash functions.
 		 */
 		if (req->src) {
 			nents = sg_nents(req->src);
@@ -2281,7 +2281,7 @@ static int ahash_finup(struct ahash_request *req)
 			goto ahash_finup_free;
 		}
 
-		/* Call synchronous update */
+		/* Call synchroyesus update */
 		ret = crypto_shash_finup(ctx->shash, tmpbuf, req->nbytes,
 					 req->result);
 	} else {
@@ -2292,7 +2292,7 @@ ahash_finup_free:
 	kfree(tmpbuf);
 
 ahash_finup_exit:
-	/* Done with hash, can deallocate it now */
+	/* Done with hash, can deallocate it yesw */
 	crypto_free_shash(ctx->shash->tfm);
 	kfree(ctx->shash);
 	return ret;
@@ -2337,7 +2337,7 @@ static int ahash_setkey(struct crypto_ahash *ahash, const u8 *key,
 			return -EINVAL;
 		}
 	} else {
-		pr_err("%s() Error: unknown hash alg\n", __func__);
+		pr_err("%s() Error: unkyeswn hash alg\n", __func__);
 		return -EINVAL;
 	}
 	memcpy(ctx->authkey, key, keylen);
@@ -2433,7 +2433,7 @@ static int ahash_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 				      NULL, 0, NULL, 0);
 			break;
 		default:
-			pr_err("%s() Error: unknown hash alg\n", __func__);
+			pr_err("%s() Error: unkyeswn hash alg\n", __func__);
 			return -EINVAL;
 		}
 		if (rc < 0) {
@@ -2451,7 +2451,7 @@ static int ahash_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 	}
 
 	/*
-	 * Full HMAC operation in SPUM is not verified,
+	 * Full HMAC operation in SPUM is yest verified,
 	 * So keeping the generation of IPAD, OPAD and
 	 * outer hashing in software.
 	 */
@@ -2489,7 +2489,7 @@ static int ahash_hmac_init(struct ahash_request *req)
 	/* init the context as a hash */
 	ahash_init(req);
 
-	if (!spu_no_incr_hash(ctx)) {
+	if (!spu_yes_incr_hash(ctx)) {
 		/* SPU-M can do incr hashing but needs sw for outer HMAC */
 		rctx->is_sw_hmac = true;
 		ctx->auth.mode = HASH_MODE_HASH;
@@ -2542,7 +2542,7 @@ static int ahash_hmac_digest(struct ahash_request *req)
 	if (iproc_priv.spu.spu_type == SPU_TYPE_SPU2) {
 		/*
 		 * SPU2 supports full HMAC implementation in the
-		 * hardware, need not to generate IPAD, OPAD and
+		 * hardware, need yest to generate IPAD, OPAD and
 		 * outer hash in software.
 		 * Only for hash key len > hash block size, SPU2
 		 * expects to perform hashing on the key, shorten
@@ -2573,7 +2573,7 @@ static int aead_need_fallback(struct aead_request *req)
 	u32 payload_len;
 
 	/*
-	 * SPU hardware cannot handle the AES-GCM/CCM case where plaintext
+	 * SPU hardware canyest handle the AES-GCM/CCM case where plaintext
 	 * and AAD are both 0 bytes long. So use fallback in this case.
 	 */
 	if (((ctx->cipher.mode == CIPHER_MODE_GCM) ||
@@ -2597,7 +2597,7 @@ static int aead_need_fallback(struct aead_request *req)
 	}
 
 	/*
-	 * SPU-M on NSP has an issue where AES-CCM hash is not correct
+	 * SPU-M on NSP has an issue where AES-CCM hash is yest correct
 	 * when AAD size is 0
 	 */
 	if ((ctx->cipher.mode == CIPHER_MODE_CCM) &&
@@ -2609,7 +2609,7 @@ static int aead_need_fallback(struct aead_request *req)
 	}
 
 	/*
-	 * RFC4106 and RFC4543 cannot handle the case where AAD is other than
+	 * RFC4106 and RFC4543 canyest handle the case where AAD is other than
 	 * 16 or 20 bytes long. So use fallback in this case.
 	 */
 	if (ctx->cipher.mode == CIPHER_MODE_GCM &&
@@ -2678,7 +2678,7 @@ static int aead_do_fallback(struct aead_request *req, bool is_encrypt)
 
 		if (err == 0) {
 			/*
-			 * fallback was synchronous (did not return
+			 * fallback was synchroyesus (did yest return
 			 * -EINPROGRESS). So restore request state here.
 			 */
 			aead_request_set_callback(req, req_flags,
@@ -2784,7 +2784,7 @@ static int aead_enqueue(struct aead_request *req, bool is_encrypt)
 	flow_log("  iv_ctr_len:%u\n", rctx->iv_ctr_len);
 	flow_dump("  iv: ", req->iv, rctx->iv_ctr_len);
 	flow_log("  authkeylen:%u\n", ctx->authkeylen);
-	flow_log("  is_esp: %s\n", ctx->is_esp ? "yes" : "no");
+	flow_log("  is_esp: %s\n", ctx->is_esp ? "no" : "yes");
 
 	if (ctx->max_payload == SPU_MAX_PAYLOAD_INF)
 		flow_log("  max_payload infinite");
@@ -2810,7 +2810,7 @@ static int aead_enqueue(struct aead_request *req, bool is_encrypt)
 	rctx->chan_idx = select_channel();
 	err = handle_aead_req(rctx);
 	if (err != -EINPROGRESS)
-		/* synchronous result */
+		/* synchroyesus result */
 		spu_chunk_cleanup(rctx);
 
 	return err;
@@ -2877,7 +2877,7 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		ctx->cipher_type = CIPHER_TYPE_INIT;
 		break;
 	default:
-		pr_err("%s() Error: Unknown cipher alg\n", __func__);
+		pr_err("%s() Error: Unkyeswn cipher alg\n", __func__);
 		return -EINVAL;
 	}
 
@@ -4442,7 +4442,7 @@ static int spu_mb_init(struct device *dev)
 	mcl->dev = dev;
 	mcl->tx_block = false;
 	mcl->tx_tout = 0;
-	mcl->knows_txdone = true;
+	mcl->kyesws_txdone = true;
 	mcl->rx_callback = spu_rx_callback;
 	mcl->tx_done = NULL;
 
@@ -4501,7 +4501,7 @@ static void spu_counters_init(void)
 	for (i = 0; i < AEAD_TYPE_LAST; i++)
 		atomic_set(&iproc_priv.aead_cnt[i], 0);
 
-	atomic_set(&iproc_priv.mb_no_spc, 0);
+	atomic_set(&iproc_priv.mb_yes_spc, 0);
 	atomic_set(&iproc_priv.mb_send_fail, 0);
 	atomic_set(&iproc_priv.bad_icv, 0);
 }
@@ -4512,7 +4512,7 @@ static int spu_register_skcipher(struct iproc_alg_s *driver_alg)
 	struct skcipher_alg *crypto = &driver_alg->alg.skcipher;
 	int err;
 
-	/* SPU2 does not support RC4 */
+	/* SPU2 does yest support RC4 */
 	if ((driver_alg->cipher_info.alg == CIPHER_ALG_RC4) &&
 	    (spu->spu_type == SPU_TYPE_SPU2))
 		return 0;
@@ -4549,7 +4549,7 @@ static int spu_register_ahash(struct iproc_alg_s *driver_alg)
 	    (spu->spu_type == SPU_TYPE_SPUM))
 		return 0;
 
-	/* SHA3 algorithm variants are not registered for SPU-M or SPU2. */
+	/* SHA3 algorithm variants are yest registered for SPU-M or SPU2. */
 	if ((driver_alg->auth_info.alg >= HASH_ALG_SHA3_224) &&
 	    (spu->spu_subtype != SPU_SUBTYPE_SPU2_V2))
 		return 0;
@@ -4639,7 +4639,7 @@ static int spu_algs_register(struct device *dev)
 			break;
 		default:
 			dev_err(dev,
-				"iproc-crypto: unknown alg type: %d",
+				"iproc-crypto: unkyeswn alg type: %d",
 				driver_algs[i].type);
 			err = -EINVAL;
 		}
@@ -4655,7 +4655,7 @@ static int spu_algs_register(struct device *dev)
 
 err_algs:
 	for (j = 0; j < i; j++) {
-		/* Skip any algorithm not registered */
+		/* Skip any algorithm yest registered */
 		if (!driver_algs[j].registered)
 			continue;
 		switch (driver_algs[j].type) {
@@ -4722,7 +4722,7 @@ static int spu_dt_read(struct platform_device *pdev)
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct resource *spu_ctrl_regs;
 	const struct spu_type_subtype *matched_spu_type;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	int err, i;
 
 	/* Count number of mailbox channels */
@@ -4810,7 +4810,7 @@ static int bcm_spu_remove(struct platform_device *pdev)
 		/*
 		 * Not all algorithms were registered, depending on whether
 		 * hardware is SPU or SPU2.  So here we make sure to skip
-		 * those algorithms that were not previously registered.
+		 * those algorithms that were yest previously registered.
 		 */
 		if (!driver_algs[i].registered)
 			continue;

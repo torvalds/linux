@@ -8,7 +8,7 @@
 #include <linux/memblock.h> /* for max_pfn */
 #include <linux/acpi.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/of_device.h>
@@ -66,7 +66,7 @@ EXPORT_SYMBOL(dmam_free_coherent);
 
 /**
  * dmam_alloc_attrs - Managed dma_alloc_attrs()
- * @dev: Device to allocate non_coherent memory for
+ * @dev: Device to allocate yesn_coherent memory for
  * @size: Size of allocation
  * @dma_handle: Out argument for allocated DMA handle
  * @gfp: Allocation flags
@@ -128,7 +128,7 @@ int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
  * scattertable.  This presents a couple of problems:
  * 1. Not all memory allocated via the coherent DMA APIs is backed by
  *    a struct page
- * 2. Passing coherent DMA memory into the streaming APIs is not allowed
+ * 2. Passing coherent DMA memory into the streaming APIs is yest allowed
  *    as we will try to flush the memory through a different alias to that
  *    actually being used (and the flushes are redundant.)
  */
@@ -222,7 +222,7 @@ EXPORT_SYMBOL_GPL(dma_can_mmap);
  * @attrs: attributes of mapping properties requested in dma_alloc_attrs
  *
  * Map a coherent DMA buffer previously allocated by dma_alloc_attrs into user
- * space.  The coherent DMA buffer must not be freed by the driver until the
+ * space.  The coherent DMA buffer must yest be freed by the driver until the
  * user space mapping has been released.
  */
 int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
@@ -254,7 +254,7 @@ u64 dma_get_required_mask(struct device *dev)
 	 * DMA mask (and use bounce buffering if that isn't supported in
 	 * hardware).  As the direct mapping code has its own routine to
 	 * actually report an optimal mask we default to 32-bit here as that
-	 * is the right thing for most IOMMUs, and at least not actively
+	 * is the right thing for most IOMMUs, and at least yest actively
 	 * harmful in general.
 	 */
 	return DMA_BIT_MASK(32);
@@ -295,8 +295,8 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
 	/*
-	 * On non-coherent platforms which implement DMA-coherent buffers via
-	 * non-cacheable remaps, ops->free() may call vunmap(). Thus getting
+	 * On yesn-coherent platforms which implement DMA-coherent buffers via
+	 * yesn-cacheable remaps, ops->free() may call vunmap(). Thus getting
 	 * this far in IRQ context is a) at risk of a BUG_ON() or trying to
 	 * sleep on some machines, and b) an indication that the driver is
 	 * probably misusing the coherent API anyway.

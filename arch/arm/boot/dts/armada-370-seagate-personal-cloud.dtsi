@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2015 Seagate
  *
- * Author: Simon Guinot <simon.guinot@sequanux.org>
+ * Author: Simon Guiyest <simon.guiyest@sequanux.org>
  */
 
 /*
@@ -163,7 +163,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		/* MX25L8006E */
-		compatible = "mxicy,mx25l8005", "jedec,spi-nor";
+		compatible = "mxicy,mx25l8005", "jedec,spi-yesr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <50000000>;
 

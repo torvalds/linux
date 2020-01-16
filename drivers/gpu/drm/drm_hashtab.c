@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -74,7 +74,7 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 		DRM_DEBUG("count %d, key: 0x%08lx\n", count++, entry->key);
 }
 
-static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
+static struct hlist_yesde *drm_ht_find_key(struct drm_open_hash *ht,
 					  unsigned long key)
 {
 	struct drm_hash_item *entry;
@@ -92,7 +92,7 @@ static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 	return NULL;
 }
 
-static struct hlist_node *drm_ht_find_key_rcu(struct drm_open_hash *ht,
+static struct hlist_yesde *drm_ht_find_key_rcu(struct drm_open_hash *ht,
 					      unsigned long key)
 {
 	struct drm_hash_item *entry;
@@ -114,7 +114,7 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 {
 	struct drm_hash_item *entry;
 	struct hlist_head *h_list;
-	struct hlist_node *parent;
+	struct hlist_yesde *parent;
 	unsigned int hashed_key;
 	unsigned long key = item->key;
 
@@ -169,7 +169,7 @@ EXPORT_SYMBOL(drm_ht_just_insert_please);
 int drm_ht_find_item(struct drm_open_hash *ht, unsigned long key,
 		     struct drm_hash_item **item)
 {
-	struct hlist_node *list;
+	struct hlist_yesde *list;
 
 	list = drm_ht_find_key_rcu(ht, key);
 	if (!list)
@@ -182,7 +182,7 @@ EXPORT_SYMBOL(drm_ht_find_item);
 
 int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key)
 {
-	struct hlist_node *list;
+	struct hlist_yesde *list;
 
 	list = drm_ht_find_key(ht, key);
 	if (list) {

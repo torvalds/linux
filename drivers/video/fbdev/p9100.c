@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -139,14 +139,14 @@ struct p9100_par {
 
 /**
  *      p9100_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @regyes: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int p9100_setcolreg(unsigned regno,
+static int p9100_setcolreg(unsigned regyes,
 			   unsigned red, unsigned green, unsigned blue,
 			   unsigned transp, struct fb_info *info)
 {
@@ -154,7 +154,7 @@ static int p9100_setcolreg(unsigned regno,
 	struct p9100_regs __iomem *regs = par->regs;
 	unsigned long flags;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
@@ -163,7 +163,7 @@ static int p9100_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	sbus_writel((regno << 16), &regs->ramdac_cmap_wridx);
+	sbus_writel((regyes << 16), &regs->ramdac_cmap_wridx);
 	sbus_writel((red << 16), &regs->ramdac_palette_data);
 	sbus_writel((green << 16), &regs->ramdac_palette_data);
 	sbus_writel((blue << 16), &regs->ramdac_palette_data);
@@ -238,7 +238,7 @@ static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
  *  Initialisation
  */
 
-static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
+static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_yesde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -252,7 +252,7 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 
 static int p9100_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct p9100_par *par;
 	int linebytes, err;

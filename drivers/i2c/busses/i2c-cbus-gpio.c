@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
@@ -240,7 +240,7 @@ static int cbus_i2c_probe(struct platform_device *pdev)
 	adapter->owner		= THIS_MODULE;
 	adapter->class		= I2C_CLASS_HWMON;
 	adapter->dev.parent	= &pdev->dev;
-	adapter->dev.of_node	= pdev->dev.of_node;
+	adapter->dev.of_yesde	= pdev->dev.of_yesde;
 	adapter->nr		= pdev->id;
 	adapter->timeout	= HZ;
 	adapter->algo		= &cbus_i2c_algo;

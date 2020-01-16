@@ -26,10 +26,10 @@
 #define W1_THERM_DS28EA00	0x42
 
 /* Allow the strong pullup to be disabled, but default to enabled.
- * If it was disabled a parasite powered device might not get the require
+ * If it was disabled a parasite powered device might yest get the require
  * current to do a temperature conversion.  If it is enabled parasite powered
  * devices have a better chance of getting the current required.
- * In case the parasite power-detection is not working (seems to be the case
+ * In case the parasite power-detection is yest working (seems to be the case
  * for some DS18S20) the strong pullup can also be forced, regardless of the
  * power state of the devices.
  *
@@ -319,7 +319,7 @@ error:
 	return ret;
 }
 
-/* DS18S20 does not feature configuration register */
+/* DS18S20 does yest feature configuration register */
 static inline int w1_DS18S20_precision(struct device *device, int val)
 {
 	return 0;
@@ -661,7 +661,7 @@ static ssize_t w1_seq_show(struct device *device,
 	w1_write_8(sl->master, W1_42_CHAIN_ON_INV);
 	msleep(sl->master->pullup_duration);
 
-	/* check for acknowledgment */
+	/* check for ackyeswledgment */
 	ack = w1_read_8(sl->master);
 	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 		goto error;
@@ -684,7 +684,7 @@ static ssize_t w1_seq_show(struct device *device,
 		w1_write_8(sl->master, W1_42_CHAIN_DONE_INV);
 		w1_read_block(sl->master, &ack, sizeof(ack));
 
-		/* check for acknowledgment */
+		/* check for ackyeswledgment */
 		ack = w1_read_8(sl->master);
 		if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 			goto error;
@@ -699,7 +699,7 @@ static ssize_t w1_seq_show(struct device *device,
 	w1_write_8(sl->master, W1_42_CHAIN_OFF);
 	w1_write_8(sl->master, W1_42_CHAIN_OFF_INV);
 
-	/* check for acknowledgment */
+	/* check for ackyeswledgment */
 	ack = w1_read_8(sl->master);
 	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 		goto error;

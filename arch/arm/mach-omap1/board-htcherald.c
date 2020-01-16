@@ -393,7 +393,7 @@ static struct omap_mmc_platform_data htc_mmc1_data = {
 	.slots[0]       = {
 		.ocr_mask               = MMC_VDD_32_33 | MMC_VDD_33_34,
 		.name                   = "mmcblk",
-		.nomux                  = 1,
+		.yesmux                  = 1,
 		.wires                  = 4,
 		.switch_pin             = -1,
 	},
@@ -460,7 +460,7 @@ static void __init htcherald_lcd_init(void)
 				break;
 		}
 		if (!tries)
-			pr_err("Timeout waiting for end of frame -- LCD may not be available\n");
+			pr_err("Timeout waiting for end of frame -- LCD may yest be available\n");
 
 		/* turn off DMA */
 		reg = omap_readw(OMAP_DMA_LCD_CCR);
@@ -494,7 +494,7 @@ static void __init htcherald_disable_watchdog(void)
 		 * disable a potentially running watchdog timer before
 		 * it kills us.
 		 */
-		printk(KERN_WARNING "OMAP850 Watchdog seems to be activated, disabling it for now.\n");
+		printk(KERN_WARNING "OMAP850 Watchdog seems to be activated, disabling it for yesw.\n");
 		omap_writel(0xF5, OMAP_WDT_TIMER_MODE);
 		omap_writel(0xA0, OMAP_WDT_TIMER_MODE);
 	}

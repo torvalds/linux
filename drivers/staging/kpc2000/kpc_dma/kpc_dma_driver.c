@@ -20,17 +20,17 @@ static int assigned_major_num;
 static LIST_HEAD(kpc_dma_list);
 
 /**********  kpc_dma_list list management  **********/
-struct kpc_dma_device *kpc_dma_lookup_device(int minor)
+struct kpc_dma_device *kpc_dma_lookup_device(int miyesr)
 {
 	struct kpc_dma_device *c;
 
 	mutex_lock(&kpc_dma_mtx);
 	list_for_each_entry(c, &kpc_dma_list, list) {
-		if (c->pldev->id == minor) {
+		if (c->pldev->id == miyesr) {
 			goto out;
 		}
 	}
-	c = NULL; // not-found case
+	c = NULL; // yest-found case
 out:
 	mutex_unlock(&kpc_dma_mtx);
 	return c;
@@ -122,7 +122,7 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		rv = -ENXIO;
 		goto err_kfree;
 	}
-	ldev->eng_regs = ioremap_nocache(r->start, resource_size(r));
+	ldev->eng_regs = ioremap_yescache(r->start, resource_size(r));
 	if (!ldev->eng_regs) {
 		dev_err(&ldev->pldev->dev, "%s: failed to ioremap engine regs!\n", __func__);
 		rv = -ENXIO;

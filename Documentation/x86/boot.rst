@@ -15,7 +15,7 @@ Currently, the following versions of the Linux/x86 boot protocol exist.
 
 =============	============================================================
 Old kernels	zImage/Image support only.  Some very early kernels
-		may not even support a command line.
+		may yest even support a command line.
 
 Protocol 2.00	(Kernel 1.3.73) Added bzImage and initrd support, as
 		well as a formalized way to communicate between the
@@ -76,11 +76,11 @@ Protocol 2.14:	BURNT BY INCORRECT COMMIT ae7e1238e68f2a472a125673ab506d49158c188
 Protocol 2.15:	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
 
-.. note::
+.. yeste::
      The protocol version number should be changed only if the setup header
-     is changed. There is no need to update the version number if boot_params
+     is changed. There is yes need to update the version number if boot_params
      or kernel_info are changed. Additionally, it is recommended to use
-     xloadflags (in this case the protocol version number should not be
+     xloadflags (in this case the protocol version number should yest be
      updated either) or kernel_info to communicate supported Linux kernel
      features to the boot loader. Due to very limited space available in
      the original setup header every update to it should be considered
@@ -96,7 +96,7 @@ zImage kernels, typically looks like::
 
 		|			 |
 	0A0000	+------------------------+
-		|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
+		|  Reserved for BIOS	 |	Do yest use.  Reserved for BIOS EBDA.
 	09A000	+------------------------+
 		|  Command line		 |
 		|  Stack/heap		 |	For use by the kernel real-mode code.
@@ -131,11 +131,11 @@ memory.	 The boot loader should use the "INT 12h" BIOS call to verify
 how much low memory is available.
 
 Unfortunately, if INT 12h reports that the amount of memory is too
-low, there is usually nothing the boot loader can do but to report an
+low, there is usually yesthing the boot loader can do but to report an
 error to the user.  The boot loader should therefore be designed to
 take up as little space in low memory as it reasonably can.  For
 zImage or old bzImage kernels, which need data written into the
-0x90000 segment, the boot loader should make sure not to use memory
+0x90000 segment, the boot loader should make sure yest to use memory
 above the 0x9A000 point; too many BIOSes will break above that point.
 
 For a modern bzImage kernel with boot protocol version >= 2.02, a
@@ -211,7 +211,7 @@ Offset/Size	Proto		Name			Meaning
 0228/4		2.02+		cmd_line_ptr		32-bit pointer to the kernel command line
 022C/4		2.03+		initrd_addr_max		Highest legal initrd address
 0230/4		2.05+		kernel_alignment	Physical addr alignment required for kernel
-0234/1		2.05+		relocatable_kernel	Whether kernel is relocatable or not
+0234/1		2.05+		relocatable_kernel	Whether kernel is relocatable or yest
 0235/1		2.10+		min_alignment		Minimum alignment, as a power of two
 0236/2		2.12+		xloadflags		Boot protocol option flags
 0238/4		2.06+		cmdline_size		Maximum size of the kernel command line
@@ -227,22 +227,22 @@ Offset/Size	Proto		Name			Meaning
 0268/4		2.15+		kernel_info_offset	Offset of the kernel_info
 ===========	========	=====================	============================================
 
-.. note::
+.. yeste::
   (1) For backwards compatibility, if the setup_sects field contains 0, the
       real value is 4.
 
   (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
       field are unusable, which means the size of a bzImage kernel
-      cannot be determined.
+      canyest be determined.
 
-  (3) Ignored, but safe to set, for boot protocols 2.02-2.09.
+  (3) Igyesred, but safe to set, for boot protocols 2.02-2.09.
 
-If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
+If the "HdrS" (0x53726448) magic number is yest found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
 following parameters should be assumed::
 
 	Image type = zImage
-	initrd not supported
+	initrd yest supported
 	Real-mode kernel must be located at 0x90000.
 
 Otherwise, the "version" field contains the protocol version,
@@ -261,8 +261,8 @@ bootloader ("modify").
 
 All general purpose boot loaders should write the fields marked
 (obligatory).  Boot loaders who want to load the kernel at a
-nonstandard address should fill in the fields marked (reloc); other
-boot loaders can ignore those fields.
+yesnstandard address should fill in the fields marked (reloc); other
+boot loaders can igyesre those fields.
 
 The byte order of all fields is littleendian (this is x86, after all.)
 
@@ -284,7 +284,7 @@ Offset/size:	0x1f2/2
 Protocol:	ALL
 ============	=================
 
-  If this field is nonzero, the root defaults to readonly.  The use of
+  If this field is yesnzero, the root defaults to readonly.  The use of
   this field is deprecated; use the "ro" or "rw" options on the
   command line instead.
 
@@ -297,7 +297,7 @@ Protocol:	2.04+
 
   The size of the protected-mode code in units of 16-byte paragraphs.
   For protocol versions older than 2.04 this field is only two bytes
-  wide, and therefore cannot be trusted for the size of a kernel if
+  wide, and therefore canyest be trusted for the size of a kernel if
   the LOAD_HIGH flag is set.
 
 ============	===============
@@ -364,7 +364,7 @@ Offset/size:	0x206/2
 Protocol:	2.00+
 ============	=======
 
-  Contains the boot protocol version, in (major << 8)+minor format,
+  Contains the boot protocol version, in (major << 8)+miyesr format,
   e.g. 0x0204 for version 2.04, and 0x0a11 for a hypothetical version
   10.17.
 
@@ -393,7 +393,7 @@ Offset/size:	0x20e/2
 Protocol:	2.00+
 ============	==============
 
-  If set to a nonzero value, contains a pointer to a NUL-terminated
+  If set to a yesnzero value, contains a pointer to a NUL-terminated
   human-readable kernel version number string, less 0x200.  This can
   be used to display the kernel version to the user.  This value
   should be less than (0x200*setup_sects).
@@ -486,7 +486,7 @@ Protocol:	2.00+
 	- If 1, suppress early messages.
 
 		This requests to the kernel (decompressor and early
-		kernel) to not write early messages that require
+		kernel) to yest write early messages that require
 		accessing the display hardware directly.
 
   Bit 6 (write): KEEP_SEGMENTS
@@ -494,7 +494,7 @@ Protocol:	2.00+
 	Protocol: 2.07+
 
 	- If 0, reload the segment registers in the 32bit entry point.
-	- If 1, do not reload the segment registers in the 32bit entry point.
+	- If 1, do yest reload the segment registers in the 32bit entry point.
 
 		Assume that %cs %ds %ss %es are all set to flat segments with
 		a base of 0 (or the equivalent for their environment).
@@ -513,7 +513,7 @@ Offset/size:	0x212/2
 Protocol:	2.00-2.01
 ============	===================
 
-  When using protocol 2.00 or 2.01, if the real mode kernel is not
+  When using protocol 2.00 or 2.01, if the real mode kernel is yest
   loaded at 0x90000, it gets moved there later in the loading
   sequence.  Fill in this field if you want additional data (such as
   the kernel command line) moved in addition to the real-mode kernel
@@ -521,7 +521,7 @@ Protocol:	2.00-2.01
 
   The unit is bytes starting with the beginning of the boot sector.
 
-  This field is can be ignored when the protocol is 2.02 or higher, or
+  This field is can be igyesred when the protocol is 2.02 or higher, or
   if the real-mode code is loaded at 0x90000.
 
 ============	========================
@@ -539,8 +539,8 @@ Protocol:	2.00+
 
     1. as a boot loader hook (see Advanced Boot Loader Hooks below.)
 
-    2. if a bootloader which does not install a hook loads a
-       relocatable kernel at a nonstandard address it will have to modify
+    2. if a bootloader which does yest install a hook loads a
+       relocatable kernel at a yesnstandard address it will have to modify
        this field to point to the load address.
 
 ============	==================
@@ -551,7 +551,7 @@ Protocol:	2.00+
 ============	==================
 
   The 32-bit linear address of the initial ramdisk or ramfs.  Leave at
-  zero if there is no initial ramdisk/ramfs.
+  zero if there is yes initial ramdisk/ramfs.
 
 ============	==================
 Field name:	ramdisk_size
@@ -560,7 +560,7 @@ Offset/size:	0x21c/4
 Protocol:	2.00+
 ============	==================
 
-  Size of the initial ramdisk or ramfs.  Leave at zero if there is no
+  Size of the initial ramdisk or ramfs.  Leave at zero if there is yes
   initial ramdisk/ramfs.
 
 ============	===============
@@ -593,10 +593,10 @@ Protocol:	2.02+
   type_of_loader field.  The total version number is considered to be
   (type_of_loader & 0x0f) + (ext_loader_ver << 4).
 
-  The use of this field is boot loader specific.  If not written, it
+  The use of this field is boot loader specific.  If yest written, it
   is zero.
 
-  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  Kernels prior to 2.6.31 did yest recognize this field, but it is safe
   to write for protocol version 2.02 or higher.
 
 ============	=====================================================
@@ -610,9 +610,9 @@ Protocol:	2.02+
   type_of_loader field.  If the type in type_of_loader is 0xE, then
   the actual type is (ext_loader_type + 0x10).
 
-  This field is ignored if the type in type_of_loader is not 0xE.
+  This field is igyesred if the type in type_of_loader is yest 0xE.
 
-  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  Kernels prior to 2.6.31 did yest recognize this field, but it is safe
   to write for protocol version 2.02 or higher.
 
 ============	==================
@@ -624,13 +624,13 @@ Protocol:	2.02+
 
   Set this field to the linear address of the kernel command line.
   The kernel command line can be located anywhere between the end of
-  the setup heap and 0xA0000; it does not have to be located in the
+  the setup heap and 0xA0000; it does yest have to be located in the
   same 64K segment as the real-mode code itself.
 
-  Fill in this field even if your boot loader does not support a
+  Fill in this field even if your boot loader does yest support a
   command line, in which case you can point this to an empty string
   (or better yet, to the string "auto".)  If this field is left at
-  zero, the kernel will assume that your boot loader does not support
+  zero, the kernel will assume that your boot loader does yest support
   the 2.02+ protocol.
 
 ============	===============
@@ -642,7 +642,7 @@ Protocol:	2.03+
 
   The maximum address that may be occupied by the initial
   ramdisk/ramfs contents.  For boot protocols 2.02 or earlier, this
-  field is not present, and the maximum address is 0x37FFFFFF.  (This
+  field is yest present, and the maximum address is 0x37FFFFFF.  (This
   address is defined as the address of the highest safe byte, so if
   your ramdisk is exactly 131072 bytes long and this field is
   0x37FFFFFF, you can start your ramdisk at 0x37FE0000.)
@@ -671,7 +671,7 @@ Offset/size:	0x234/1
 Protocol:	2.05+
 ============	==================
 
-  If this field is nonzero, the protected-mode part of the kernel can
+  If this field is yesnzero, the protected-mode part of the kernel can
   be loaded at any address that satisfies the kernel_alignment field.
   After loading, the boot loader must set the code32_start field to
   point to the loaded code, or to a boot loader hook.
@@ -683,7 +683,7 @@ Offset/size:	0x235/1
 Protocol:	2.10+
 ============	=============
 
-  This field, if nonzero, indicates as a power of two the minimum
+  This field, if yesnzero, indicates as a power of two the minimum
   alignment required, as opposed to preferred, by the kernel to boot.
   If a boot loader makes use of this field, it should update the
   kernel_alignment field with the alignment unit desired; typically::
@@ -769,7 +769,7 @@ Protocol:	2.07+
 
   A pointer to data that is specific to hardware subarch
   This field is currently unused for the default x86/PC environment,
-  do not modify.
+  do yest modify.
 
 ============	==============
 Field name:	payload_offset
@@ -778,7 +778,7 @@ Offset/size:	0x248/4
 Protocol:	2.08+
 ============	==============
 
-  If non-zero then this field contains the offset from the beginning
+  If yesn-zero then this field contains the offset from the beginning
   of the protected-mode code to the payload.
 
   The payload may be compressed. The format of both the compressed and
@@ -817,8 +817,8 @@ Protocol:	2.09+
 		u8  data[0];
 	};
 
-  Where, the next is a 64-bit physical pointer to the next node of
-  linked list, the next field of the last node is 0; the type is used
+  Where, the next is a 64-bit physical pointer to the next yesde of
+  linked list, the next field of the last yesde is 0; the type is used
   to identify the contents of data; the len is the length of data
   field; the data holds the real payload.
 
@@ -843,7 +843,7 @@ Protocol:	2.09+
     __u64 addr;
   };
 
-  The type member is a SETUP_INDIRECT | SETUP_* type. However, it cannot be
+  The type member is a SETUP_INDIRECT | SETUP_* type. However, it canyest be
   SETUP_INDIRECT itself since making the setup_indirect a tree structure
   could require a lot of stack space in something that needs to parse it
   and stack space can be limited in boot contexts.
@@ -863,9 +863,9 @@ Protocol:	2.09+
     }
   }
 
-.. note::
-     SETUP_INDIRECT | SETUP_NONE objects cannot be properly distinguished
-     from SETUP_INDIRECT itself. So, this kind of objects cannot be provided
+.. yeste::
+     SETUP_INDIRECT | SETUP_NONE objects canyest be properly distinguished
+     from SETUP_INDIRECT itself. So, this kind of objects canyest be provided
      by the bootloaders.
 
 ============	============
@@ -875,11 +875,11 @@ Offset/size:	0x258/8
 Protocol:	2.10+
 ============	============
 
-  This field, if nonzero, represents a preferred load address for the
+  This field, if yesnzero, represents a preferred load address for the
   kernel.  A relocating bootloader should attempt to load at this
   address if possible.
 
-  A non-relocatable kernel will unconditionally move itself and to run
+  A yesn-relocatable kernel will unconditionally move itself and to run
   at this address.
 
 ============	=======
@@ -890,7 +890,7 @@ Offset/size:	0x260/4
 
   This field indicates the amount of linear contiguous memory starting
   at the kernel runtime start address that the kernel needs before it
-  is capable of examining its memory map.  This is not the same thing
+  is capable of examining its memory map.  This is yest the same thing
   as the total amount of memory the kernel needs to boot, but it can
   be used by a relocating boot loader to help select a safe load
   address for the kernel.
@@ -952,11 +952,11 @@ leaves us with 25 very precious bytes. This isn't something that can be fixed
 without revising the boot protocol entirely, breaking backwards compatibility.
 
 boot_params proper is limited to 4096 bytes, but can be arbitrarily extended
-by adding setup_data entries. It cannot be used to communicate properties of
-the kernel image, because it is .bss and has no image-provided content.
+by adding setup_data entries. It canyest be used to communicate properties of
+the kernel image, because it is .bss and has yes image-provided content.
 
 kernel_info solves this by providing an extensible place for information about
-the kernel image. It is readonly, because the kernel cannot rely on a
+the kernel image. It is readonly, because the kernel canyest rely on a
 bootloader copying its contents anywhere, but that is OK; if it becomes
 necessary it can still contain data items that an enabled bootloader would be
 expected to copy into a setup_data chunk.
@@ -988,9 +988,9 @@ be prefixed with header/magic and its size, e.g.:
 
 This way the kernel_info is self-contained blob.
 
-.. note::
+.. yeste::
      Each variable size data header/magic can be any 4-character string,
-     without \0 at the end of the string, which does not collide with
+     without \0 at the end of the string, which does yest collide with
      existing variable length data headers/magics.
 
 
@@ -1010,7 +1010,7 @@ Offset/size:	0x0004/4
 ============	========
 
   This field contains the size of the kernel_info including kernel_info.header.
-  It does not count kernel_info.kernel_info_var_len_data size. This field should be
+  It does yest count kernel_info.kernel_info_var_len_data size. This field should be
   used by the bootloaders to detect supported fixed size fields in the kernel_info
   and beginning of kernel_info.kernel_info_var_len_data.
 
@@ -1034,7 +1034,7 @@ The Image Checksum
 ==================
 
 From boot protocol version 2.08 onwards the CRC-32 is calculated over
-the entire file using the characteristic polynomial 0x04C11DB7 and an
+the entire file using the characteristic polyyesmial 0x04C11DB7 and an
 initial remainder of 0xffffffff.  The checksum is appended to the
 file; therefore the CRC of the file up to the limit specified in the
 syssize field of the header is always 0.
@@ -1058,7 +1058,7 @@ kernel command line is given by the header field cmd_line_ptr (see
 above.)  This address can be anywhere between the end of the setup
 heap and 0xA0000.
 
-If the protocol version is *not* 2.02 or higher, the kernel
+If the protocol version is *yest* 2.02 or higher, the kernel
 command line is entered using the following protocol:
 
   - At offset 0x0020 (word), "cmd_line_magic", enter the magic
@@ -1080,7 +1080,7 @@ The real-mode code requires a stack/heap to be set up, as well as
 memory allocated for the kernel command line.  This needs to be done
 in the real-mode accessible memory in bottom megabyte.
 
-It should be noted that modern machines often have a sizable Extended
+It should be yested that modern machines often have a sizable Extended
 BIOS Data Area (EBDA).  As a result, it is advisable to use as little
 of the low megabyte as possible.
 
@@ -1090,21 +1090,21 @@ segment has to be used:
 	- When loading a zImage kernel ((loadflags & 0x01) == 0).
 	- When loading a 2.01 or earlier boot protocol kernel.
 
-.. note::
+.. yeste::
      For the 2.00 and 2.01 boot protocols, the real-mode code
-     can be loaded at another address, but it is internally
+     can be loaded at ayesther address, but it is internally
      relocated to 0x90000.  For the "old" protocol, the
      real-mode code must be loaded at 0x90000.
 
 When loading at 0x90000, avoid using memory above 0x9a000.
 
-For boot protocol 2.02 or higher, the command line does not have to be
+For boot protocol 2.02 or higher, the command line does yest have to be
 located in the same 64K segment as the real-mode setup code; it is
 thus permitted to give the stack/heap the full 64K segment and locate
 the command line above it.
 
-The kernel command line should not be located below the real-mode
-code, nor should it be located in high memory.
+The kernel command line should yest be located below the real-mode
+code, yesr should it be located in high memory.
 
 
 Sample Boot Configuartion
@@ -1191,7 +1191,7 @@ Such a boot loader should enter the following fields in the header::
 Loading The Rest of The Kernel
 ==============================
 
-The 32-bit (non-real-mode) kernel starts at offset (setup_sects+1)*512
+The 32-bit (yesn-real-mode) kernel starts at offset (setup_sects+1)*512
 in the kernel file (again, if setup_sects == 0 the real value is 4.)
 It should be loaded at address 0x10000 for Image/zImage kernels and
 0x100000 for bzImage kernels.
@@ -1212,23 +1212,23 @@ Special Command Line Options
 
 If the command line provided by the boot loader is entered by the
 user, the user may expect the following command line options to work.
-They should normally not be deleted from the kernel command line even
-though not all of them are actually meaningful to the kernel.  Boot
+They should yesrmally yest be deleted from the kernel command line even
+though yest all of them are actually meaningful to the kernel.  Boot
 loader authors who need additional command line options for the boot
 loader itself should get them registered in
-Documentation/admin-guide/kernel-parameters.rst to make sure they will not
-conflict with actual kernel options now or in the future.
+Documentation/admin-guide/kernel-parameters.rst to make sure they will yest
+conflict with actual kernel options yesw or in the future.
 
   vga=<mode>
-	<mode> here is either an integer (in C notation, either
+	<mode> here is either an integer (in C yestation, either
 	decimal, octal, or hexadecimal) or one of the strings
-	"normal" (meaning 0xFFFF), "ext" (meaning 0xFFFE) or "ask"
+	"yesrmal" (meaning 0xFFFF), "ext" (meaning 0xFFFE) or "ask"
 	(meaning 0xFFFD).  This value should be entered into the
 	vid_mode field, as it is used by the kernel before the command
 	line is parsed.
 
   mem=<size>
-	<size> is an integer in C notation optionally followed by
+	<size> is an integer in C yestation optionally followed by
 	(case insensitive) K, M, G, T, P or E (meaning << 10, << 20,
 	<< 30, << 40, << 50 or << 60).  This specifies the end of
 	memory to the kernel. This affects the possible placement of
@@ -1239,7 +1239,7 @@ conflict with actual kernel options now or in the future.
   initrd=<file>
 	An initrd should be loaded.  The meaning of <file> is
 	obviously bootloader-dependent, and some boot loaders
-	(e.g. LILO) do not have such a command.
+	(e.g. LILO) do yest have such a command.
 
 In addition, some boot loaders add the following options to the
 user-specified command line:
@@ -1267,7 +1267,7 @@ kernel.  This means that if you loaded your real-mode kernel code at
 
 At entry, ds = es = ss should point to the start of the real-mode
 kernel code (0x9000 if the code is loaded at 0x90000), sp should be
-set up properly, normally pointing to the top of the heap, and
+set up properly, yesrmally pointing to the top of the heap, and
 interrupts should be disabled.  Furthermore, to guard against bugs in
 the kernel, it is recommended that the boot loader sets fs = gs = ds =
 es = ss.
@@ -1290,7 +1290,7 @@ In our example from above, we would do::
 
 If your boot sector accesses a floppy drive, it is recommended to
 switch off the floppy motor before running the kernel, since the
-kernel boot leaves interrupts off and thus the motor will not be
+kernel boot leaves interrupts off and thus the motor will yest be
 switched off, especially if the loaded kernel has the floppy driver as
 a demand-loaded module!
 
@@ -1317,7 +1317,7 @@ IMPORTANT: All the hooks are required to preserve %esp, %ebp, %esi and
 	A 32-bit flat-mode routine *jumped* to immediately after the
 	transition to protected mode, but before the kernel is
 	uncompressed.  No segments, except CS, are guaranteed to be
-	set up (current kernels do, but older ones do not); you should
+	set up (current kernels do, but older ones do yest); you should
 	set them up to BOOT_DS (0x18) yourself.
 
 	After completing your hook, you should jump to the address
@@ -1330,12 +1330,12 @@ IMPORTANT: All the hooks are required to preserve %esp, %ebp, %esi and
 
 For machine with some new BIOS other than legacy BIOS, such as EFI,
 LinuxBIOS, etc, and kexec, the 16-bit real mode setup code in kernel
-based on legacy BIOS can not be used, so a 32-bit boot protocol needs
+based on legacy BIOS can yest be used, so a 32-bit boot protocol needs
 to be defined.
 
 In 32-bit boot protocol, the first step in loading a Linux kernel
 should be to setup the boot parameters (struct boot_params,
-traditionally known as "zero page"). The memory for struct boot_params
+traditionally kyeswn as "zero page"). The memory for struct boot_params
 should be allocated and initialized to all zero. Then the setup header
 from offset 0x01f1 of kernel image on should be loaded into struct
 boot_params and examined. The end of setup header can be calculated as
@@ -1371,7 +1371,7 @@ and we need a 64-bit boot protocol.
 
 In 64-bit boot protocol, the first step in loading a Linux kernel
 should be to setup the boot parameters (struct boot_params,
-traditionally known as "zero page"). The memory for struct boot_params
+traditionally kyeswn as "zero page"). The memory for struct boot_params
 could be allocated anywhere (even above 4G) and initialized to all zero.
 Then, the setup header at offset 0x01f1 of kernel image on should be
 loaded into struct boot_params and examined. The end of setup header

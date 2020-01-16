@@ -95,9 +95,9 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 }
 
 /*
- * If lockdep is enabled then we use the non-preemption spin-ops
+ * If lockdep is enabled then we use the yesn-preemption spin-ops
  * even on CONFIG_PREEMPTION, because lockdep assumes that interrupts are
- * not re-enabled during lock-acquire (which the preempt-spin-ops do):
+ * yest re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 
@@ -111,7 +111,7 @@ static inline unsigned long __raw_spin_lock_irqsave(raw_spinlock_t *lock)
 	/*
 	 * On lockdep we dont want the hand-coded irq-enable of
 	 * do_raw_spin_lock_flags() code, because lockdep assumes
-	 * that interrupts are not re-enabled during lock-acquire:
+	 * that interrupts are yest re-enabled during lock-acquire:
 	 */
 #ifdef CONFIG_LOCKDEP
 	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);

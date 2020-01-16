@@ -175,47 +175,47 @@ static int arcxcnn_backlight_register(struct arcxcnn *lp)
 static void arcxcnn_parse_dt(struct arcxcnn *lp)
 {
 	struct device *dev = lp->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	u32 prog_val, num_entry, entry, sources[ARCXCNN_LEDEN_BITS];
 	int ret;
 
 	/* device tree entry isn't required, defaults are OK */
-	if (!node)
+	if (!yesde)
 		return;
 
-	ret = of_property_read_string(node, "label", &lp->pdata->name);
+	ret = of_property_read_string(yesde, "label", &lp->pdata->name);
 	if (ret < 0)
 		lp->pdata->name = NULL;
 
-	ret = of_property_read_u32(node, "default-brightness", &prog_val);
+	ret = of_property_read_u32(yesde, "default-brightness", &prog_val);
 	if (ret == 0)
 		lp->pdata->initial_brightness = prog_val;
 
-	ret = of_property_read_u32(node, "arc,led-config-0", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,led-config-0", &prog_val);
 	if (ret == 0)
 		lp->pdata->led_config_0 = (u8)prog_val;
 
-	ret = of_property_read_u32(node, "arc,led-config-1", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,led-config-1", &prog_val);
 	if (ret == 0)
 		lp->pdata->led_config_1 = (u8)prog_val;
 
-	ret = of_property_read_u32(node, "arc,dim-freq", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,dim-freq", &prog_val);
 	if (ret == 0)
 		lp->pdata->dim_freq = (u8)prog_val;
 
-	ret = of_property_read_u32(node, "arc,comp-config", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,comp-config", &prog_val);
 	if (ret == 0)
 		lp->pdata->comp_config = (u8)prog_val;
 
-	ret = of_property_read_u32(node, "arc,filter-config", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,filter-config", &prog_val);
 	if (ret == 0)
 		lp->pdata->filter_config = (u8)prog_val;
 
-	ret = of_property_read_u32(node, "arc,trim-config", &prog_val);
+	ret = of_property_read_u32(yesde, "arc,trim-config", &prog_val);
 	if (ret == 0)
 		lp->pdata->trim_config = (u8)prog_val;
 
-	ret = of_property_count_u32_elems(node, "led-sources");
+	ret = of_property_count_u32_elems(yesde, "led-sources");
 	if (ret < 0) {
 		lp->pdata->leden = ARCXCNN_LEDEN_MASK; /* all on is default */
 	} else {
@@ -223,10 +223,10 @@ static void arcxcnn_parse_dt(struct arcxcnn *lp)
 		if (num_entry > ARCXCNN_LEDEN_BITS)
 			num_entry = ARCXCNN_LEDEN_BITS;
 
-		ret = of_property_read_u32_array(node, "led-sources", sources,
+		ret = of_property_read_u32_array(yesde, "led-sources", sources,
 					num_entry);
 		if (ret < 0) {
-			dev_err(dev, "led-sources node is invalid.\n");
+			dev_err(dev, "led-sources yesde is invalid.\n");
 			return;
 		}
 
@@ -279,7 +279,7 @@ static int arcxcnn_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 		lp->pdata->led_config_1 = i2c_smbus_read_byte_data(
 			lp->client, ARCXCNN_ILED_CONFIG);
-		/* insure dim mode is not default pwm */
+		/* insure dim mode is yest default pwm */
 		lp->pdata->led_config_1 |= ARCXCNN_ILED_DIM_INT;
 
 		lp->pdata->dim_freq = i2c_smbus_read_byte_data(
@@ -366,10 +366,10 @@ static int arcxcnn_remove(struct i2c_client *cl)
 {
 	struct arcxcnn *lp = i2c_get_clientdata(cl);
 
-	/* disable all strings (ignore errors) */
+	/* disable all strings (igyesre errors) */
 	i2c_smbus_write_byte_data(lp->client,
 		ARCXCNN_LEDEN, 0x00);
-	/* reset the device (ignore errors) */
+	/* reset the device (igyesre errors) */
 	i2c_smbus_write_byte_data(lp->client,
 		ARCXCNN_CMD, ARCXCNN_CMD_RESET);
 

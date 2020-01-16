@@ -496,8 +496,8 @@ static void tvout_dbg_hd_dac_cfg(struct seq_file *s, int val)
 
 static int tvout_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_tvout *tvout = (struct sti_tvout *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_tvout *tvout = (struct sti_tvout *)yesde->info_ent->data;
 	struct drm_crtc *crtc;
 
 	seq_printf(s, "TVOUT: (vaddr = 0x%p)", tvout->regs);
@@ -570,7 +570,7 @@ static struct drm_info_list tvout_debugfs_files[] = {
 	{ "tvout", tvout_dbg_show, 0, NULL },
 };
 
-static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
+static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -579,7 +579,7 @@ static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(tvout_debugfs_files,
 					ARRAY_SIZE(tvout_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 static void sti_tvout_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -839,13 +839,13 @@ static const struct component_ops sti_tvout_ops = {
 static int sti_tvout_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct sti_tvout *tvout;
 	struct resource *res;
 
 	DRM_INFO("%s\n", __func__);
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	tvout = devm_kzalloc(dev, sizeof(*tvout), GFP_KERNEL);
@@ -860,7 +860,7 @@ static int sti_tvout_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid glue resource\n");
 		return -ENOMEM;
 	}
-	tvout->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	tvout->regs = devm_ioremap_yescache(dev, res->start, resource_size(res));
 	if (!tvout->regs)
 		return -ENOMEM;
 
@@ -883,7 +883,7 @@ static int sti_tvout_remove(struct platform_device *pdev)
 
 static const struct of_device_id tvout_of_match[] = {
 	{ .compatible = "st,stih407-tvout", },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, tvout_of_match);
 

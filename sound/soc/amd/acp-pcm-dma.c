@@ -611,7 +611,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 		      mmACP_AXI2DAGB_GARLIC_CNTL);
 
 	sram_pte_offset = ACP_DAGB_GRP_SRAM_BASE_ADDRESS |
-			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBSnoopSel_MASK |
+			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBSyesopSel_MASK |
 			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBTargetMemSel_MASK |
 			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBGrpEnable_MASK;
 	acp_reg_write(sram_pte_offset,  acp_mmio, mmACP_DAGB_BASE_ADDR_GRP_1);
@@ -803,8 +803,8 @@ static int acp_dma_open(struct snd_soc_component *component,
 	/*
 	 * Enable ACP irq, when neither playback or capture streams are
 	 * active by the time when a new stream is being opened.
-	 * This enablement is not required for another stream, if current
-	 * stream is not closed
+	 * This enablement is yest required for ayesther stream, if current
+	 * stream is yest closed
 	 */
 	if (!intr_data->play_i2ssp_stream && !intr_data->capture_i2ssp_stream &&
 	    !intr_data->play_i2sbt_stream && !intr_data->capture_i2sbt_stream)
@@ -1206,7 +1206,7 @@ static int acp_dma_close(struct snd_soc_component *component,
 
 	/*
 	 * Disable ACP irq, when the current stream is being closed and
-	 * another stream is also not active.
+	 * ayesther stream is also yest active.
 	 */
 	if (!adata->play_i2ssp_stream && !adata->capture_i2ssp_stream &&
 	    !adata->play_i2sbt_stream && !adata->capture_i2sbt_stream)

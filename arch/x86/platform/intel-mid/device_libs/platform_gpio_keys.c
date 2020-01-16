@@ -19,7 +19,7 @@
 /*
  * we will search these buttons in SFI GPIO table (by name)
  * and register them dynamically. Please add all possible
- * buttons here, we will shrink them if no GPIO found.
+ * buttons here, we will shrink them if yes GPIO found.
  */
 static struct gpio_keys_button gpio_button[] = {
 	{KEY_POWER,		-1, 1, "power_btn",	EV_KEY, 0, 3000},
@@ -52,7 +52,7 @@ static struct platform_device pb_device = {
 };
 
 /*
- * Shrink the non-existent buttons, register the gpio button
+ * Shrink the yesn-existent buttons, register the gpio button
  * device if there is some
  */
 static int __init pb_keys_init(void)

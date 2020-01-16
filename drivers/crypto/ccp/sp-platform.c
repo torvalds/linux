@@ -61,7 +61,7 @@ static struct sp_dev_vdata *sp_get_of_version(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	const struct of_device_id *match;
 
-	match = of_match_node(sp_of_match, pdev->dev.of_node);
+	match = of_match_yesde(sp_of_match, pdev->dev.of_yesde);
 	if (match && match->data)
 		return (struct sp_dev_vdata *)match->data;
 #endif
@@ -99,7 +99,7 @@ static int sp_get_irqs(struct sp_device *sp)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_notice(dev, "unable to get IRQ (%d)\n", ret);
+		dev_yestice(dev, "unable to get IRQ (%d)\n", ret);
 		return ret;
 	}
 
@@ -109,7 +109,7 @@ static int sp_get_irqs(struct sp_device *sp)
 	} else {
 		ret = platform_get_irq(pdev, 1);
 		if (ret < 0) {
-			dev_notice(dev, "unable to get IRQ (%d)\n", ret);
+			dev_yestice(dev, "unable to get IRQ (%d)\n", ret);
 			return ret;
 		}
 
@@ -137,7 +137,7 @@ static int sp_platform_probe(struct platform_device *pdev)
 		goto e_err;
 
 	sp->dev_specific = sp_platform;
-	sp->dev_vdata = pdev->dev.of_node ? sp_get_of_version(pdev)
+	sp->dev_vdata = pdev->dev.of_yesde ? sp_get_of_version(pdev)
 					 : sp_get_acpi_version(pdev);
 	if (!sp->dev_vdata) {
 		ret = -ENODEV;
@@ -153,7 +153,7 @@ static int sp_platform_probe(struct platform_device *pdev)
 
 	attr = device_get_dma_attr(dev);
 	if (attr == DEV_DMA_NOT_SUPPORTED) {
-		dev_err(dev, "DMA is not supported");
+		dev_err(dev, "DMA is yest supported");
 		goto e_err;
 	}
 
@@ -179,12 +179,12 @@ static int sp_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto e_err;
 
-	dev_notice(dev, "enabled\n");
+	dev_yestice(dev, "enabled\n");
 
 	return 0;
 
 e_err:
-	dev_notice(dev, "initialization failed\n");
+	dev_yestice(dev, "initialization failed\n");
 	return ret;
 }
 
@@ -195,7 +195,7 @@ static int sp_platform_remove(struct platform_device *pdev)
 
 	sp_destroy(sp);
 
-	dev_notice(dev, "disabled\n");
+	dev_yestice(dev, "disabled\n");
 
 	return 0;
 }

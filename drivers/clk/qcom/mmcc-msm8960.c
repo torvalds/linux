@@ -3030,7 +3030,7 @@ static int mmcc_msm8960_probe(struct platform_device *pdev)
 	if (!match)
 		return -EINVAL;
 
-	is_8064 = of_device_is_compatible(dev->of_node, "qcom,mmcc-apq8064");
+	is_8064 = of_device_is_compatible(dev->of_yesde, "qcom,mmcc-apq8064");
 	if (is_8064) {
 		gfx3d_src.freq_tbl = clk_tbl_gfx3d_8064;
 		gfx3d_src.clkr.hw.init = &gfx3d_8064_init;

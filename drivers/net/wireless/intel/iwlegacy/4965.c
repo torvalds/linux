@@ -135,7 +135,7 @@ il4965_verify_ucode(struct il_priv *il)
 
 	IL_ERR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
-	/* Since nothing seems to match, show first several data entries in
+	/* Since yesthing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.
 	 * Selection of bootstrap image (vs. other images) is arbitrary. */
 	image = (__le32 *) il->ucode_boot.v_addr;
@@ -154,7 +154,7 @@ il4965_verify_ucode(struct il_priv *il)
 /*
  * The device's EEPROM semaphore prevents conflicts between driver and uCode
  * when accessing the EEPROM; each access is a series of pulses to/from the
- * EEPROM chip, not a single event, so even reads could conflict if they
+ * EEPROM chip, yest a single event, so even reads could conflict if they
  * weren't arbitrated by the semaphore.
  */
 int
@@ -297,7 +297,7 @@ il4965_verify_bsm(struct il_priv *il)
  * BSM operation:
  *
  * The Bootstrap State Machine (BSM) stores a short bootstrap uCode program
- * in special SRAM that does not power down during RFKILL.  When powering back
+ * in special SRAM that does yest power down during RFKILL.  When powering back
  * up after power-saving sleeps (or during initial uCode load), the BSM loads
  * the bootstrap program into the on-board processor, and starts it.
  *
@@ -308,13 +308,13 @@ il4965_verify_bsm(struct il_priv *il)
  *
  * When initializing the NIC, the host driver points the BSM to the
  * "initialize" uCode image.  This uCode sets up some internal data, then
- * notifies host via "initialize alive" that it is complete.
+ * yestifies host via "initialize alive" that it is complete.
  *
  * The host then replaces the BSM_DRAM_* pointer values to point to the
- * normal runtime uCode instructions and a backup uCode data cache buffer
+ * yesrmal runtime uCode instructions and a backup uCode data cache buffer
  * (filled initially with starting data values for the on-board processor),
  * then triggers the "initialize" uCode to load and launch the runtime uCode,
- * which begins normal operation.
+ * which begins yesrmal operation.
  *
  * When doing a power-save shutdown, runtime uCode saves data SRAM into
  * the backup data cache in DRAM before SRAM is powered down.
@@ -341,7 +341,7 @@ il4965_load_bsm(struct il_priv *il)
 
 	il->ucode_type = UCODE_RT;
 
-	/* make sure bootstrap program is no larger than BSM's SRAM size */
+	/* make sure bootstrap program is yes larger than BSM's SRAM size */
 	if (len > IL49_MAX_BSM_SIZE)
 		return -EINVAL;
 
@@ -376,7 +376,7 @@ il4965_load_bsm(struct il_priv *il)
 	il_wr_prph(il, BSM_WR_MEM_DST_REG, IL49_RTC_INST_LOWER_BOUND);
 	il_wr_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
-	/* Load bootstrap code into instruction SRAM now,
+	/* Load bootstrap code into instruction SRAM yesw,
 	 *   to prepare to load "initialize" uCode */
 	il_wr_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
 
@@ -390,7 +390,7 @@ il4965_load_bsm(struct il_priv *il)
 	if (i < 100)
 		D_INFO("BSM write complete, poll %d iterations\n", i);
 	else {
-		IL_ERR("BSM write did not complete!\n");
+		IL_ERR("BSM write did yest complete!\n");
 		return -EIO;
 	}
 
@@ -436,13 +436,13 @@ il4965_set_ucode_ptrs(struct il_priv *il)
 }
 
 /**
- * il4965_init_alive_start - Called after N_ALIVE notification received
+ * il4965_init_alive_start - Called after N_ALIVE yestification received
  *
- * Called after N_ALIVE notification received from "initialize" uCode.
+ * Called after N_ALIVE yestification received from "initialize" uCode.
  *
  * The 4965 "initialize" ALIVE reply contains calibration data for:
- *   Voltage, temperature, and MIMO tx gain correction, now stored in il
- *   (3945 does not contain this data).
+ *   Voltage, temperature, and MIMO tx gain correction, yesw stored in il
+ *   (3945 does yest contain this data).
  *
  * Tell "initialize" uCode to go ahead and load the runtime uCode.
 */
@@ -450,7 +450,7 @@ static void
 il4965_init_alive_start(struct il_priv *il)
 {
 	/* Bootstrap uCode has loaded initialize uCode ... verify inst image.
-	 * This is a paranoid check, because we would not have gotten the
+	 * This is a parayesid check, because we would yest have gotten the
 	 * "initialize" alive if code weren't properly loaded.  */
 	if (il4965_verify_ucode(il)) {
 		/* Runtime instruction load was bad;
@@ -463,8 +463,8 @@ il4965_init_alive_start(struct il_priv *il)
 	il->temperature = il4965_hw_get_temperature(il);
 
 	/* Send pointers to protocol/runtime uCode image ... init code will
-	 * load and launch runtime uCode, which will send us another "Alive"
-	 * notification. */
+	 * load and launch runtime uCode, which will send us ayesther "Alive"
+	 * yestification. */
 	D_INFO("Initialization Alive received.\n");
 	if (il4965_set_ucode_ptrs(il)) {
 		/* Runtime instruction load won't happen;
@@ -517,21 +517,21 @@ il4965_nic_config(struct il_priv *il)
 	spin_unlock_irqrestore(&il->lock, flags);
 }
 
-/* Reset differential Rx gains in NIC to prepare for chain noise calibration.
+/* Reset differential Rx gains in NIC to prepare for chain yesise calibration.
  * Called after every association, but this runs only once!
- *  ... once chain noise is calibrated the first time, it's good forever.  */
+ *  ... once chain yesise is calibrated the first time, it's good forever.  */
 static void
-il4965_chain_noise_reset(struct il_priv *il)
+il4965_chain_yesise_reset(struct il_priv *il)
 {
-	struct il_chain_noise_data *data = &(il->chain_noise_data);
+	struct il_chain_yesise_data *data = &(il->chain_yesise_data);
 
 	if (data->state == IL_CHAIN_NOISE_ALIVE && il_is_any_associated(il)) {
 		struct il_calib_diff_gain_cmd cmd;
 
-		/* clear data for chain noise calibration algorithm */
-		data->chain_noise_a = 0;
-		data->chain_noise_b = 0;
-		data->chain_noise_c = 0;
+		/* clear data for chain yesise calibration algorithm */
+		data->chain_yesise_a = 0;
+		data->chain_yesise_b = 0;
+		data->chain_yesise_c = 0;
 		data->chain_signal_a = 0;
 		data->chain_signal_b = 0;
 		data->chain_signal_c = 0;
@@ -543,14 +543,14 @@ il4965_chain_noise_reset(struct il_priv *il)
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
 		if (il_send_cmd_pdu(il, C_PHY_CALIBRATION, sizeof(cmd), &cmd))
-			IL_ERR("Could not send C_PHY_CALIBRATION\n");
+			IL_ERR("Could yest send C_PHY_CALIBRATION\n");
 		data->state = IL_CHAIN_NOISE_ACCUMULATE;
-		D_CALIB("Run chain_noise_calibrate\n");
+		D_CALIB("Run chain_yesise_calibrate\n");
 	}
 }
 
 static s32
-il4965_math_div_round(s32 num, s32 denom, s32 * res)
+il4965_math_div_round(s32 num, s32 deyesm, s32 * res)
 {
 	s32 sign = 1;
 
@@ -558,11 +558,11 @@ il4965_math_div_round(s32 num, s32 denom, s32 * res)
 		sign = -sign;
 		num = -num;
 	}
-	if (denom < 0) {
+	if (deyesm < 0) {
 		sign = -sign;
-		denom = -denom;
+		deyesm = -deyesm;
 	}
-	*res = ((num * 2 + denom) / (denom * 2)) * sign;
+	*res = ((num * 2 + deyesm) / (deyesm * 2)) * sign;
 
 	return 1;
 }
@@ -677,7 +677,7 @@ il4965_interpolate_chan(struct il_priv *il, u32 channel,
 
 	s = il4965_get_sub_band(il, channel);
 	if (s >= EEPROM_TX_POWER_BANDS) {
-		IL_ERR("Tx Power can not find channel %d\n", channel);
+		IL_ERR("Tx Power can yest find channel %d\n", channel);
 		return -1;
 	}
 
@@ -745,7 +745,7 @@ static s32 back_off_table[] = {
  *   ratios from 3:1 to 4.5:1 of degrees (Celsius) per half-dB gain adjust */
 static struct il4965_txpower_comp_entry {
 	s32 degrees_per_05db_a;
-	s32 degrees_per_05db_a_denom;
+	s32 degrees_per_05db_a_deyesm;
 } tx_power_cmp_tble[CALIB_CH_GROUP_MAX] = {
 	{
 	9, 2},			/* group 0 5.2, ch  34-43 */
@@ -1021,7 +1021,7 @@ il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel, u8 is_ht40,
 	s32 init_voltage;
 	s32 voltage_compensation;
 	s32 degrees_per_05db_num;
-	s32 degrees_per_05db_denom;
+	s32 degrees_per_05db_deyesm;
 	s32 factory_temp;
 	s32 temperature_comp[2];
 	s32 factory_gain_idx[2];
@@ -1110,8 +1110,8 @@ il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel, u8 is_ht40,
 	 *   (same frequency group used for mimo txatten adjustment) */
 	degrees_per_05db_num =
 	    tx_power_cmp_tble[txatten_grp].degrees_per_05db_a;
-	degrees_per_05db_denom =
-	    tx_power_cmp_tble[txatten_grp].degrees_per_05db_a_denom;
+	degrees_per_05db_deyesm =
+	    tx_power_cmp_tble[txatten_grp].degrees_per_05db_a_deyesm;
 
 	/* get per-chain txpower values from factory measurements */
 	for (c = 0; c < 2; c++) {
@@ -1121,7 +1121,7 @@ il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel, u8 is_ht40,
 		 *   between factory and current temperature */
 		factory_temp = measurement->temperature;
 		il4965_math_div_round((current_temp -
-				       factory_temp) * degrees_per_05db_denom,
+				       factory_temp) * degrees_per_05db_deyesm,
 				      degrees_per_05db_num,
 				      &temperature_comp[c]);
 
@@ -1358,8 +1358,8 @@ il4965_commit_rxon(struct il_priv *il)
 		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
 		il_print_rx_config_cmd(il);
 		/*
-		 * We do not commit tx power settings while channel changing,
-		 * do it now if tx power changed.
+		 * We do yest commit tx power settings while channel changing,
+		 * do it yesw if tx power changed.
 		 */
 		il_set_tx_power(il, il->tx_power_next, false);
 		return 0;
@@ -1585,7 +1585,7 @@ il4965_hw_get_temperature(struct il_priv *il)
 	/*
 	 * Temperature is only 23 bits, so sign extend out to 32.
 	 *
-	 * NOTE If we haven't received a stats notification yet
+	 * NOTE If we haven't received a stats yestification yet
 	 * with an updated temperature, use R4 provided to us in the
 	 * "initialize" ALIVE response.
 	 */
@@ -1634,7 +1634,7 @@ il4965_is_temp_calib_needed(struct il_priv *il)
 	int temp_diff;
 
 	if (!test_bit(S_STATS, &il->status)) {
-		D_TEMP("Temperature not updated -- no stats.\n");
+		D_TEMP("Temperature yest updated -- yes stats.\n");
 		return 0;
 	}
 
@@ -1650,7 +1650,7 @@ il4965_is_temp_calib_needed(struct il_priv *il)
 		D_POWER("Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IL_TEMPERATURE_THRESHOLD) {
-		D_POWER(" => thermal txpower calib not needed\n");
+		D_POWER(" => thermal txpower calib yest needed\n");
 		return 0;
 	}
 
@@ -1786,19 +1786,19 @@ il4965_post_associate(struct il_priv *il)
 		il4965_send_beacon_cmd(il);
 		break;
 	default:
-		IL_ERR("%s Should not be called in %d mode\n", __func__,
+		IL_ERR("%s Should yest be called in %d mode\n", __func__,
 		       vif->type);
 		break;
 	}
 
-	/* the chain noise calibration will enabled PM upon completion
-	 * If chain noise has already been run, then we need to enable
+	/* the chain yesise calibration will enabled PM upon completion
+	 * If chain yesise has already been run, then we need to enable
 	 * power management here */
-	if (il->chain_noise_data.state == IL_CHAIN_NOISE_DONE)
+	if (il->chain_yesise_data.state == IL_CHAIN_NOISE_DONE)
 		il_power_update_mode(il, false);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
-	il4965_chain_noise_reset(il);
+	il4965_chain_yesise_reset(il);
 	il->start_calib = 1;
 }
 
@@ -1827,7 +1827,7 @@ il4965_config_ap(struct il_priv *il)
 				"Attempting to continue.\n");
 
 		/* AP has all antennas */
-		il->chain_noise_data.active_chains = il->hw_params.valid_rx_ant;
+		il->chain_yesise_data.active_chains = il->hw_params.valid_rx_ant;
 		il_set_rxon_ht(il, &il->current_ht_config);
 		if (il->ops->set_rxon_chain)
 			il->ops->set_rxon_chain(il);
@@ -1913,12 +1913,12 @@ struct il_cfg il4965_cfg = {
 	.set_l0s = true,
 	.use_bsm = true,
 	.led_compensation = 61,
-	.chain_noise_num_beacons = IL4965_CAL_NUM_BEACONS,
+	.chain_yesise_num_beacons = IL4965_CAL_NUM_BEACONS,
 	.wd_timeout = IL_DEF_WD_TIMEOUT,
 	.temperature_kelvin = true,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.chain_yesise_calib_by_driver = true,
 
 	.regulatory_bands = {
 		EEPROM_REGULATORY_BAND_1_CHANNELS,

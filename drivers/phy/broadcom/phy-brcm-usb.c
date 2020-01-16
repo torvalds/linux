@@ -127,20 +127,20 @@ static struct phy *brcm_usb_phy_xlate(struct device *dev,
 
 	/*
 	 * values 0 and 1 are for backward compatibility with
-	 * device tree nodes from older bootloaders.
+	 * device tree yesdes from older bootloaders.
 	 */
 	switch (args->args[0]) {
 	case 0:
 	case PHY_TYPE_USB2:
 		if (data->phys[BRCM_USB_PHY_2_0].phy)
 			return data->phys[BRCM_USB_PHY_2_0].phy;
-		dev_warn(dev, "Error, 2.0 Phy not found\n");
+		dev_warn(dev, "Error, 2.0 Phy yest found\n");
 		break;
 	case 1:
 	case PHY_TYPE_USB3:
 		if (data->phys[BRCM_USB_PHY_3_0].phy)
 			return data->phys[BRCM_USB_PHY_3_0].phy;
-		dev_warn(dev, "Error, 3.0 Phy not found\n");
+		dev_warn(dev, "Error, 3.0 Phy yest found\n");
 		break;
 	}
 	return ERR_PTR(-ENODEV);
@@ -165,7 +165,7 @@ static const char *value_to_name(struct value_to_name_map *table, int count,
 				 int value)
 {
 	if (value >= count)
-		return "unknown";
+		return "unkyeswn";
 	return table[value].name;
 }
 
@@ -230,14 +230,14 @@ static const struct attribute_group brcm_usb_phy_group = {
 
 static int brcm_usb_phy_dvr_init(struct device *dev,
 				 struct brcm_usb_phy_data *priv,
-				 struct device_node *dn)
+				 struct device_yesde *dn)
 {
 	struct phy *gphy;
 	int err;
 
 	priv->usb_20_clk = of_clk_get_by_name(dn, "sw_usb");
 	if (IS_ERR(priv->usb_20_clk)) {
-		dev_info(dev, "Clock not found in Device Tree\n");
+		dev_info(dev, "Clock yest found in Device Tree\n");
 		priv->usb_20_clk = NULL;
 	}
 	err = clk_prepare_enable(priv->usb_20_clk);
@@ -268,7 +268,7 @@ static int brcm_usb_phy_dvr_init(struct device *dev,
 		priv->usb_30_clk = of_clk_get_by_name(dn, "sw_usb3");
 		if (IS_ERR(priv->usb_30_clk)) {
 			dev_info(dev,
-				 "USB3.0 clock not found in Device Tree\n");
+				 "USB3.0 clock yest found in Device Tree\n");
 			priv->usb_30_clk = NULL;
 		}
 		err = clk_prepare_enable(priv->usb_30_clk);
@@ -284,7 +284,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct brcm_usb_phy_data *priv;
 	struct phy_provider *phy_provider;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	int err;
 	const char *mode;
 
@@ -346,7 +346,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 
 	/*
 	 * Create sysfs entries for mode.
-	 * Remove "dual_select" attribute if not in dual mode
+	 * Remove "dual_select" attribute if yest in dual mode
 	 */
 	if (priv->ini.mode != USB_CTLR_MODE_DRD)
 		brcm_usb_phy_attrs[1] = NULL;

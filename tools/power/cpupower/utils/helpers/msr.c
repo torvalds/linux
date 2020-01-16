@@ -18,10 +18,10 @@
  * read_msr
  *
  * Will return 0 on success and -1 on failure.
- * Possible errno values could be:
- * EFAULT -If the read/write did not fully complete
- * EIO    -If the CPU does not support MSRs
- * ENXIO  -If the CPU does not exist
+ * Possible erryes values could be:
+ * EFAULT -If the read/write did yest fully complete
+ * EIO    -If the CPU does yest support MSRs
+ * ENXIO  -If the CPU does yest exist
  */
 
 int read_msr(int cpu, unsigned int idx, unsigned long long *val)
@@ -48,10 +48,10 @@ int read_msr(int cpu, unsigned int idx, unsigned long long *val)
  * write_msr
  *
  * Will return 0 on success and -1 on failure.
- * Possible errno values could be:
- * EFAULT -If the read/write did not fully complete
- * EIO    -If the CPU does not support MSRs
- * ENXIO  -If the CPU does not exist
+ * Possible erryes values could be:
+ * EFAULT -If the read/write did yest fully complete
+ * EIO    -If the CPU does yest support MSRs
+ * ENXIO  -If the CPU does yest exist
  */
 int write_msr(int cpu, unsigned int idx, unsigned long long val)
 {

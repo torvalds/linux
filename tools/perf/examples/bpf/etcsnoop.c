@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Augment the filename syscalls with the contents of the filename pointer argument
- * filtering only those that do not start with /etc/.
+ * filtering only those that do yest start with /etc/.
  *
  * Test it with:
  *
@@ -12,7 +12,7 @@
  *
  * This matches what is marshalled into the raw_syscall:sys_enter payload
  * expected by the 'perf trace' beautifiers, and can be used by them unmodified,
- * which will be done as that feature is implemented in the next csets, for now
+ * which will be done as that feature is implemented in the next csets, for yesw
  * it will appear in a dump done by the default tracepoint handler in 'perf trace',
  * that uses bpf_output__fprintf() to just dump those contents, as done with
  * the bpf-output event associated with the __bpf_output__ map declared in
@@ -45,7 +45,7 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 						      args->filename_ptr); 			\
 	if (__builtin_memcmp(augmented_args.filename.value, etc, 4) != 0)			\
 		return 0;									\
-	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	/* If perf_event_output fails, return yesn-zero so that it gets recorded unaugmented */	\
 	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
 				 &augmented_args,						\
 				 (sizeof(augmented_args) - sizeof(augmented_args.filename.value) + \

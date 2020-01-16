@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include "builtin.h"
 #include "perf.h"
@@ -45,7 +45,7 @@ static struct list_head lockhash_table[LOCKHASH_SIZE];
 
 struct lock_stat {
 	struct list_head	hash_entry;
-	struct rb_node		rb;		/* used for sorting */
+	struct rb_yesde		rb;		/* used for sorting */
 
 	/*
 	 * FIXME: perf_evsel__intval() returns u64,
@@ -53,7 +53,7 @@ struct lock_stat {
 	 * Is there more better solution?
 	 */
 	void			*addr;		/* address of lockdep_map, used as ID */
-	char			*name;		/* for strcpy(), we cannot use const */
+	char			*name;		/* for strcpy(), we canyest use const */
 
 	unsigned int		nr_acquire;
 	unsigned int		nr_acquired;
@@ -63,7 +63,7 @@ struct lock_stat {
 	unsigned int		nr_readlock;
 	unsigned int		nr_trylock;
 
-	/* these times are in nano sec. */
+	/* these times are in nayes sec. */
 	u64                     avg_wait_time;
 	u64			wait_time_total;
 	u64			wait_time_min;
@@ -76,7 +76,7 @@ struct lock_stat {
  * States of lock_seq_stat
  *
  * UNINITIALIZED is required for detecting first event of acquire.
- * As the nature of lock events, there is no guarantee
+ * As the nature of lock events, there is yes guarantee
  * that the first event for the locks are acquire,
  * it can be acquired, contended or release.
  */
@@ -112,7 +112,7 @@ struct lock_seq_stat {
 };
 
 struct thread_stat {
-	struct rb_node		rb;
+	struct rb_yesde		rb;
 
 	u32                     tid;
 	struct list_head        seq_list;
@@ -122,18 +122,18 @@ static struct rb_root		thread_stats;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct thread_stat *st;
 
-	node = thread_stats.rb_node;
-	while (node) {
-		st = container_of(node, struct thread_stat, rb);
+	yesde = thread_stats.rb_yesde;
+	while (yesde) {
+		st = container_of(yesde, struct thread_stat, rb);
 		if (st->tid == tid)
 			return st;
 		else if (tid < st->tid)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 	}
 
 	return NULL;
@@ -141,8 +141,8 @@ static struct thread_stat *thread_stat_find(u32 tid)
 
 static void thread_stat_insert(struct thread_stat *new)
 {
-	struct rb_node **rb = &thread_stats.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **rb = &thread_stats.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct thread_stat *p;
 
 	while (*rb) {
@@ -157,7 +157,7 @@ static void thread_stat_insert(struct thread_stat *new)
 			BUG_ON("inserting invalid thread_stat\n");
 	}
 
-	rb_link_node(&new->rb, parent, rb);
+	rb_link_yesde(&new->rb, parent, rb);
 	rb_insert_color(&new->rb, &thread_stats);
 }
 
@@ -199,7 +199,7 @@ static struct thread_stat *thread_stat_findnew_first(u32 tid)
 	st->tid = tid;
 	INIT_LIST_HEAD(&st->seq_list);
 
-	rb_link_node(&st->rb, NULL, &thread_stats.rb_node);
+	rb_link_yesde(&st->rb, NULL, &thread_stats.rb_yesde);
 	rb_insert_color(&st->rb, &thread_stats);
 
 	thread_stat_findnew = thread_stat_findnew_after_first;
@@ -274,7 +274,7 @@ static int select_key(void)
 		}
 	}
 
-	pr_err("Unknown compare key: %s\n", sort_key);
+	pr_err("Unkyeswn compare key: %s\n", sort_key);
 
 	return -1;
 }
@@ -282,8 +282,8 @@ static int select_key(void)
 static void insert_to_result(struct lock_stat *st,
 			     int (*bigger)(struct lock_stat *, struct lock_stat *))
 {
-	struct rb_node **rb = &result.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **rb = &result.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct lock_stat *p;
 
 	while (*rb) {
@@ -296,23 +296,23 @@ static void insert_to_result(struct lock_stat *st,
 			rb = &(*rb)->rb_right;
 	}
 
-	rb_link_node(&st->rb, parent, rb);
+	rb_link_yesde(&st->rb, parent, rb);
 	rb_insert_color(&st->rb, &result);
 }
 
 /* returns left most element of result, and erase it */
 static struct lock_stat *pop_from_result(void)
 {
-	struct rb_node *node = result.rb_node;
+	struct rb_yesde *yesde = result.rb_yesde;
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
-	while (node->rb_left)
-		node = node->rb_left;
+	while (yesde->rb_left)
+		yesde = yesde->rb_left;
 
-	rb_erase(node, &result);
-	return container_of(node, struct lock_stat, rb);
+	rb_erase(yesde, &result);
+	return container_of(yesde, struct lock_stat, rb);
 }
 
 static struct lock_stat *lock_stat_findnew(void *addr, const char *name)
@@ -459,7 +459,7 @@ broken:
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkyeswn state of lock sequence found!\n");
 		break;
 	}
 
@@ -498,7 +498,7 @@ static int report_lock_acquired_event(struct evsel *evsel,
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
-		/* orphan event, do nothing */
+		/* orphan event, do yesthing */
 		return 0;
 	case SEQ_STATE_ACQUIRING:
 		break;
@@ -520,7 +520,7 @@ static int report_lock_acquired_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkyeswn state of lock sequence found!\n");
 		break;
 	}
 
@@ -560,7 +560,7 @@ static int report_lock_contended_event(struct evsel *evsel,
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
-		/* orphan event, do nothing */
+		/* orphan event, do yesthing */
 		return 0;
 	case SEQ_STATE_ACQUIRING:
 		break;
@@ -575,7 +575,7 @@ static int report_lock_contended_event(struct evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkyeswn state of lock sequence found!\n");
 		break;
 	}
 
@@ -634,7 +634,7 @@ static int report_lock_release_event(struct evsel *evsel,
 		bad_hist[BROKEN_RELEASE]++;
 		goto free_seq;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		BUG_ON("Unkyeswn state of lock sequence found!\n");
 		break;
 	}
 
@@ -704,7 +704,7 @@ static void print_bad_events(int bad, int total)
 		pr_info(" %10s: %d\n", name[i], bad_hist[i]);
 }
 
-/* TODO: various way to print, coloring, nano or milli sec */
+/* TODO: various way to print, coloring, nayes or milli sec */
 static void print_result(void)
 {
 	struct lock_stat *st;
@@ -763,17 +763,17 @@ static bool info_threads, info_map;
 static void dump_threads(void)
 {
 	struct thread_stat *st;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct thread *t;
 
 	pr_info("%10s: comm\n", "Thread ID");
 
-	node = rb_first(&thread_stats);
-	while (node) {
-		st = container_of(node, struct thread_stat, rb);
+	yesde = rb_first(&thread_stats);
+	while (yesde) {
+		st = container_of(yesde, struct thread_stat, rb);
 		t = perf_session__findnew(session, st->tid);
 		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 		thread__put(t);
 	};
 }
@@ -801,7 +801,7 @@ static int dump_info(void)
 		dump_map();
 	else {
 		rc = -1;
-		pr_err("Unknown type of information\n");
+		pr_err("Unkyeswn type of information\n");
 	}
 
 	return rc;
@@ -918,7 +918,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(lock_tracepoints); i++) {
 		if (!is_valid_tracepoint(lock_tracepoints[i].name)) {
-				pr_err("tracepoint %s is not enabled. "
+				pr_err("tracepoint %s is yest enabled. "
 				       "Are CONFIG_LOCKDEP and CONFIG_LOCK_STAT enabled?\n",
 				       lock_tracepoints[i].name);
 				return 1;

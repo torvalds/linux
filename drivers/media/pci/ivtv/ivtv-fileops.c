@@ -25,7 +25,7 @@
 #include <media/i2c/saa7115.h>
 
 /* This function tries to claim the stream for a specific file descriptor.
-   If no one else is using this stream then the stream is claimed and
+   If yes one else is using this stream then the stream is claimed and
    associated VBI streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
@@ -39,12 +39,12 @@ int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 	if (test_and_set_bit(IVTV_F_S_CLAIMED, &s->s_flags)) {
 		/* someone already claimed this stream */
 		if (s->fh == &id->fh) {
-			/* yes, this file descriptor did. So that's OK. */
+			/* no, this file descriptor did. So that's OK. */
 			return 0;
 		}
 		if (s->fh == NULL && (type == IVTV_DEC_STREAM_TYPE_VBI ||
 					 type == IVTV_ENC_STREAM_TYPE_VBI)) {
-			/* VBI is handled already internally, now also assign
+			/* VBI is handled already internally, yesw also assign
 			   the file descriptor to this stream for external
 			   reading of the stream. */
 			s->fh = &id->fh;
@@ -100,7 +100,7 @@ void ivtv_release_stream(struct ivtv_stream *s)
 		return;
 	}
 	if (!test_and_clear_bit(IVTV_F_S_CLAIMED, &s->s_flags)) {
-		IVTV_DEBUG_WARN("Release stream %s not in use!\n", s->name);
+		IVTV_DEBUG_WARN("Release stream %s yest in use!\n", s->name);
 		return;
 	}
 
@@ -190,7 +190,7 @@ static void ivtv_update_pgm_info(struct ivtv *itv)
 	itv->pgm_info_write_idx = (itv->pgm_info_write_idx + i) % itv->pgm_info_num;
 }
 
-static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block, int *err)
+static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int yesn_block, int *err)
 {
 	struct ivtv *itv = s->itv;
 	struct ivtv_stream *s_vbi = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
@@ -252,7 +252,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		}
 
 		/* return if file was opened with O_NONBLOCK */
-		if (non_block) {
+		if (yesn_block) {
 			*err = -EAGAIN;
 			return NULL;
 		}
@@ -343,7 +343,7 @@ static size_t ivtv_copy_buf_to_user(struct ivtv_stream *s, struct ivtv_buffer *b
 	return len;
 }
 
-static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_count, int non_block)
+static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_count, int yesn_block)
 {
 	struct ivtv *itv = s->itv;
 	size_t tot_written = 0;
@@ -351,7 +351,7 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 
 	if (atomic_read(&itv->capturing) == 0 && s->fh == NULL) {
 		/* shouldn't happen */
-		IVTV_DEBUG_WARN("Stream %s not initialized before read\n", s->name);
+		IVTV_DEBUG_WARN("Stream %s yest initialized before read\n", s->name);
 		return -EIO;
 	}
 
@@ -365,8 +365,8 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 		struct ivtv_buffer *buf;
 		int rc;
 
-		buf = ivtv_get_buffer(s, non_block, &rc);
-		/* if there is no data available... */
+		buf = ivtv_get_buffer(s, yesn_block, &rc);
+		/* if there is yes data available... */
 		if (buf == NULL) {
 			/* if we got data, then return that regardless */
 			if (tot_written)
@@ -377,7 +377,7 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 				clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 				ivtv_release_stream(s);
 			}
-			/* set errno */
+			/* set erryes */
 			return rc;
 		}
 		rc = ivtv_copy_buf_to_user(s, buf, ubuf + tot_written, tot_count - tot_written);
@@ -401,9 +401,9 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 }
 
 static ssize_t ivtv_read_pos(struct ivtv_stream *s, char __user *ubuf, size_t count,
-			loff_t *pos, int non_block)
+			loff_t *pos, int yesn_block)
 {
-	ssize_t rc = count ? ivtv_read(s, ubuf, count, non_block) : 0;
+	ssize_t rc = count ? ivtv_read(s, ubuf, count, yesn_block) : 0;
 	struct ivtv *itv = s->itv;
 
 	IVTV_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
@@ -422,7 +422,7 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 	    s->type == IVTV_DEC_STREAM_TYPE_MPG ||
 	    s->type == IVTV_DEC_STREAM_TYPE_YUV ||
 	    s->type == IVTV_DEC_STREAM_TYPE_VOUT) {
-		/* you cannot read from these stream types. */
+		/* you canyest read from these stream types. */
 		return -EINVAL;
 	}
 
@@ -430,14 +430,14 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 	if (ivtv_claim_stream(id, s->type))
 		return -EBUSY;
 
-	/* This stream does not need to start capturing */
+	/* This stream does yest need to start capturing */
 	if (s->type == IVTV_DEC_STREAM_TYPE_VBI) {
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 		return 0;
 	}
 
 	/* If capture is already in progress, then we also have to
-	   do nothing extra. */
+	   do yesthing extra. */
 	if (test_bit(IVTV_F_S_STREAMOFF, &s->s_flags) || test_and_set_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 		return 0;
@@ -551,14 +551,14 @@ static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t
 	if (s->type != IVTV_DEC_STREAM_TYPE_MPG &&
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
 	    s->type != IVTV_DEC_STREAM_TYPE_VOUT)
-		/* not decoder streams */
+		/* yest decoder streams */
 		return -EINVAL;
 
 	/* Try to claim this stream */
 	if (ivtv_claim_stream(id, s->type))
 		return -EBUSY;
 
-	/* This stream does not need to start any decoding */
+	/* This stream does yest need to start any decoding */
 	if (s->type == IVTV_DEC_STREAM_TYPE_VOUT) {
 		int elems = count / sizeof(struct v4l2_sliced_vbi_data);
 
@@ -653,7 +653,7 @@ retry:
 
 		if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
 			yi->stream_size += rc;
-			/* If we have a complete yuv frame, break loop now */
+			/* If we have a complete yuv frame, break loop yesw */
 			if (yi->stream_size == itv->dma_data_req_size) {
 				ivtv_enqueue(s, buf, &s->q_full);
 				yi->stream_size = 0;
@@ -761,7 +761,7 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	int eof = test_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 	__poll_t res = 0;
 
-	/* Start a capture if there is none */
+	/* Start a capture if there is yesne */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags) &&
 			s->type != IVTV_ENC_STREAM_TYPE_RAD &&
 			(req_events & (EPOLLIN | EPOLLRDNORM))) {
@@ -771,7 +771,7 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		rc = ivtv_start_capture(id);
 		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
-			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
+			IVTV_DEBUG_INFO("Could yest start capture for %s (%d)\n",
 					s->name, rc);
 			return EPOLLERR;
 		}
@@ -879,7 +879,7 @@ int ivtv_v4l2_close(struct file *filp)
 			v4l2_fh_is_singular_file(filp)) {
 		/* Closing radio device, return to TV mode */
 		ivtv_mute(itv);
-		/* Mark that the radio is no longer in use */
+		/* Mark that the radio is yes longer in use */
 		clear_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Switch tuner to TV */
 		ivtv_call_all(itv, video, s_std, itv->std);
@@ -940,7 +940,7 @@ static int ivtv_open(struct file *filp)
 
 	if (ivtv_init_on_first_open(itv)) {
 		IVTV_ERR("Failed to initialize on device %s\n",
-			 video_device_node_name(vdev));
+			 video_device_yesde_name(vdev));
 		return -ENXIO;
 	}
 
@@ -948,8 +948,8 @@ static int ivtv_open(struct file *filp)
 	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
 	if (ivtv_fw_debug) {
 		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",
-			  video_device_node_name(vdev));
-		IVTV_WARN("Selected firmware errors will be ignored\n");
+			  video_device_yesde_name(vdev));
+		IVTV_WARN("Selected firmware errors will be igyesred\n");
 	} else {
 #else
 	if (1) {
@@ -980,7 +980,7 @@ static int ivtv_open(struct file *filp)
 	/* Allocate memory */
 	item = kzalloc(sizeof(struct ivtv_open_id), GFP_KERNEL);
 	if (NULL == item) {
-		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
+		IVTV_DEBUG_WARN("yesmem on v4l2 open\n");
 		return -ENOMEM;
 	}
 	v4l2_fh_init(&item->fh, &s->vdev);
@@ -995,7 +995,7 @@ static int ivtv_open(struct file *filp)
 		if (!test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
 			if (atomic_read(&itv->capturing) > 0) {
 				/* switching to radio while capture is
-				   in progress is not polite */
+				   in progress is yest polite */
 				v4l2_fh_del(&item->fh);
 				v4l2_fh_exit(&item->fh);
 				kfree(item);
@@ -1023,7 +1023,7 @@ static int ivtv_open(struct file *filp)
 		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
 	} else if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-		/* For yuv, we need to know the dma size before we start */
+		/* For yuv, we need to kyesw the dma size before we start */
 		itv->dma_data_req_size =
 				1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
 		itv->yuv_info.stream_size = 0;

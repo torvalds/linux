@@ -54,17 +54,17 @@ static int clk_mt2712_vdec_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_VDEC_NR_CLK);
 
-	mtk_clk_register_gates(node, vdec_clks, ARRAY_SIZE(vdec_clks),
+	mtk_clk_register_gates(yesde, vdec_clks, ARRAY_SIZE(vdec_clks),
 			clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 	return r;

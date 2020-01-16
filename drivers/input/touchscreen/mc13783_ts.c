@@ -46,7 +46,7 @@ static irqreturn_t mc13783_ts_handler(int irq, void *data)
 
 	/*
 	 * Kick off reading coordinates. Note that if work happens already
-	 * be queued for future execution (it rearms itself) it will not
+	 * be queued for future execution (it rearms itself) it will yest
 	 * be rescheduled for immediate execution here. However the rearm
 	 * delay is HZ / 50 which is acceptable.
 	 */

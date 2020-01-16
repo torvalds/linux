@@ -65,7 +65,7 @@ struct goya_packet {
 	u8 contents[0];
 };
 
-struct packet_nop {
+struct packet_yesp {
 	__le32 reserved;
 	__le32 ctl;
 };

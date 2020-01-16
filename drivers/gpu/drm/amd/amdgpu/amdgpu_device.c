@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -73,7 +73,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/reyesir_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
@@ -777,8 +777,8 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb)
  *
  * @adev: amdgpu_device pointer
  *
- * Try to resize FB BAR to make all VRAM CPU accessible. We try very hard not
- * to fail, but if any of the BARs is not accessible after the size we abort
+ * Try to resize FB BAR to make all VRAM CPU accessible. We try very hard yest
+ * to fail, but if any of the BARs is yest accessible after the size we abort
  * driver loading by returning -ENODEV.
  */
 int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
@@ -824,13 +824,13 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 
 	r = pci_resize_resource(adev->pdev, 0, rbar_size);
 	if (r == -ENOSPC)
-		DRM_INFO("Not enough PCI address space for a large BAR.");
+		DRM_INFO("Not eyesugh PCI address space for a large BAR.");
 	else if (r && r != -ENOTSUPP)
 		DRM_ERROR("Problem resizing BAR0 (%d).", r);
 
 	pci_assign_unassigned_bus_resources(adev->pdev->bus);
 
-	/* When the doorbell or fb BAR isn't available we have no chance of
+	/* When the doorbell or fb BAR isn't available we have yes chance of
 	 * using the device.
 	 */
 	r = amdgpu_device_doorbell_init(adev);
@@ -846,13 +846,13 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
  * GPU helpers function.
  */
 /**
- * amdgpu_device_need_post - check if the hw need post or not
+ * amdgpu_device_need_post - check if the hw need post or yest
  *
  * @adev: amdgpu_device pointer
  *
  * Check if the asic has been initialized (all asics) at driver startup
  * or post is needed if  hw reset is performed.
- * Returns true if need or false if not.
+ * Returns true if need or false if yest.
  */
 bool amdgpu_device_need_post(struct amdgpu_device *adev)
 {
@@ -955,7 +955,7 @@ static void amdgpu_device_check_block_size(struct amdgpu_device *adev)
  */
 static void amdgpu_device_check_vm_size(struct amdgpu_device *adev)
 {
-	/* no need to check the default value */
+	/* yes need to check the default value */
 	if (amdgpu_vm_size == -1)
 		return;
 
@@ -978,7 +978,7 @@ static void amdgpu_device_check_smu_prv_buffer_size(struct amdgpu_device *adev)
 		return;
 
 	if (!is_os_64) {
-		DRM_WARN("Not 64-bit OS, feature not supported\n");
+		DRM_WARN("Not 64-bit OS, feature yest supported\n");
 		goto def_value;
 	}
 	si_meminfo(&si);
@@ -993,7 +993,7 @@ static void amdgpu_device_check_smu_prv_buffer_size(struct amdgpu_device *adev)
 		if (total_memory < dram_size_seven_GB)
 			goto def_value1;
 	} else {
-		DRM_WARN("Smu memory pool size not supported\n");
+		DRM_WARN("Smu memory pool size yest supported\n");
 		goto def_value;
 	}
 	adev->pm.smu_prv_buffer_size = amdgpu_smu_memory_pool_size << 28;
@@ -1001,7 +1001,7 @@ static void amdgpu_device_check_smu_prv_buffer_size(struct amdgpu_device *adev)
 	return;
 
 def_value1:
-	DRM_WARN("No enough system memory\n");
+	DRM_WARN("No eyesugh system memory\n");
 def_value:
 	adev->pm.smu_prv_buffer_size = 0;
 }
@@ -1078,7 +1078,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("amdgpu: switched on\n");
-		/* don't suspend or resume card normally */
+		/* don't suspend or resume card yesrmally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
 		amdgpu_device_resume(dev, true, true);
@@ -1101,7 +1101,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
  *
  * Callback for the switcheroo driver.  Check of the switcheroo
  * state can be changed.
- * Returns true if the state can be changed, false if not.
+ * Returns true if the state can be changed, false if yest.
  */
 static bool amdgpu_switcheroo_can_switch(struct pci_dev *pdev)
 {
@@ -1110,7 +1110,7 @@ static bool amdgpu_switcheroo_can_switch(struct pci_dev *pdev)
 	/*
 	* FIXME: open_count is protected by drm_global_mutex but that would lead to
 	* locking inversion with the driver load path. And the access here is
-	* completely racy anyway. So don't bother with locking for now.
+	* completely racy anyway. So don't bother with locking for yesw.
 	*/
 	return dev->open_count == 0;
 }
@@ -1247,8 +1247,8 @@ int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
  *
- * Check if the hardware IP is idle or not.
- * Returns true if it the IP is idle, false if not.
+ * Check if the hardware IP is idle or yest.
+ * Returns true if it the IP is idle, false if yest.
  */
 bool amdgpu_device_ip_is_idle(struct amdgpu_device *adev,
 			      enum amd_ip_block_type block_type)
@@ -1293,20 +1293,20 @@ amdgpu_device_ip_get_ip_block(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @type: enum amd_ip_block_type
  * @major: major version
- * @minor: minor version
+ * @miyesr: miyesr version
  *
  * return 0 if equal or greater
  * return 1 if smaller or the ip_block doesn't exist
  */
 int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
 				       enum amd_ip_block_type type,
-				       u32 major, u32 minor)
+				       u32 major, u32 miyesr)
 {
 	struct amdgpu_ip_block *ip_block = amdgpu_device_ip_get_ip_block(adev, type);
 
 	if (ip_block && ((ip_block->version->major > major) ||
 			((ip_block->version->major == major) &&
-			(ip_block->version->minor >= minor))))
+			(ip_block->version->miyesr >= miyesr))))
 		return 0;
 
 	return 1;
@@ -1456,7 +1456,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "arcturus";
 		break;
 	case CHIP_RENOIR:
-		chip_name = "renoir";
+		chip_name = "reyesir";
 		break;
 	case CHIP_NAVI10:
 		chip_name = "navi10";
@@ -1516,7 +1516,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		adev->gfx.cu_info.max_scratch_slots_per_cu =
 			le32_to_cpu(gpu_info_fw->gc_max_scratch_slots_per_cu);
 		adev->gfx.cu_info.lds_size = le32_to_cpu(gpu_info_fw->gc_lds_size);
-		if (hdr->version_minor >= 1) {
+		if (hdr->version_miyesr >= 1) {
 			const struct gpu_info_firmware_v1_1 *gpu_info_fw =
 				(const struct gpu_info_firmware_v1_1 *)(adev->firmware.gpu_info_fw->data +
 									le32_to_cpu(hdr->header.ucode_array_offset_bytes));
@@ -1529,10 +1529,10 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 parse_soc_bounding_box:
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 		/*
-		 * soc bounding box info is not integrated in disocovery table,
+		 * soc bounding box info is yest integrated in disocovery table,
 		 * we always need to parse it from gpu info firmware.
 		 */
-		if (hdr->version_minor == 2) {
+		if (hdr->version_miyesr == 2) {
 			const struct gpu_info_firmware_v1_2 *gpu_info_fw =
 				(const struct gpu_info_firmware_v1_2 *)(adev->firmware.gpu_info_fw->data +
 									le32_to_cpu(hdr->header.ucode_array_offset_bytes));
@@ -1640,7 +1640,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 			return r;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 
@@ -1762,7 +1762,7 @@ static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
 			if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_PSP)
 				continue;
 
-			/* no need to do the fw loading again if already done*/
+			/* yes need to do the fw loading again if already done*/
 			if (adev->ip_blocks[i].status.hw == true)
 				break;
 
@@ -1883,14 +1883,14 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	 * for some ASICs the RAS EEPROM code relies on SMU fully functioning
 	 * for I2C communication which only true at this point.
 	 * recovery_init may fail, but it can free all resources allocated by
-	 * itself and its failure should not stop amdgpu init process.
+	 * itself and its failure should yest stop amdgpu init process.
 	 *
 	 * Note: theoretically, this should be called before all vram allocations
 	 * to protect retired page from abusing
 	 */
 	amdgpu_ras_recovery_init(adev);
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1)
+	if (adev->gmc.xgmi.num_physical_yesdes > 1)
 		amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
@@ -1911,7 +1911,7 @@ init_failed:
  *
  * Writes a reset magic value to the gart pointer in VRAM.  The driver calls
  * this function before a GPU reset.  If the value is retained after a
- * GPU reset, VRAM has not been lost.  Some GPU resets may destry VRAM contents.
+ * GPU reset, VRAM has yest been lost.  Some GPU resets may destry VRAM contents.
  */
 static void amdgpu_device_fill_reset_magic(struct amdgpu_device *adev)
 {
@@ -1925,8 +1925,8 @@ static void amdgpu_device_fill_reset_magic(struct amdgpu_device *adev)
  *
  * Checks the reset magic value written to the gart pointer in VRAM.
  * The driver calls this after a GPU reset to see if the contents of
- * VRAM is lost or now.
- * returns true if vram is lost, false if not.
+ * VRAM is lost or yesw.
+ * returns true if vram is lost, false if yest.
  */
 static bool amdgpu_device_check_vram_lost(struct amdgpu_device *adev)
 {
@@ -2084,7 +2084,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
 
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if (adev->gmc.xgmi.num_physical_yesdes > 1) {
 		mutex_lock(&mgpu_info.mutex);
 
 		/*
@@ -2093,14 +2093,14 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		 * This should be performed only after all devices from the same
 		 * hive get initialized.
 		 *
-		 * However, it's unknown how many device in the hive in advance.
+		 * However, it's unkyeswn how many device in the hive in advance.
 		 * As this is counted one by one during devices initializations.
 		 *
 		 * So, we wait for all XGMI interlinked devices initialized.
 		 * This may bring some delays as those devices may come from
 		 * different hives. But that should be OK.
 		 */
-		if (mgpu_info.num_dgpu == adev->gmc.xgmi.num_physical_nodes) {
+		if (mgpu_info.num_dgpu == adev->gmc.xgmi.num_physical_yesdes) {
 			for (i = 0; i < mgpu_info.num_gpu; i++) {
 				gpu_instance = &(mgpu_info.gpu_ins[i]);
 				if (gpu_instance->adev->flags & AMD_IS_APU)
@@ -2137,7 +2137,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 
 	amdgpu_ras_pre_fini(adev);
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1)
+	if (adev->gmc.xgmi.num_physical_yesdes > 1)
 		amdgpu_xgmi_remove_device(adev);
 
 	amdgpu_amdkfd_device_fini(adev);
@@ -2570,7 +2570,7 @@ static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
  * @asic_type: AMD asic type
  *
  * Check if there is DC (new modesetting infrastructre) support for an asic.
- * returns true if DC has support, false if not.
+ * returns true if DC has support, false if yest.
  */
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 {
@@ -2582,9 +2582,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_MULLINS:
 		/*
 		 * We have systems in the wild with these ASICs that require
-		 * LVDS and VGA support which is not supported with DC.
+		 * LVDS and VGA support which is yest supported with DC.
 		 *
-		 * Fallback to the non-DC driver here by default so as not to
+		 * Fallback to the yesn-DC driver here by default so as yest to
 		 * cause regressions.
 		 */
 		return amdgpu_dc > 0;
@@ -2623,7 +2623,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
  *
  * @adev: amdgpu_device_pointer
  *
- * Returns true for supported, false for not supported
+ * Returns true for supported, false for yest supported
  */
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
 {
@@ -2654,8 +2654,8 @@ static int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 	int ret = 0;
 
 	/*
-	 * By default timeout for non compute jobs is 10000.
-	 * And there is no timeout enforced on compute jobs.
+	 * By default timeout for yesn compute jobs is 10000.
+	 * And there is yes timeout enforced on compute jobs.
 	 * In SR-IOV or passthrough mode, timeout for compute
 	 * jobs are 10000 by default.
 	 */
@@ -2701,7 +2701,7 @@ static int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 		}
 		/*
 		 * There is only one value specified and
-		 * it should apply to all non-compute jobs.
+		 * it should apply to all yesn-compute jobs.
 		 */
 		if (index == 1) {
 			adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
@@ -2794,7 +2794,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->virt.vf_errors.lock);
 	hash_init(adev->mn_hash);
 	mutex_init(&adev->lock_reset);
-	mutex_init(&adev->notifier_lock);
+	mutex_init(&adev->yestifier_lock);
 	mutex_init(&adev->virt.dpm_mutex);
 	mutex_init(&adev->psp.mutex);
 
@@ -2854,7 +2854,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 	if (adev->rio_mem == NULL)
-		DRM_INFO("PCI I/O BAR is not found.\n");
+		DRM_INFO("PCI I/O BAR is yest found.\n");
 
 	/* enable PCIE atomic ops */
 	r = pci_enable_atomic_ops_to_root(adev->pdev,
@@ -2862,7 +2862,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 					  PCI_EXP_DEVCAP2_ATOMIC_COMP64);
 	if (r) {
 		adev->have_atomics_support = false;
-		DRM_INFO("PCIE atomic ops is not supported\n");
+		DRM_INFO("PCIE atomic ops is yest supported\n");
 	} else {
 		adev->have_atomics_support = true;
 	}
@@ -2899,7 +2899,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	/* if we have > 1 VGA cards, then disable the amdgpu VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
-	 * ignore it */
+	 * igyesre it */
 	vga_client_register(adev->pdev, adev, NULL, amdgpu_device_vga_set_decode);
 
 	if (amdgpu_device_is_px(ddev))
@@ -2920,7 +2920,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_device_detect_sriov_bios(adev);
 
 	/* check if we need to reset the asic
-	 *  E.g., driver was not cleanly unloaded previously, etc.
+	 *  E.g., driver was yest cleanly unloaded previously, etc.
 	 */
 	if (!amdgpu_sriov_vf(adev) && amdgpu_asic_need_reset_on_init(adev)) {
 		r = amdgpu_asic_reset(adev);
@@ -2933,11 +2933,11 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* Post card if necessary */
 	if (amdgpu_device_need_post(adev)) {
 		if (!adev->bios) {
-			dev_err(adev->dev, "no vBIOS found\n");
+			dev_err(adev->dev, "yes vBIOS found\n");
 			r = -EINVAL;
 			goto failed;
 		}
-		DRM_INFO("GPU posting now...\n");
+		DRM_INFO("GPU posting yesw...\n");
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r) {
 			dev_err(adev->dev, "gpu post error!\n");
@@ -3078,7 +3078,7 @@ fence_driver_init:
 
 	r = device_create_file(adev->dev, &dev_attr_pcie_replay_count);
 	if (r) {
-		dev_err(adev->dev, "Could not create pcie_replay_count");
+		dev_err(adev->dev, "Could yest create pcie_replay_count");
 		return r;
 	}
 
@@ -3172,7 +3172,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  *
  * @dev: drm dev pointer
  * @suspend: suspend state
- * @fbcon : notify the fbdev of suspend
+ * @fbcon : yestify the fbdev of suspend
  *
  * Puts the hw in the suspend state (all asics).
  * Returns 0 for success or an error on failure.
@@ -3276,7 +3276,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
  *
  * @dev: drm dev pointer
  * @resume: resume state
- * @fbcon : notify the fbdev of resume
+ * @fbcon : yestify the fbdev of resume
  *
  * Bring the hw back to operating state (all asics).
  * Returns 0 for success or an error on failure.
@@ -3403,8 +3403,8 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
  *
  * The list of all the hardware IPs that make up the asic is walked and
  * the check_soft_reset callbacks are run.  check_soft_reset determines
- * if the asic is still hung or not.
- * Returns true if any of the IPs are still in a hung state, false if not.
+ * if the asic is still hung or yest.
+ * Returns true if any of the IPs are still in a hung state, false if yest.
  */
 static bool amdgpu_device_ip_check_soft_reset(struct amdgpu_device *adev)
 {
@@ -3465,9 +3465,9 @@ static int amdgpu_device_ip_pre_soft_reset(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Some hardware IPs cannot be soft reset.  If they are hung, a full gpu
+ * Some hardware IPs canyest be soft reset.  If they are hung, a full gpu
  * reset is necessary to recover.
- * Returns true if a full asic reset is required, false if not.
+ * Returns true if a full asic reset is required, false if yest.
  */
 static bool amdgpu_device_ip_need_full_reset(struct amdgpu_device *adev)
 {
@@ -3653,7 +3653,7 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	/* now we are okay to resume SMC/CP/SDMA */
+	/* yesw we are okay to resume SMC/CP/SDMA */
 	r = amdgpu_device_ip_reinit_late_sriov(adev);
 	if (r)
 		goto error;
@@ -3684,7 +3684,7 @@ error:
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 {
 	if (!amdgpu_device_ip_check_soft_reset(adev)) {
-		DRM_INFO("Timeout, but no hardware hang detected.\n");
+		DRM_INFO("Timeout, but yes hardware hang detected.\n");
 		return false;
 	}
 
@@ -3744,7 +3744,7 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	if(job)
 		drm_sched_increase_karma(&job->base);
 
-	/* Don't suspend on bare metal if we are not going to HW reset the ASIC */
+	/* Don't suspend on bare metal if we are yest going to HW reset the ASIC */
 	if (!amdgpu_sriov_vf(adev)) {
 
 		if (!need_full_reset)
@@ -3778,13 +3778,13 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	int r = 0;
 
 	/*
-	 * ASIC reset has to be done on all HGMI hive nodes ASAP
+	 * ASIC reset has to be done on all HGMI hive yesdes ASAP
 	 * to allow proper links negotiation in FW (within 1 sec)
 	 */
 	if (need_full_reset) {
 		list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 			/* For XGMI run all resets in parallel to speed up the process */
-			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+			if (tmp_adev->gmc.xgmi.num_physical_yesdes > 1) {
 				if (!queue_work(system_highpri_wq, &tmp_adev->xgmi_reset_work))
 					r = -EALREADY;
 			} else
@@ -3801,7 +3801,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 		if (!r) {
 			list_for_each_entry(tmp_adev, device_list_handle,
 					    gmc.xgmi.head) {
-				if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+				if (tmp_adev->gmc.xgmi.num_physical_yesdes > 1) {
 					flush_work(&tmp_adev->xgmi_reset_work);
 					r = tmp_adev->asic_reset_res;
 					if (r)
@@ -3860,7 +3860,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				amdgpu_ras_resume(tmp_adev);
 
 				/* Update PSP FW topology after reset */
-				if (hive && tmp_adev->gmc.xgmi.num_physical_nodes > 1)
+				if (hive && tmp_adev->gmc.xgmi.num_physical_yesdes > 1)
 					r = amdgpu_xgmi_update_topology(hive, tmp_adev);
 			}
 		}
@@ -3974,14 +3974,14 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 */
 
 	if (hive && !mutex_trylock(&hive->reset_lock)) {
-		DRM_INFO("Bailing on TDR for s_job:%llx, hive: %llx as another already in progress",
+		DRM_INFO("Bailing on TDR for s_job:%llx, hive: %llx as ayesther already in progress",
 			  job ? job->base.id : -1, hive->hive_id);
 		return 0;
 	}
 
 	/* Start with adev pre asic reset first for soft reset check.*/
 	if (!amdgpu_device_lock_adev(adev, !hive)) {
-		DRM_INFO("Bailing on TDR for s_job:%llx, as another already in progress",
+		DRM_INFO("Bailing on TDR for s_job:%llx, as ayesther already in progress",
 			  job ? job->base.id : -1);
 		return 0;
 	}
@@ -3991,7 +3991,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
                 amdgpu_amdkfd_pre_reset(adev);
 
 	/* Build list of devices to reset */
-	if  (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if  (adev->gmc.xgmi.num_physical_yesdes > 1) {
 		if (!hive) {
 			/*unlock kfd: SRIOV would do it separately */
 			if (!amdgpu_sriov_vf(adev))
@@ -4002,8 +4002,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 		/*
 		 * In case we are in XGMI hive mode device reset is done for all the
-		 * nodes in the hive to retrain all XGMI links and hence the reset
-		 * sequence is executed in loop on all nodes.
+		 * yesdes in the hive to retrain all XGMI links and hence the reset
+		 * sequence is executed in loop on all yesdes.
 		 */
 		device_list_handle = &hive->device_list;
 	} else {
@@ -4156,7 +4156,7 @@ skip_sched_resume:
  *
  * Fetchs and stores in the driver the PCIE capabilities (gen speed
  * and lanes) of the slot the device is in. Handles APUs and
- * virtualized environments where PCIE config space may not be available.
+ * virtualized environments where PCIE config space may yest be available.
  */
 static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 {

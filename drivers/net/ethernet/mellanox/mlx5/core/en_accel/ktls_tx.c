@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellayesx Techyeslogies.
 
 #include <linux/tls.h>
 #include "en.h"
@@ -313,14 +313,14 @@ void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 	stats->tls_dump_bytes += wi->num_bytes;
 }
 
-static void tx_post_fence_nop(struct mlx5e_txqsq *sq)
+static void tx_post_fence_yesp(struct mlx5e_txqsq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	tx_fill_wi(sq, pi, 1, 0, NULL);
 
-	mlx5e_post_nop_fence(wq, sq->sqn, &sq->pc);
+	mlx5e_post_yesp_fence(wq, sq->sqn, &sq->pc);
 }
 
 static enum mlx5e_ktls_sync_retval
@@ -340,14 +340,14 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	ret = tx_sync_info_get(priv_tx, seq, &info);
 	if (unlikely(ret != MLX5E_KTLS_SYNC_DONE)) {
 		if (ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA) {
-			stats->tls_skip_no_sync_data++;
+			stats->tls_skip_yes_sync_data++;
 			return MLX5E_KTLS_SYNC_SKIP_NO_DATA;
 		}
 		/* We might get here if a retransmission reaches the driver
 		 * after the relevant record is acked.
 		 * It should be safe to drop the packet in this case
 		 */
-		stats->tls_drop_no_sync_data++;
+		stats->tls_drop_yes_sync_data++;
 		goto err_out;
 	}
 
@@ -363,11 +363,11 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
-	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
+	/* If yes dump WQE was sent, we need to have a fence NOP WQE before the
 	 * actual data xmit.
 	 */
 	if (!info.nr_frags) {
-		tx_post_fence_nop(sq);
+		tx_post_fence_yesp(sq);
 		return MLX5E_KTLS_SYNC_DONE;
 	}
 

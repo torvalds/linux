@@ -191,7 +191,7 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
  * Help for all debugger commands. First argument is the number of lines
  * of help to output for the command.
  *
- * Note: Some commands are not supported by the kernel-level version of
+ * Note: Some commands are yest supported by the kernel-level version of
  * the debugger.
  */
 static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
@@ -206,7 +206,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	 "Display list of loaded field units by space ID\n"},
 	{1, "  Namespace [Object] [Depth]",
 	 "Display loaded namespace tree/subtree\n"},
-	{1, "  Notify <Object> <Value>", "Send a notification on Object\n"},
+	{1, "  Notify <Object> <Value>", "Send a yestification on Object\n"},
 	{1, "  Objects [ObjectType]",
 	 "Display summary of all objects or just given type\n"},
 	{1, "  Owner <OwnerId> [Depth]",
@@ -216,7 +216,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Prefix [<Namepath>]", "Set or Get current execution prefix\n"},
 	{1, "  References <Addr>", "Find all references to object at addr\n"},
 	{1, "  Resources [DeviceName]",
-	 "Display Device resources (no arg = all devices)\n"},
+	 "Display Device resources (yes arg = all devices)\n"},
 	{1, "  Set N <NamedObject> <Value>", "Set value for named integer\n"},
 	{1, "  Template <Object>", "Format/dump a Buffer/ResourceTemplate\n"},
 	{1, "  Type <Object>", "Display object type\n"},
@@ -224,7 +224,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{0, "\nControl Method Execution:", "\n"},
 	{1, "  Evaluate <Namepath> [Arguments]",
 	 "Evaluate object or control method\n"},
-	{1, "  Execute <Namepath> [Arguments]", "Synonym for Evaluate\n"},
+	{1, "  Execute <Namepath> [Arguments]", "Syyesnym for Evaluate\n"},
 #ifdef ACPI_APPLICATION
 	{1, "  Background <Namepath> [Arguments]",
 	 "Evaluate object/method in a separate thread\n"},
@@ -291,7 +291,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Call", "Run to next control method invocation\n"},
 	{1, "  Go", "Allow method to run to completion\n"},
 	{1, "  Information", "Display info about the current method\n"},
-	{1, "  Into", "Step into (not over) a method call\n"},
+	{1, "  Into", "Step into (yest over) a method call\n"},
 	{1, "  List [# of Aml Opcodes]", "Display method ASL statements\n"},
 	{1, "  Locals", "Display method local variables\n"},
 	{1, "  Results", "Display method result stack\n"},
@@ -409,7 +409,7 @@ static void acpi_db_display_command_info(const char *command, u8 display_all)
  * FUNCTION:    acpi_db_display_help
  *
  * PARAMETERS:  command             - Optional command string to display help.
- *                                    if not specified, all debugger command
+ *                                    if yest specified, all debugger command
  *                                    help strings are displayed
  *
  * RETURN:      None
@@ -646,7 +646,7 @@ static u32 acpi_db_get_line(char *input_buffer)
  *
  * PARAMETERS:  user_command            - User command line
  *
- * RETURN:      Index into command array, -1 if not found
+ * RETURN:      Index into command array, -1 if yest found
  *
  * DESCRIPTION: Search command array for a command match
  *
@@ -668,7 +668,7 @@ static u32 acpi_db_match_command(char *user_command)
 		}
 	}
 
-	/* Command not recognized */
+	/* Command yest recognized */
 
 	return (CMD_NOT_FOUND);
 }
@@ -786,7 +786,7 @@ acpi_db_command_dispatch(char *input_buffer,
 		(void)acpi_db_disassemble_method(acpi_gbl_db_args[1]);
 #else
 		acpi_os_printf
-		    ("The AML Disassembler is not configured/present\n");
+		    ("The AML Disassembler is yest configured/present\n");
 #endif
 		break;
 
@@ -897,14 +897,14 @@ acpi_db_command_dispatch(char *input_buffer,
 			acpi_gbl_db_console_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for console output was %8.8X, now %8.8X\n",
+			    ("Debug Level for console output was %8.8X, yesw %8.8X\n",
 			     temp, acpi_gbl_db_console_debug_level);
 		} else {
 			temp = acpi_gbl_db_debug_level;
 			acpi_gbl_db_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for file output was %8.8X, now %8.8X\n",
+			    ("Debug Level for file output was %8.8X, yesw %8.8X\n",
 			     temp, acpi_gbl_db_debug_level);
 		}
 		break;
@@ -915,7 +915,7 @@ acpi_db_command_dispatch(char *input_buffer,
 		acpi_db_disassemble_aml(acpi_gbl_db_args[1], op);
 #else
 		acpi_os_printf
-		    ("The AML Disassembler is not configured/present\n");
+		    ("The AML Disassembler is yest configured/present\n");
 #endif
 		break;
 
@@ -943,7 +943,7 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_NOTIFY:
 
 		temp = strtoul(acpi_gbl_db_args[2], NULL, 0);
-		acpi_db_send_notify(acpi_gbl_db_args[1], temp);
+		acpi_db_send_yestify(acpi_gbl_db_args[1], temp);
 		break;
 
 	case CMD_OBJECTS:
@@ -1051,7 +1051,7 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	case CMD_EVENT:
 
-		acpi_os_printf("Event command not implemented\n");
+		acpi_os_printf("Event command yest implemented\n");
 		break;
 
 	case CMD_GPE:
@@ -1167,7 +1167,7 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_NOT_FOUND:
 	default:
 
-		acpi_os_printf("%s: unknown command\n", acpi_gbl_db_args[0]);
+		acpi_os_printf("%s: unkyeswn command\n", acpi_gbl_db_args[0]);
 		return (AE_CTRL_TRUE);
 	}
 
@@ -1238,7 +1238,7 @@ acpi_status acpi_db_user_commands(void)
 
 		/* Notify the completion of the command */
 
-		status = acpi_os_notify_command_complete();
+		status = acpi_os_yestify_command_complete();
 		if (ACPI_FAILURE(status)) {
 			break;
 		}

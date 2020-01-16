@@ -27,10 +27,10 @@ enum PipeWakeFlags {
 	/* emulator closed pipe */
 	PIPE_WAKE_CLOSED		= 1 << 0,
 
-	/* pipe can now be read from */
+	/* pipe can yesw be read from */
 	PIPE_WAKE_READ			= 1 << 1,
 
-	/* pipe can now be written to */
+	/* pipe can yesw be written to */
 	PIPE_WAKE_WRITE			= 1 << 2,
 
 	/* unlock this pipe's DMA buffer */

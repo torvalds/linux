@@ -39,7 +39,7 @@ struct threads {
 };
 
 struct machine {
-	struct rb_node	  rb_node;
+	struct rb_yesde	  rb_yesde;
 	pid_t		  pid;
 	u16		  id_hdr_size;
 	bool		  comm_exec;

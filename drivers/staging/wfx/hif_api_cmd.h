@@ -390,7 +390,7 @@ enum hif_preamble {
 
 struct hif_join_flags {
 	u8    reserved1:2;
-	u8    force_no_beacon:1;
+	u8    force_yes_beacon:1;
 	u8    force_with_ind:1;
 	u8    reserved2:4;
 } __packed;

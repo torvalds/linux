@@ -15,7 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/memblock.h>
 
 #include <asm/cacheflush.h>
@@ -27,7 +27,7 @@
  * kernel command line
  */
 
-/* none by default */
+/* yesne by default */
 static phys_addr_t dma_base;
 static u32 dma_size;
 static u32 dma_pages;

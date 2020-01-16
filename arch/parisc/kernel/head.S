@@ -86,7 +86,7 @@ $bss_loop:
 	ldo		ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4),%r4
 #endif
 
-	/* Fill in pmd with enough pte directories */
+	/* Fill in pmd with eyesugh pte directories */
 	load32		PA(pg0),%r1
 	SHRREG		%r1,PxD_VALUE_SHIFT,%r3
 	ldo		(PxD_FLAG_PRESENT+PxD_FLAG_VALID)(%r3),%r3
@@ -114,7 +114,7 @@ $pgt_fill_loop:
 	STREGM          %r3,ASM_PTE_ENTRY_SIZE(%r1)
 	ldo		(1<<PFN_PTE_SHIFT)(%r3),%r3 /* add one PFN */
 	addib,>		-1,%r11,$pgt_fill_loop
-	nop
+	yesp
 
 	/* Load the return address...er...crash 'n burn */
 	copy		%r0,%r2
@@ -203,7 +203,7 @@ common_stext:
 
         /* Set Wide mode as the "Default" (eg for traps)
         ** First trap occurs *right* after (or part of) rfi for slave CPUs.
-        ** Someday, palo might not do this for the Monarch either.
+        ** Someday, palo might yest do this for the Monarch either.
         */
 2:
 	mfctl		%cr30,%r6		/* PCX-W2 firmware bug */
@@ -240,7 +240,7 @@ stext_pdc_ret:
 	/* Initialize the global data pointer */
 	loadgp
 
-	/* Set up our interrupt table.  HPMCs might not work after this! 
+	/* Set up our interrupt table.  HPMCs might yest work after this! 
 	 *
 	 * We need to install the correct iva for PA1.1 or PA2.0. The
 	 * following short sequence of instructions can determine this
@@ -265,8 +265,8 @@ $is_pa20:
 $install_iva:
 	mtctl		%r10,%cr14
 
-	b		aligned_rfi  /* Prepare to RFI! Man all the cannons! */
-	nop
+	b		aligned_rfi  /* Prepare to RFI! Man all the canyesns! */
+	yesp
 
 	.align 128
 aligned_rfi:
@@ -290,7 +290,7 @@ aligned_rfi:
 	
 	/* Jump through hyperspace to Virt Mode */
 	rfi
-	nop
+	yesp
 
 	.procend
 
@@ -304,13 +304,13 @@ smp_callin_rtn:
         .proc
 	.callinfo
 	break	1,1		/*  Break if returned from start_secondary */
-	nop
-	nop
+	yesp
+	yesp
         .procend
 #endif /*!CONFIG_64BIT*/
 
 /***************************************************************************
-* smp_slave_stext is executed by all non-monarch Processors when the Monarch
+* smp_slave_stext is executed by all yesn-monarch Processors when the Monarch
 * pokes the slave CPUs in smp.c:smp_boot_cpus().
 *
 * Once here, registers values are initialized in order to branch to virtual
@@ -368,7 +368,7 @@ smp_slave_stext:
 	
 	/* ok...common code can handle the rest */
 	b		common_stext
-	nop
+	yesp
 
 	.procend
 #endif /* CONFIG_SMP */

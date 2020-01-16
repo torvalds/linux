@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -100,16 +100,16 @@ static int wf_lm87_probe(struct i2c_client *client,
 {	
 	struct wf_lm87_sensor *lm;
 	const char *name = NULL, *loc;
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	int rc;
 
 	/*
 	 * The lm87 contains a whole pile of sensors, additionally,
-	 * the Xserve G5 has several lm87's. However, for now we only
+	 * the Xserve G5 has several lm87's. However, for yesw we only
 	 * care about the internal temperature sensor
 	 */
-	for_each_child_of_node(client->dev.of_node, np) {
-		if (!of_node_name_eq(np, "int-temp"))
+	for_each_child_of_yesde(client->dev.of_yesde, np) {
+		if (!of_yesde_name_eq(np, "int-temp"))
 			continue;
 		loc = of_get_property(np, "location", NULL);
 		if (!loc)
@@ -119,13 +119,13 @@ static int wf_lm87_probe(struct i2c_client *client,
 		else if (strstr(loc, "Processors"))
 			name = "between-cpus-temp";
 		if (name) {
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 	}
 	if (!name) {
 		pr_warn("wf_lm87: Unsupported sensor %pOF\n",
-			client->dev.of_node);
+			client->dev.of_yesde);
 		return -ENODEV;
 	}
 

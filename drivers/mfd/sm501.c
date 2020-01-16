@@ -55,7 +55,7 @@ struct sm501_gpio {
 };
 #else
 struct sm501_gpio {
-	/* no gpio support, empty definition for sm501_devdata. */
+	/* yes gpio support, empty definition for sm501_devdata. */
 };
 #endif
 
@@ -235,7 +235,7 @@ static void sm501_sync_regs(struct sm501_devdata *sm)
 
 static inline void sm501_mdelay(struct sm501_devdata *sm, unsigned int delay)
 {
-	/* during suspend/resume, we are currently not allowed to sleep,
+	/* during suspend/resume, we are currently yest allowed to sleep,
 	 * so change to using mdelay() instead of msleep() if we
 	 * are in one of these paths */
 
@@ -567,7 +567,7 @@ unsigned long sm501_set_clock(struct device *dev,
 
 	case SM501_CLOCK_MCLK:
 	case SM501_CLOCK_M1XCLK:
-		/* These clocks are the same and not further divided */
+		/* These clocks are the same and yest further divided */
 
 		sm501_freq = sm501_select_clock( req_freq, &to, 3);
 		reg=to.shift & 0x07;	/* bottom 3 bits are shift */
@@ -901,7 +901,7 @@ static void sm501_gpio_ensure_gpio(struct sm501_gpio_chip *smchip,
 {
 	unsigned long ctrl;
 
-	/* check and modify if this pin is not set as gpio. */
+	/* check and modify if this pin is yest set as gpio. */
 
 	if (smc501_readl(smchip->control) & bit) {
 		dev_info(sm501_gpio_to_dev(smchip->ourgpio)->dev,
@@ -1168,9 +1168,9 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	icd->timeout = iic->timeout;
 	icd->udelay = iic->udelay;
 
-	/* note, we can't use either of the pin numbers, as the i2c-gpio
+	/* yeste, we can't use either of the pin numbers, as the i2c-gpio
 	 * driver uses the platform.id field to generate the bus number
-	 * to register with the i2c core; The i2c core doesn't have enough
+	 * to register with the i2c core; The i2c core doesn't have eyesugh
 	 * entries to deal with anything we currently use.
 	*/
 
@@ -1274,7 +1274,7 @@ static void sm501_init_regs(struct sm501_devdata *sm,
 
 /* Check the PLL sources for the M1CLK and M1XCLK
  *
- * If the M1CLK and M1XCLKs are not sourced from the same PLL, then
+ * If the M1CLK and M1XCLKs are yest sourced from the same PLL, then
  * there is a risk (see errata AB-5) that the SM501 will cease proper
  * function. If this happens, then it is likely the SM501 will
  * hang the system.
@@ -1361,7 +1361,7 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	if (pdata && pdata->gpio_i2c && pdata->gpio_i2c_nr > 0) {
 		if (!sm501_gpio_isregistered(sm))
-			dev_err(sm->dev, "no gpio available for i2c gpio.\n");
+			dev_err(sm->dev, "yes gpio available for i2c gpio.\n");
 		else
 			sm501_register_gpio_i2c(sm, pdata);
 	}
@@ -1410,7 +1410,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 	sm->regs_claim = request_mem_region(sm->io_res->start,
 					    0x100, "sm501");
 	if (!sm->regs_claim) {
-		dev_err(&dev->dev, "cannot claim registers\n");
+		dev_err(&dev->dev, "canyest claim registers\n");
 		ret = -EBUSY;
 		goto err_res;
 	}
@@ -1419,7 +1419,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	sm->regs = ioremap(sm->io_res->start, resource_size(sm->io_res));
 	if (!sm->regs) {
-		dev_err(&dev->dev, "cannot remap registers\n");
+		dev_err(&dev->dev, "canyest remap registers\n");
 		ret = -EIO;
 		goto err_claim;
 	}
@@ -1584,7 +1584,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 
 	err = pci_enable_device(dev);
 	if (err) {
-		dev_err(&dev->dev, "cannot enable device\n");
+		dev_err(&dev->dev, "canyest enable device\n");
 		goto err2;
 	}
 
@@ -1602,13 +1602,13 @@ static int sm501_pci_probe(struct pci_dev *dev,
 	/* check our resources */
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM)) {
-		dev_err(&dev->dev, "region #0 is not memory?\n");
+		dev_err(&dev->dev, "region #0 is yest memory?\n");
 		err = -EINVAL;
 		goto err3;
 	}
 
 	if (!(pci_resource_flags(dev, 1) & IORESOURCE_MEM)) {
-		dev_err(&dev->dev, "region #1 is not memory?\n");
+		dev_err(&dev->dev, "region #1 is yest memory?\n");
 		err = -EINVAL;
 		goto err3;
 	}
@@ -1621,14 +1621,14 @@ static int sm501_pci_probe(struct pci_dev *dev,
 	sm->regs_claim = request_mem_region(sm->io_res->start,
 					    0x100, "sm501");
 	if (!sm->regs_claim) {
-		dev_err(&dev->dev, "cannot claim registers\n");
+		dev_err(&dev->dev, "canyest claim registers\n");
 		err= -EBUSY;
 		goto err3;
 	}
 
 	sm->regs = pci_ioremap_bar(dev, 1);
 	if (!sm->regs) {
-		dev_err(&dev->dev, "cannot remap registers\n");
+		dev_err(&dev->dev, "canyest remap registers\n");
 		err = -EIO;
 		goto err4;
 	}

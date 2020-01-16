@@ -61,9 +61,9 @@ static int tzp;
 module_param(tzp, int, 0444);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.");
 
-static int nocrt;
-module_param(nocrt, int, 0);
-MODULE_PARM_DESC(nocrt, "Set to take no action upon ACPI thermal zone critical trips points.");
+static int yescrt;
+module_param(yescrt, int, 0);
+MODULE_PARM_DESC(yescrt, "Set to take yes action upon ACPI thermal zone critical trips points.");
 
 static int off;
 module_param(off, int, 0);
@@ -77,7 +77,7 @@ static struct workqueue_struct *acpi_thermal_pm_queue;
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device);
-static void acpi_thermal_notify(struct acpi_device *device, u32 event);
+static void acpi_thermal_yestify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id  thermal_device_ids[] = {
 	{ACPI_THERMAL_HID, 0},
@@ -101,7 +101,7 @@ static struct acpi_driver acpi_thermal_driver = {
 	.ops = {
 		.add = acpi_thermal_add,
 		.remove = acpi_thermal_remove,
-		.notify = acpi_thermal_notify,
+		.yestify = acpi_thermal_yestify,
 		},
 	.drv.pm = &acpi_thermal_pm,
 };
@@ -724,7 +724,7 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 }
 
 
-static int thermal_notify(struct thermal_zone_device *thermal, int trip,
+static int thermal_yestify(struct thermal_zone_device *thermal, int trip,
 			   enum thermal_trip_type trip_type)
 {
 	u8 type = 0;
@@ -740,7 +740,7 @@ static int thermal_notify(struct thermal_zone_device *thermal, int trip,
 	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
 					dev_name(&tz->device->dev), type, 1);
 
-	if (trip_type == THERMAL_TRIP_CRITICAL && nocrt)
+	if (trip_type == THERMAL_TRIP_CRITICAL && yescrt)
 		return 1;
 
 	return 0;
@@ -860,7 +860,7 @@ static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.get_trip_temp = thermal_get_trip_temp,
 	.get_crit_temp = thermal_get_crit_temp,
 	.get_trend = thermal_get_trend,
-	.notify = thermal_notify,
+	.yestify = thermal_yestify,
 };
 
 static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
@@ -932,7 +932,7 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static void acpi_thermal_notify(struct acpi_device *device, u32 event)
+static void acpi_thermal_yestify(struct acpi_device *device, u32 event)
 {
 	struct acpi_thermal *tz = acpi_driver_data(device);
 
@@ -1158,23 +1158,23 @@ static int acpi_thermal_resume(struct device *dev)
 static int thermal_act(const struct dmi_system_id *d) {
 
 	if (act == 0) {
-		pr_notice(PREFIX "%s detected: "
+		pr_yestice(PREFIX "%s detected: "
 			  "disabling all active thermal trip points\n", d->ident);
 		act = -1;
 	}
 	return 0;
 }
-static int thermal_nocrt(const struct dmi_system_id *d) {
+static int thermal_yescrt(const struct dmi_system_id *d) {
 
-	pr_notice(PREFIX "%s detected: "
+	pr_yestice(PREFIX "%s detected: "
 		  "disabling all critical thermal trip point actions.\n", d->ident);
-	nocrt = 1;
+	yescrt = 1;
 	return 0;
 }
 static int thermal_tzp(const struct dmi_system_id *d) {
 
 	if (tzp == 0) {
-		pr_notice(PREFIX "%s detected: "
+		pr_yestice(PREFIX "%s detected: "
 			  "enabling thermal zone polling\n", d->ident);
 		tzp = 300;	/* 300 dS = 30 Seconds */
 	}
@@ -1183,7 +1183,7 @@ static int thermal_tzp(const struct dmi_system_id *d) {
 static int thermal_psv(const struct dmi_system_id *d) {
 
 	if (psv == 0) {
-		pr_notice(PREFIX "%s detected: "
+		pr_yestice(PREFIX "%s detected: "
 			  "disabling all passive thermal trip points\n", d->ident);
 		psv = -1;
 	}
@@ -1220,10 +1220,10 @@ static const struct dmi_system_id thermal_dmi_table[] __initconst = {
 		},
 	},
 	{
-	 .callback = thermal_nocrt,
+	 .callback = thermal_yescrt,
 	 .ident = "Gigabyte GA-7ZX",
 	 .matches = {
-		DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
+		DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Techyeslogy Co., Ltd."),
 		DMI_MATCH(DMI_BOARD_NAME, "7ZX"),
 		},
 	},
@@ -1237,7 +1237,7 @@ static int __init acpi_thermal_init(void)
 	dmi_check_system(thermal_dmi_table);
 
 	if (off) {
-		pr_notice(PREFIX "thermal control disabled\n");
+		pr_yestice(PREFIX "thermal control disabled\n");
 		return -ENODEV;
 	}
 

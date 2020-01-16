@@ -124,8 +124,8 @@
 #define IMAGE_SCN_ALIGN_8192BYTES 0x00e00000
 #define IMAGE_SCN_LNK_NRELOC_OVFL 0x01000000 /* extended relocations */
 #define IMAGE_SCN_MEM_DISCARDABLE 0x02000000 /* scn can be discarded */
-#define IMAGE_SCN_MEM_NOT_CACHED 0x04000000 /* cannot be cached */
-#define IMAGE_SCN_MEM_NOT_PAGED	0x08000000 /* not pageable */
+#define IMAGE_SCN_MEM_NOT_CACHED 0x04000000 /* canyest be cached */
+#define IMAGE_SCN_MEM_NOT_PAGED	0x08000000 /* yest pageable */
 #define IMAGE_SCN_MEM_SHARED	0x10000000 /* can be shared */
 #define IMAGE_SCN_MEM_EXECUTE	0x20000000 /* can be executed as code */
 #define IMAGE_SCN_MEM_READ	0x40000000 /* readable */
@@ -180,7 +180,7 @@ struct pe32_opt_hdr {
 	/* "standard" header */
 	uint16_t magic;		/* file type */
 	uint8_t  ld_major;	/* linker major version */
-	uint8_t  ld_minor;	/* linker minor version */
+	uint8_t  ld_miyesr;	/* linker miyesr version */
 	uint32_t text_size;	/* size of text section(s) */
 	uint32_t data_size;	/* size of data section(s) */
 	uint32_t bss_size;	/* size of bss section(s) */
@@ -192,11 +192,11 @@ struct pe32_opt_hdr {
 	uint32_t section_align;	/* alignment in bytes */
 	uint32_t file_align;	/* file alignment in bytes */
 	uint16_t os_major;	/* major OS version */
-	uint16_t os_minor;	/* minor OS version */
+	uint16_t os_miyesr;	/* miyesr OS version */
 	uint16_t image_major;	/* major image version */
-	uint16_t image_minor;	/* minor image version */
+	uint16_t image_miyesr;	/* miyesr image version */
 	uint16_t subsys_major;	/* major subsystem version */
-	uint16_t subsys_minor;	/* minor subsystem version */
+	uint16_t subsys_miyesr;	/* miyesr subsystem version */
 	uint32_t win32_version;	/* reserved, must be 0 */
 	uint32_t image_size;	/* image size */
 	uint32_t header_size;	/* header size rounded up to
@@ -215,7 +215,7 @@ struct pe32_opt_hdr {
 struct pe32plus_opt_hdr {
 	uint16_t magic;		/* file type */
 	uint8_t  ld_major;	/* linker major version */
-	uint8_t  ld_minor;	/* linker minor version */
+	uint8_t  ld_miyesr;	/* linker miyesr version */
 	uint32_t text_size;	/* size of text section(s) */
 	uint32_t data_size;	/* size of data section(s) */
 	uint32_t bss_size;	/* size of bss section(s) */
@@ -226,11 +226,11 @@ struct pe32plus_opt_hdr {
 	uint32_t section_align;	/* alignment in bytes */
 	uint32_t file_align;	/* file alignment in bytes */
 	uint16_t os_major;	/* major OS version */
-	uint16_t os_minor;	/* minor OS version */
+	uint16_t os_miyesr;	/* miyesr OS version */
 	uint16_t image_major;	/* major image version */
-	uint16_t image_minor;	/* minor image version */
+	uint16_t image_miyesr;	/* miyesr image version */
 	uint16_t subsys_major;	/* major subsystem version */
-	uint16_t subsys_minor;	/* minor subsystem version */
+	uint16_t subsys_miyesr;	/* miyesr subsystem version */
 	uint32_t win32_version;	/* reserved, must be 0 */
 	uint32_t image_size;	/* image size */
 	uint32_t header_size;	/* header size rounded up to
@@ -263,7 +263,7 @@ struct data_directory {
 	struct data_dirent global_ptr;		/* global pointer reg. Size=0 */
 	struct data_dirent tls;			/* .tls */
 	struct data_dirent load_config;		/* load configuration structure */
-	struct data_dirent bound_imports;	/* no idea */
+	struct data_dirent bound_imports;	/* yes idea */
 	struct data_dirent import_addrs;	/* import address table */
 	struct data_dirent delay_imports;	/* delay-load import table */
 	struct data_dirent clr_runtime_hdr;	/* .cor (object only) */

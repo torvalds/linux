@@ -11,7 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/writeback.h>
 #include "incore.h"
-#include "inode.h"
+#include "iyesde.h"
 
 /**
  * gfs2_log_lock - acquire the right to mess with the log manager
@@ -46,9 +46,9 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	sdp->sd_log_head = sdp->sd_log_tail = value;
 }
 
-static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
+static inline void gfs2_ordered_add_iyesde(struct gfs2_iyesde *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 
 	if (gfs2_is_jdata(ip) || !gfs2_is_ordered(sdp))
 		return;
@@ -60,7 +60,7 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 		spin_unlock(&sdp->sd_ordered_lock);
 	}
 }
-extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
+extern void gfs2_ordered_del_iyesde(struct gfs2_iyesde *ip);
 extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 

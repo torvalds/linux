@@ -166,7 +166,7 @@ static inline int etm_writel_cp14(u32 off, u32 val) { return 0; }
  * private data in AMBA ID table entries, and extract data values.
  */
 
-/* coresight AMBA ID, no UCI, no driver data: id table entry */
+/* coresight AMBA ID, yes UCI, yes driver data: id table entry */
 #define CS_AMBA_ID(pid)			\
 	{				\
 		.id	= pid,		\

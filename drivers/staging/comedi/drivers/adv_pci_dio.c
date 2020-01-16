@@ -18,7 +18,7 @@
  * Updated: Fri, 25 Aug 2017 07:23:06 +0300
  * Status: untested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -480,7 +480,7 @@ static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 		/*
 		 * This test is based on Advantech's "advdaq" driver source
 		 * (which declares its module licence as "GPL" although the
-		 * driver source does not include a "COPYING" file).
+		 * driver source does yest include a "COPYING" file).
 		 */
 		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
 

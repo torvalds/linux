@@ -15,7 +15,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-yesr.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -287,7 +287,7 @@ struct seq_rw_config {
 struct flash_info {
 	char            *name;
 	/*
-	 * JEDEC id zero means "no ID" (most older chips); otherwise it has
+	 * JEDEC id zero means "yes ID" (most older chips); otherwise it has
 	 * a high byte of zero plus three data bytes: the manufacturer id,
 	 * then a two byte device id.
 	 */
@@ -302,7 +302,7 @@ struct flash_info {
 	u32             flags;
 	/*
 	 * Note, where FAST_READ is supported, freq_max specifies the
-	 * FAST_READ frequency, not the READ frequency.
+	 * FAST_READ frequency, yest the READ frequency.
 	 */
 	u32             max_freq;
 	int             (*config)(struct stfsm *);
@@ -391,7 +391,7 @@ static struct flash_info flash_types[] = {
 	/*
 	 * Spansion S25FLxxxS
 	 *     - 256KiB and 64KiB sector variants (identified by ext. JEDEC)
-	 *     - RESET# signal supported by die but not bristled out on all
+	 *     - RESET# signal supported by die but yest bristled out on all
 	 *       package types.  The package type is a function of board design,
 	 *       so this information is captured in the board's flags.
 	 *     - Supports 'DYB' sector protection. Depending on variant, sectors
@@ -479,7 +479,7 @@ static struct seq_rw_config default_write_configs[] = {
  *	- 'FAST' variants configured for 8 dummy cycles.
  *
  * Note, the number of dummy cycles used for 'FAST' READ operations is
- * configurable and would normally be tuned according to the READ command and
+ * configurable and would yesrmally be tuned according to the READ command and
  * operating frequency.  However, this applies universally to all 'FAST' READ
  * commands, including those used by the SPIBoot controller, and remains in
  * force until the device is power-cycled.  Since the SPIBoot controller is
@@ -499,7 +499,7 @@ static struct seq_rw_config n25q_read3_configs[] = {
 /* N25Q 4-byte Address READ configurations
  *	- use special 4-byte address READ commands (reduces overheads, and
  *        reduces risk of hitting watchdog reset issues).
- *	- 'FAST' variants configured for 8 dummy cycles (see note above.)
+ *	- 'FAST' variants configured for 8 dummy cycles (see yeste above.)
  */
 static struct seq_rw_config n25q_read4_configs[] = {
 	{FLASH_FLAG_READ_1_4_4, SPINOR_OP_READ_1_4_4_4B, 0, 4, 4, 0x00, 0, 8},
@@ -773,7 +773,7 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
 /*
  * Clear the data FIFO
  *
- * Typically, this is only required during driver initialisation, where no
+ * Typically, this is only required during driver initialisation, where yes
  * assumptions can be made regarding the state of the FIFO.
  *
  * The process of clearing the FIFO is complicated by fact that while it is
@@ -787,13 +787,13 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
  *     1. Read any complete 32-bit words from the FIFO, as reported by the
  *        SPI_FAST_SEQ_STA register.
  *
- *     2. Mop up any remaining bytes.  At this point, it is not known if there
+ *     2. Mop up any remaining bytes.  At this point, it is yest kyeswn if there
  *        are 0, 1, 2, or 3 bytes in the FIFO.  To handle all cases, a dummy FSM
  *        sequence is used to load one byte at a time, until a complete 32-bit
  *        word is formed; at most, 4 bytes will need to be loaded.
  *
  * [1] It is theoretically possible for the FIFO to contain an arbitrary number
- *     of bits.  However, since there are no known use-cases that leave
+ *     of bits.  However, since there are yes kyeswn use-cases that leave
  *     incomplete bytes in the FIFO, only words and bytes are considered here.
  */
 static void stfsm_clear_fifo(struct stfsm *fsm)
@@ -820,7 +820,7 @@ static void stfsm_clear_fifo(struct stfsm *fsm)
 		words = stfsm_fifo_available(fsm);
 	}
 
-	/*    - A single word must be available now */
+	/*    - A single word must be available yesw */
 	if (words != 1) {
 		dev_err(fsm->dev, "failed to clear bytes from the data FIFO\n");
 		return;
@@ -945,7 +945,7 @@ static int stfsm_write_status(struct stfsm *fsm, uint8_t cmd,
 
 	dev_dbg(fsm->dev,
 		"write 'status' register [0x%02x], %d byte(s), 0x%04x\n"
-		" %s wait-busy\n", cmd, bytes, data, wait_busy ? "with" : "no");
+		" %s wait-busy\n", cmd, bytes, data, wait_busy ? "with" : "yes");
 
 	BUG_ON(bytes != 1 && bytes != 2);
 
@@ -995,7 +995,7 @@ static bool stfsm_can_handle_soc_reset(struct stfsm *fsm)
 	if (fsm->reset_por)
 		return true;
 
-	/* Reset is not properly handled and may result in failure to reboot */
+	/* Reset is yest properly handled and may result in failure to reboot */
 	return false;
 }
 
@@ -1065,12 +1065,12 @@ static void stfsm_prepare_rw_seq(struct stfsm *fsm,
 	if (!cfg->write)
 		seq->seq_cfg |= SEQ_CFG_READNOTWRITE;
 
-	/* Mode configuration (no. of pads taken from addr cfg) */
+	/* Mode configuration (yes. of pads taken from addr cfg) */
 	seq->mode = ((cfg->mode_data & 0xff) << 0 |	/* data */
 		     (cfg->mode_cycles & 0x3f) << 16 |	/* cycles */
 		     (cfg->addr_pads - 1) << 22);	/* pads */
 
-	/* Dummy configuration (no. of pads taken from addr cfg) */
+	/* Dummy configuration (yes. of pads taken from addr cfg) */
 	seq->dummy = ((cfg->dummy_cycles & 0x3f) << 16 |	/* cycles */
 		      (cfg->addr_pads - 1) << 22);		/* pads */
 
@@ -1250,7 +1250,7 @@ static int stfsm_n25q_config(struct stfsm *fsm)
 			stfsm_enter_32bit_addr(fsm, 1);
 		} else {
 			/*
-			 * If not, enable/disable for WRITE and ERASE
+			 * If yest, enable/disable for WRITE and ERASE
 			 * operations (READ uses special commands)
 			 */
 			fsm->configuration = (CFG_WRITE_TOGGLE_32BIT_ADDR |
@@ -1533,10 +1533,10 @@ static int stfsm_read(struct stfsm *fsm, uint8_t *buf, uint32_t size,
 	data_pads = ((seq->seq_cfg >> 16) & 0x3) + 1;
 	read_mask = (data_pads << 2) - 1;
 
-	/* Handle non-aligned buf */
+	/* Handle yesn-aligned buf */
 	p = ((uintptr_t)buf & 0x3) ? (uint8_t *)page_buf : buf;
 
-	/* Handle non-aligned size */
+	/* Handle yesn-aligned size */
 	size_ub = (size + read_mask) & ~read_mask;
 	size_lb = size & ~read_mask;
 	size_mop = size & read_mask;
@@ -1555,7 +1555,7 @@ static int stfsm_read(struct stfsm *fsm, uint8_t *buf, uint32_t size,
 		memcpy(p + size_lb, &tmp, size_mop);
 	}
 
-	/* Handle non-aligned buf */
+	/* Handle yesn-aligned buf */
 	if ((uintptr_t)buf & 0x3)
 		memcpy(buf, page_buf, size);
 
@@ -1597,7 +1597,7 @@ static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
 	data_pads = ((seq->seq_cfg >> 16) & 0x3) + 1;
 	write_mask = (data_pads << 2) - 1;
 
-	/* Handle non-aligned buf */
+	/* Handle yesn-aligned buf */
 	if ((uintptr_t)buf & 0x3) {
 		memcpy(page_buf, buf, size);
 		p = (uint8_t *)page_buf;
@@ -1605,7 +1605,7 @@ static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
 		p = buf;
 	}
 
-	/* Handle non-aligned size */
+	/* Handle yesn-aligned size */
 	size_ub = (size + write_mask) & ~write_mask;
 	size_lb = size & ~write_mask;
 	size_mop = size & write_mask;
@@ -1635,7 +1635,7 @@ static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
 		p += size_lb;
 	}
 
-	/* Handle non-aligned size */
+	/* Handle yesn-aligned size */
 	if (size_mop) {
 		memset(t, 0xff, write_mask + 1);	/* fill with 0xff's */
 		for (i = 0; i < size_mop; i++)
@@ -1771,7 +1771,7 @@ static int stfsm_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		len -= bytes;
 		to += bytes;
 
-		/* We are now page-aligned */
+		/* We are yesw page-aligned */
 		page_offs = 0;
 
 		*retlen += bytes;
@@ -1970,7 +1970,7 @@ static int stfsm_init(struct stfsm *fsm)
 static void stfsm_fetch_platform_configs(struct platform_device *pdev)
 {
 	struct stfsm *fsm = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct regmap *regmap;
 	uint32_t boot_device_reg;
 	uint32_t boot_device_spi;
@@ -2014,7 +2014,7 @@ boot_device_fail:
 
 static int stfsm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct flash_info *info;
 	struct resource *res;
 	struct stfsm *fsm;
@@ -2035,7 +2035,7 @@ static int stfsm_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "Resource not found\n");
+		dev_err(&pdev->dev, "Resource yest found\n");
 		return -ENODEV;
 	}
 
@@ -2096,7 +2096,7 @@ static int stfsm_probe(struct platform_device *pdev)
 
 	fsm->mtd.name		= info->name;
 	fsm->mtd.dev.parent	= &pdev->dev;
-	mtd_set_of_node(&fsm->mtd, np);
+	mtd_set_of_yesde(&fsm->mtd, np);
 	fsm->mtd.type		= MTD_NORFLASH;
 	fsm->mtd.writesize	= 4;
 	fsm->mtd.writebufsize	= fsm->mtd.writesize;

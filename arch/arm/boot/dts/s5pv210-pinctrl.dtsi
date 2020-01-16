@@ -7,13 +7,13 @@
  * Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
  * Tomasz Figa <t.figa@samsung.com>
  *
- * Samsung's S5PV210 SoC device nodes are listed in this file. S5PV210
+ * Samsung's S5PV210 SoC device yesdes are listed in this file. S5PV210
  * based board files can include this file and provide values for board specfic
  * bindings.
  *
- * Note: This file does not include device nodes for all the controllers in
+ * Note: This file does yest include device yesdes for all the controllers in
  * S5PV210 SoC. As device tree coverage for S5PV210 increases, additional
- * nodes can be added to this file.
+ * yesdes can be added to this file.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

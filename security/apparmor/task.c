@@ -4,19 +4,19 @@
  *
  * This file contains AppArmor task related definitions and mediation
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Cayesnical Ltd.
  *
  * TODO
- * If a task uses change_hat it currently does not return to the old
+ * If a task uses change_hat it currently does yest return to the old
  * cred or task context but instead creates a new one.  Ideally the task
- * should return to the previous cred if it has not been modified.
+ * should return to the previous cred if it has yest been modified.
  */
 
 #include "include/cred.h"
 #include "include/task.h"
 
 /**
- * aa_get_task_label - Get another task's label
+ * aa_get_task_label - Get ayesther task's label
  * @task: task to query  (NOT NULL)
  *
  * Returns: counted reference to @task's label
@@ -159,7 +159,7 @@ int aa_restore_previous_label(u64 token)
 
 	if (ctx->token != token)
 		return -EACCES;
-	/* ignore restores when there is no saved label */
+	/* igyesre restores when there is yes saved label */
 	if (!ctx->previous)
 		return 0;
 

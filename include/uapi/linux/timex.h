@@ -4,12 +4,12 @@
  *                                                                           *
  * Permission to use, copy, modify, and distribute this software and its     *
  * documentation for any purpose and without fee is hereby granted, provided *
- * that the above copyright notice appears in all copies and that both the   *
- * copyright notice and this permission notice appear in supporting          *
- * documentation, and that the name University of Delaware not be used in    *
+ * that the above copyright yestice appears in all copies and that both the   *
+ * copyright yestice and this permission yestice appear in supporting          *
+ * documentation, and that the name University of Delaware yest be used in    *
  * advertising or publicity pertaining to distribution of the software       *
  * without specific, written prior permission.  The University of Delaware   *
- * makes no representations about the suitability this software for any      *
+ * makes yes representations about the suitability this software for any      *
  * purpose.  It is provided "as is" without express or implied warranty.     *
  *                                                                           *
  *****************************************************************************/
@@ -143,7 +143,7 @@ struct __kernel_timex {
 #define ADJ_TAI			0x0080	/* set TAI offset */
 #define ADJ_SETOFFSET		0x0100  /* add 'time' to current time */
 #define ADJ_MICRO		0x1000	/* select microsecond resolution */
-#define ADJ_NANO		0x2000	/* select nanosecond resolution */
+#define ADJ_NANO		0x2000	/* select nayessecond resolution */
 #define ADJ_TICK		0x4000	/* tick value */
 
 #ifndef __KERNEL__
@@ -193,12 +193,12 @@ struct __kernel_timex {
 /*
  * Clock states (time_state)
  */
-#define TIME_OK		0	/* clock synchronized, no leap second */
+#define TIME_OK		0	/* clock synchronized, yes leap second */
 #define TIME_INS	1	/* insert leap second */
 #define TIME_DEL	2	/* delete leap second */
 #define TIME_OOP	3	/* leap second in progress */
 #define TIME_WAIT	4	/* leap second has occurred */
-#define TIME_ERROR	5	/* clock not synchronized */
+#define TIME_ERROR	5	/* clock yest synchronized */
 #define TIME_BAD	TIME_ERROR /* bw compat */
 
 

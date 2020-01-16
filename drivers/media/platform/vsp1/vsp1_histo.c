@@ -546,7 +546,7 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	if (ret < 0)
 		return ret;
 
-	/* ... and the video node... */
+	/* ... and the video yesde... */
 	histo->video.v4l2_dev = &vsp1->v4l2_dev;
 	histo->video.fops = &histo_v4l2_fops;
 	snprintf(histo->video.name, sizeof(histo->video.name),

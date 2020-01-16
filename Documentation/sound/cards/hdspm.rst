@@ -2,7 +2,7 @@
 Software Interface ALSA-DSP MADI Driver 
 =======================================
 
-(translated from German, so no good English ;-), 
+(translated from German, so yes good English ;-), 
 
 2004 - winfried ritsch
 
@@ -28,7 +28,7 @@ Audio transmission
 
 * Single Speed -- 1..64 channels 
 
-.. note::
+.. yeste::
 		 (Note: Choosing the 56channel mode for transmission or as
 		 receiver, only 56 are transmitted/received over the MADI, but
 		 all 64 channels are available for the mixer, so channel count
@@ -36,7 +36,7 @@ Audio transmission
 
 * Double Speed -- 1..32 channels
 
-.. note::
+.. yeste::
 		 Note: Choosing the 56-channel mode for
 		 transmission/receive-mode , only 28 are transmitted/received
 		 over the MADI, but all 32 channels are available for the mixer,
@@ -45,7 +45,7 @@ Audio transmission
 
 * Quad Speed -- 1..16 channels 
 
-.. note::
+.. yeste::
 		 Choosing the 56-channel mode for
 		 transmission/receive-mode , only 14 are transmitted/received
 		 over the MADI, but all 16 channels are available for the mixer,
@@ -72,7 +72,7 @@ Audio transmission
 
 		 The Card supports the readout of the actual Buffer-pointer,
 		 where DMA reads/writes. Since of the bulk mode of PCI it is only
-		 64 Byte accurate. SO it is not really usable for the
+		 64 Byte accurate. SO it is yest really usable for the
 		 ALSA-mid-level functions (here the buffer-ID gives a better
 		 result), but if MMAP is used by the application. Therefore it
 		 can be configured at load-time with the parameter
@@ -83,7 +83,7 @@ Audio transmission
 		 (Hint: Experimenting I found that the pointer is maximum 64 to
 		 large never to small. So if you subtract 64 you always have a
 		 safe pointer for writing, which is used on this mode inside
-		 ALSA. In theory now you can get now a latency as low as 16
+		 ALSA. In theory yesw you can get yesw a latency as low as 16
 		 Samples, which is a quarter of the interrupt possibilities.)
 
    * Precise Pointer -- off
@@ -95,7 +95,7 @@ Audio transmission
 Controller
 ----------
 
-Since DSP-MADI-Mixer has 8152 Fader, it does not make sense to
+Since DSP-MADI-Mixer has 8152 Fader, it does yest make sense to
 use the standard mixer-controls, since this would break most of
 (especially graphic) ALSA-Mixer GUIs. So Mixer control has be
 provided by a 2-dimensional controller using the
@@ -106,15 +106,15 @@ hwdep-interface. Since it could be a performance problem always
 copying and converting Peak and RMS-Levels even if you just need
 one, I decided to export the hardware structure, so that of
 needed some driver-guru can implement a memory-mapping of mixer
-or peak-meters over ioctl, or also to do only copying and no
+or peak-meters over ioctl, or also to do only copying and yes
 conversion. A test-application shows the usage of the controller.
 
-* Latency Controls --- not implemented !!!
+* Latency Controls --- yest implemented !!!
 
-.. note::
+.. yeste::
 	   Note: Within the windows-driver the latency is accessible of a
 	   control-panel, but buffer-sizes are controlled with ALSA from
-	   hwparams-calls and should not be changed in run-state, I did not
+	   hwparams-calls and should yest be changed in run-state, I did yest
 	   implement it here.
 
 
@@ -126,11 +126,11 @@ conversion. A test-application shows the usage of the controller.
     
   * Values -- "Master" "Slave"
 
-.. note::
+.. yeste::
 		  !!!! This is a hardware-function but is in conflict with the
 		  Clock-source controller, which is a kind of ALSA-standard. I
 		  makes sense to set the card to a special mode (master at some
-		  frequency or slave), since even not using an Audio-application
+		  frequency or slave), since even yest using an Audio-application
 		  a studio should have working synchronisations setup. So use
 		  Clock-source-controller instead !!!!
 
@@ -148,7 +148,7 @@ conversion. A test-application shows the usage of the controller.
 		 Speed-mode or Slave (Autosync). Also see  "Preferred Sync Ref"
 
 .. warning::
-       !!!! This is no pure hardware function but was implemented by
+       !!!! This is yes pure hardware function but was implemented by
        ALSA by some ALSA-drivers before, so I use it also. !!!
 
 
@@ -162,12 +162,12 @@ conversion. A test-application shows the usage of the controller.
 
 
 		 Within the Auto-sync-Mode the preferred Sync Source can be
-		 chosen. If it is not available another is used if possible.
+		 chosen. If it is yest available ayesther is used if possible.
 
-.. note::
+.. yeste::
 		 Note: Since MADI has a much higher bit-rate than word-clock, the
 		 card should synchronise better in MADI Mode. But since the
-		 RME-PLL is very good, there are almost no problems with
+		 RME-PLL is very good, there are almost yes problems with
 		 word-clock too. I never found a difference.
 
 
@@ -183,7 +183,7 @@ conversion. A test-application shows the usage of the controller.
 		 MADI-transmission (0).
 
 
-.. note::
+.. yeste::
 		 Note: This control is for output only. Input-mode is detected
 		 automatically from hardware sending MADI.
 
@@ -209,7 +209,7 @@ conversion. A test-application shows the usage of the controller.
   * Values -- 0 1 (default on)
 
 		 If on (1), then if either the optical or coaxial connection
-		 has a failure, there is a takeover to the working one, with no
+		 has a failure, there is a takeover to the working one, with yes
 		 sample failure. Its only useful if you use the second as a
 		 backup connection.
 
@@ -256,7 +256,7 @@ Mixer
 
   * Values -- 0 1
 
-		 Switching on and off the analog out, which has nothing to do
+		 Switching on and off the analog out, which has yesthing to do
 		 with mixing or routing. the analog outs reflects channel 63,64.
 
 
@@ -313,21 +313,21 @@ Information (only read access)
 
   * Values -- "WordClock", "MADI", "None"
 
-		 Sync-Reference is either "WordClock", "MADI" or none.
+		 Sync-Reference is either "WordClock", "MADI" or yesne.
 
-* RX 64ch --- noch nicht implementiert
+* RX 64ch --- yesch nicht implementiert
 
        MADI-Receiver is in 64 channel mode oder 56 channel mode.
 
 
-* AB_inp   --- not tested 
+* AB_inp   --- yest tested 
 
 		 Used input for Auto-Input.
 
 
-* actual Buffer Position --- not implemented
+* actual Buffer Position --- yest implemented
 
-	   !!! this is a ALSA internal function, so no control is used !!!
+	   !!! this is a ALSA internal function, so yes control is used !!!
 
 
 
@@ -338,33 +338,33 @@ Calling Parameter
 
      Index value for RME HDSPM interface. card-index within ALSA
 
-     note: ALSA-standard
+     yeste: ALSA-standard
 
 * id string array (min = 1, max = 8) 
 
      ID string for RME HDSPM interface.
 
-     note: ALSA-standard
+     yeste: ALSA-standard
 
 * enable int array (min = 1, max = 8)
 
      Enable/disable specific HDSPM sound-cards.
 
-     note: ALSA-standard
+     yeste: ALSA-standard
 
 * precise_ptr int array (min = 1, max = 8)
 
      Enable precise pointer, or disable.
 
-.. note::
-     note: Use only when the application supports this (which is a special case).
+.. yeste::
+     yeste: Use only when the application supports this (which is a special case).
 
 * line_outs_monitor int array (min = 1, max = 8)
 
      Send playback streams to analog outs by default.
 
-.. note::
-	  note: each playback channel is mixed to the same numbered output
+.. yeste::
+	  yeste: each playback channel is mixed to the same numbered output
 	  channel (routed). This is against the ALSA-convention, where all
 	  channels have to be muted on after loading the driver, but was
 	  used before on other cards, so i historically use it again)
@@ -375,5 +375,5 @@ Calling Parameter
 
      Enable Analog Out on Channel 63/64 by default.
 
-.. note ::
-      note: here the analog output is enabled (but not routed).
+.. yeste ::
+      yeste: here the analog output is enabled (but yest routed).

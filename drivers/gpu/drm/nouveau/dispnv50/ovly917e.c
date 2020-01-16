@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@ ovly917e_format[] = {
 };
 
 int
-ovly917e_new(struct nouveau_drm *drm, int head, s32 oclass,
+ovly917e_new(struct yesuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return ovly507e_new_(&ovly907e, ovly917e_format, drm, head, oclass,

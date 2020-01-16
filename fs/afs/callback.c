@@ -5,7 +5,7 @@
  * GNU General Public License.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Authors: David Woodhouse <dwmw2@infradead.org>
@@ -24,11 +24,11 @@
  * Create volume and callback interests on a server.
  */
 static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
-						   struct afs_vnode *vnode)
+						   struct afs_vyesde *vyesde)
 {
 	struct afs_vol_interest *new_vi, *vi;
 	struct afs_cb_interest *new;
-	struct hlist_node **pp;
+	struct hlist_yesde **pp;
 
 	new_vi = kzalloc(sizeof(struct afs_vol_interest), GFP_KERNEL);
 	if (!new_vi)
@@ -41,13 +41,13 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 	}
 
 	new_vi->usage = 1;
-	new_vi->vid = vnode->volume->vid;
+	new_vi->vid = vyesde->volume->vid;
 	INIT_HLIST_NODE(&new_vi->srv_link);
 	INIT_HLIST_HEAD(&new_vi->cb_interests);
 
 	refcount_set(&new->usage, 1);
-	new->sb = vnode->vfs_inode.i_sb;
-	new->vid = vnode->volume->vid;
+	new->sb = vyesde->vfs_iyesde.i_sb;
+	new->vid = vyesde->volume->vid;
 	new->server = afs_get_server(server, afs_server_trace_get_new_cbi);
 	INIT_HLIST_NODE(&new->cb_vlink);
 
@@ -83,9 +83,9 @@ found_vi:
 /*
  * Set up an interest-in-callbacks record for a volume on a server and
  * register it with the server.
- * - Called with vnode->io_lock held.
+ * - Called with vyesde->io_lock held.
  */
-int afs_register_server_cb_interest(struct afs_vnode *vnode,
+int afs_register_server_cb_interest(struct afs_vyesde *vyesde,
 				    struct afs_server_list *slist,
 				    unsigned int index)
 {
@@ -94,8 +94,8 @@ int afs_register_server_cb_interest(struct afs_vnode *vnode,
 	struct afs_server *server = entry->server;
 
 again:
-	vcbi = rcu_dereference_protected(vnode->cb_interest,
-					 lockdep_is_held(&vnode->io_lock));
+	vcbi = rcu_dereference_protected(vyesde->cb_interest,
+					 lockdep_is_held(&vyesde->io_lock));
 	if (vcbi && likely(vcbi == entry->cb_interest))
 		return 0;
 
@@ -105,29 +105,29 @@ again:
 
 	if (vcbi) {
 		if (vcbi == cbi) {
-			afs_put_cb_interest(afs_v2net(vnode), cbi);
+			afs_put_cb_interest(afs_v2net(vyesde), cbi);
 			return 0;
 		}
 
 		/* Use a new interest in the server list for the same server
-		 * rather than an old one that's still attached to a vnode.
+		 * rather than an old one that's still attached to a vyesde.
 		 */
 		if (cbi && vcbi->server == cbi->server) {
-			write_seqlock(&vnode->cb_lock);
-			old = rcu_dereference_protected(vnode->cb_interest,
-							lockdep_is_held(&vnode->cb_lock.lock));
-			rcu_assign_pointer(vnode->cb_interest, cbi);
-			write_sequnlock(&vnode->cb_lock);
-			afs_put_cb_interest(afs_v2net(vnode), old);
+			write_seqlock(&vyesde->cb_lock);
+			old = rcu_dereference_protected(vyesde->cb_interest,
+							lockdep_is_held(&vyesde->cb_lock.lock));
+			rcu_assign_pointer(vyesde->cb_interest, cbi);
+			write_sequnlock(&vyesde->cb_lock);
+			afs_put_cb_interest(afs_v2net(vyesde), old);
 			return 0;
 		}
 
-		/* Re-use the one attached to the vnode. */
+		/* Re-use the one attached to the vyesde. */
 		if (!cbi && vcbi->server == server) {
 			write_lock(&slist->lock);
 			if (entry->cb_interest) {
 				write_unlock(&slist->lock);
-				afs_put_cb_interest(afs_v2net(vnode), cbi);
+				afs_put_cb_interest(afs_v2net(vyesde), cbi);
 				goto again;
 			}
 
@@ -138,7 +138,7 @@ again:
 	}
 
 	if (!cbi) {
-		new = afs_create_interest(server, vnode);
+		new = afs_create_interest(server, vyesde);
 		if (!new)
 			return -ENOMEM;
 
@@ -151,25 +151,25 @@ again:
 			cbi = afs_get_cb_interest(entry->cb_interest);
 		}
 		write_unlock(&slist->lock);
-		afs_put_cb_interest(afs_v2net(vnode), new);
+		afs_put_cb_interest(afs_v2net(vyesde), new);
 	}
 
 	ASSERT(cbi);
 
-	/* Change the server the vnode is using.  This entails scrubbing any
-	 * interest the vnode had in the previous server it was using.
+	/* Change the server the vyesde is using.  This entails scrubbing any
+	 * interest the vyesde had in the previous server it was using.
 	 */
-	write_seqlock(&vnode->cb_lock);
+	write_seqlock(&vyesde->cb_lock);
 
-	old = rcu_dereference_protected(vnode->cb_interest,
-					lockdep_is_held(&vnode->cb_lock.lock));
-	rcu_assign_pointer(vnode->cb_interest, cbi);
-	vnode->cb_s_break = cbi->server->cb_s_break;
-	vnode->cb_v_break = vnode->volume->cb_v_break;
-	clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+	old = rcu_dereference_protected(vyesde->cb_interest,
+					lockdep_is_held(&vyesde->cb_lock.lock));
+	rcu_assign_pointer(vyesde->cb_interest, cbi);
+	vyesde->cb_s_break = cbi->server->cb_s_break;
+	vyesde->cb_v_break = vyesde->volume->cb_v_break;
+	clear_bit(AFS_VNODE_CB_PROMISED, &vyesde->flags);
 
-	write_sequnlock(&vnode->cb_lock);
-	afs_put_cb_interest(afs_v2net(vnode), old);
+	write_sequnlock(&vyesde->cb_lock);
+	afs_put_cb_interest(afs_v2net(vyesde), old);
 	return 0;
 }
 
@@ -212,29 +212,29 @@ void afs_init_callback_state(struct afs_server *server)
 /*
  * actually break a callback
  */
-void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reason)
+void __afs_break_callback(struct afs_vyesde *vyesde, enum afs_cb_break_reason reason)
 {
 	_enter("");
 
-	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
-	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
-		vnode->cb_break++;
-		afs_clear_permits(vnode);
+	clear_bit(AFS_VNODE_NEW_CONTENT, &vyesde->flags);
+	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vyesde->flags)) {
+		vyesde->cb_break++;
+		afs_clear_permits(vyesde);
 
-		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
-			afs_lock_may_be_available(vnode);
+		if (vyesde->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
+			afs_lock_may_be_available(vyesde);
 
-		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, true);
+		trace_afs_cb_break(&vyesde->fid, vyesde->cb_break, reason, true);
 	} else {
-		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, false);
+		trace_afs_cb_break(&vyesde->fid, vyesde->cb_break, reason, false);
 	}
 }
 
-void afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reason)
+void afs_break_callback(struct afs_vyesde *vyesde, enum afs_cb_break_reason reason)
 {
-	write_seqlock(&vnode->cb_lock);
-	__afs_break_callback(vnode, reason);
-	write_sequnlock(&vnode->cb_lock);
+	write_seqlock(&vyesde->cb_lock);
+	__afs_break_callback(vyesde, reason);
+	write_sequnlock(&vyesde->cb_lock);
 }
 
 /*
@@ -249,8 +249,8 @@ static void afs_break_one_callback(struct afs_server *server,
 	struct afs_vol_interest *vi;
 	struct afs_cb_interest *cbi;
 	struct afs_iget_data data;
-	struct afs_vnode *vnode;
-	struct inode *inode;
+	struct afs_vyesde *vyesde;
+	struct iyesde *iyesde;
 
 	read_lock(&server->cb_break_lock);
 	hlist_for_each_entry(vi, &server->cb_volumes, srv_link) {
@@ -274,7 +274,7 @@ static void afs_break_one_callback(struct afs_server *server,
 	 * because of cell aliasing.
 	 */
 	hlist_for_each_entry(cbi, &vi->cb_interests, cb_vlink) {
-		if (fid->vnode == 0 && fid->unique == 0) {
+		if (fid->vyesde == 0 && fid->unique == 0) {
 			/* The callback break applies to an entire volume. */
 			struct afs_super_info *as = AFS_FS_S(cbi->sb);
 			struct afs_volume *volume = as->volume;
@@ -287,12 +287,12 @@ static void afs_break_one_callback(struct afs_server *server,
 		} else {
 			data.volume = NULL;
 			data.fid = *fid;
-			inode = ilookup5_nowait(cbi->sb, fid->vnode,
+			iyesde = ilookup5_yeswait(cbi->sb, fid->vyesde,
 						afs_iget5_test, &data);
-			if (inode) {
-				vnode = AFS_FS_I(inode);
-				afs_break_callback(vnode, afs_cb_break_for_callback);
-				iput(inode);
+			if (iyesde) {
+				vyesde = AFS_FS_I(iyesde);
+				afs_break_callback(vyesde, afs_cb_break_for_callback);
+				iput(iyesde);
 			} else {
 				trace_afs_cb_miss(fid, afs_cb_break_for_callback);
 			}
@@ -318,7 +318,7 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 	for (; count > 0; callbacks++, count--) {
 		_debug("- Fid { vl=%08llx n=%llu u=%u }",
 		       callbacks->fid.vid,
-		       callbacks->fid.vnode,
+		       callbacks->fid.vyesde,
 		       callbacks->fid.unique);
 		afs_break_one_callback(server, &callbacks->fid);
 	}

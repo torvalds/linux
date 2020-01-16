@@ -86,7 +86,7 @@ static int get_snr(struct dvb_frontend *fe)
 	p->cnr.len = 1;
 	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 	p->cnr.stat[0].svalue =
-		(s64)state->signal_info.dvbs2_signal_info.signal_to_noise
+		(s64)state->signal_info.dvbs2_signal_info.signal_to_yesise
 		     * 10;
 	return 0;
 }

@@ -14,7 +14,7 @@
  * Device driver for TCG/TCPA TPM (trusted platform module).
  * Specifications at www.trustedcomputinggroup.org
  *
- * Note, the TPM chip is not interrupt driven (only polling)
+ * Note, the TPM chip is yest interrupt driven (only polling)
  * and can have very long timeouts (minutes!). Hence the unusual
  * calls to msleep.
  */
@@ -32,7 +32,7 @@
 /*
  * Bug workaround - some TPM's don't flush the most
  * recently changed pcr on suspend, so force the flush
- * with an extend to the selected _unused_ non-volatile pcr.
+ * with an extend to the selected _unused_ yesn-volatile pcr.
  */
 static u32 tpm_suspend_pcr;
 module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
@@ -91,7 +91,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 	}
 
 	/* A sanity check. send() should just return zero on success e.g.
-	 * not the command length.
+	 * yest the command length.
 	 */
 	if (rc > 0) {
 		dev_warn(&chip->dev,
@@ -148,7 +148,7 @@ out_recv:
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erryes			- A system error
  */
 ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
 {
@@ -207,7 +207,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
  *
  * Return:
  * * 0		- OK
- * * -errno	- A system error
+ * * -erryes	- A system error
  * * TPM_RC	- A TPM error
  */
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(tpm_get_timeouts);
  * Return:
  * 1 if we have a TPM2 chip.
  * 0 if we don't have a TPM2 chip.
- * A negative number for system errors (errno).
+ * A negative number for system errors (erryes).
  */
 int tpm_is_tpm2(struct tpm_chip *chip)
 {

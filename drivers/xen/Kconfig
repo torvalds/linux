@@ -35,7 +35,7 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 	       /sys/devices/system/xen_memory/xen_memory0/target_kb on the
 	       target domain.
 
-	  Alternatively, if memory auto onlining was not requested at step 1
+	  Alternatively, if memory auto onlining was yest requested at step 1
 	  the newly added memory can be manually onlined in the target domain
 	  by doing the following:
 
@@ -60,7 +60,7 @@ config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	  A PV guest can have more memory than this limit if is
 	  started with a larger maximum.
 
-	  This value is used to allocate enough space in internal
+	  This value is used to allocate eyesugh space in internal
 	  tables needed for physical memory administration.
 
 config XEN_SCRUB_PAGES_DEFAULT
@@ -70,22 +70,22 @@ config XEN_SCRUB_PAGES_DEFAULT
 	help
 	  Scrub pages before returning them to the system for reuse by
 	  other domains.  This makes sure that any confidential data
-	  is not accidentally visible to other domains.  It is more
+	  is yest accidentally visible to other domains.  It is more
 	  secure, but slightly less efficient. This can be controlled with
 	  xen_scrub_pages=0 parameter and
 	  /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
 	  This option only sets the default value.
 
-	  If in doubt, say yes.
+	  If in doubt, say no.
 
 config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
 	default y
 	help
 	  The evtchn driver allows a userspace process to trigger event
-	  channels and to receive notification of an event channel
+	  channels and to receive yestification of an event channel
 	  firing.
-	  If in doubt, say yes.
+	  If in doubt, say no.
 
 config XEN_BACKEND
 	bool "Backend driver support"
@@ -103,7 +103,7 @@ config XENFS
 	  information with each other and with the hypervisor.
 	  For example, by reading and writing the "xenbus" file, guests
 	  may pass arbitrary information to the initial domain.
-	  If in doubt, say yes.
+	  If in doubt, say no.
 
 config XEN_COMPAT_XENFS
 	bool "Create compatibility mount point /proc/xen"
@@ -111,11 +111,11 @@ config XEN_COMPAT_XENFS
 	default y
 	help
 	  The old xenstore userspace tools expect to find "xenbus"
-	  under /proc/xen, but "xenbus" is now found at the root of the
+	  under /proc/xen, but "xenbus" is yesw found at the root of the
 	  xenfs filesystem.  Selecting this causes the kernel to create
 	  the compatibility mount point /proc/xen if it is running on
 	  a xen platform.
-	  If in doubt, say yes.
+	  If in doubt, say no.
 
 config XEN_SYS_HYPERVISOR
 	bool "Create xen entries under /sys/hypervisor"
@@ -124,9 +124,9 @@ config XEN_SYS_HYPERVISOR
 	default y
 	help
 	  Create entries under /sys/hypervisor describing the Xen
-	  hypervisor environment.  When running native or in another
+	  hypervisor environment.  When running native or in ayesther
 	  virtual environment, /sys/hypervisor will still be present,
-	  but will have no xen contents.
+	  but will have yes xen contents.
 
 config XEN_XENBUS_FRONTEND
 	tristate
@@ -170,7 +170,7 @@ config XEN_GRANT_DMA_ALLOC
 	  ({increase|decrease}_reservation and VA mappings are updated if
 	  needed).
 	  This is useful for sharing foreign buffers with HW drivers which
-	  cannot work with scattered buffers provided by the balloon driver,
+	  canyest work with scattered buffers provided by the balloon driver,
 	  but require DMAable memory instead.
 
 config SWIOTLB_XEN
@@ -185,7 +185,7 @@ config XEN_PCIDEV_BACKEND
 	help
 	  The PCI device backend driver allows the kernel to export arbitrary
 	  PCI devices to other guests. If you select this to be a module, you
-	  will need to make sure no other driver has bound to the device(s)
+	  will need to make sure yes other driver has bound to the device(s)
 	  you want to make visible to other guests.
 
 	  The parameter "passthrough" allows you specify how you want the PCI
@@ -252,7 +252,7 @@ config XEN_ACPI_HOTPLUG_MEMORY
 	  This is Xen ACPI memory hotplug.
 
 	  Currently Xen only support ACPI memory hot-add. If you want
-	  to hot-add memory at runtime (the hot-added memory cannot be
+	  to hot-add memory at runtime (the hot-added memory canyest be
 	  removed until machine stop), select Y/M here, otherwise select N.
 
 config XEN_ACPI_HOTPLUG_CPU
@@ -263,7 +263,7 @@ config XEN_ACPI_HOTPLUG_CPU
 	  Xen ACPI cpu enumerating and hotplugging
 
 	  For hotplugging, currently Xen only support ACPI cpu hotadd.
-	  If you want to hotadd cpu at runtime (the hotadded cpu cannot
+	  If you want to hotadd cpu at runtime (the hotadded cpu canyest
 	  be removed until machine stop), select Y/M here.
 
 config XEN_ACPI_PROCESSOR
@@ -278,10 +278,10 @@ config XEN_ACPI_PROCESSOR
 	  said information to the Xen hypervisor. Then the Xen hypervisor can
 	  select the proper Cx and Pxx states. It also registers itself as the
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
-	  not load.
+	  yest load.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called xen_acpi_processor  If you do not know what to choose, select
+	  called xen_acpi_processor  If you do yest kyesw what to choose, select
 	  M here. If the CPUFREQ drivers are built in, select Y here.
 
 config XEN_MCE_LOG

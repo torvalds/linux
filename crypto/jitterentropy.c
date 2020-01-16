@@ -2,12 +2,12 @@
  * Non-physical true random number generator based on timing jitter --
  * Jitter RNG standalone code.
  *
- * Copyright Stephan Mueller <smueller@chronox.de>, 2015 - 2019
+ * Copyright Stephan Mueller <smueller@chroyesx.de>, 2015 - 2019
  *
  * Design
  * ======
  *
- * See http://www.chronox.de/jent.html
+ * See http://www.chroyesx.de/jent.html
  *
  * License
  * =======
@@ -16,12 +16,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -47,11 +47,11 @@
 
 /*
  * This Jitterentropy RNG is based on the jitterentropy library
- * version 2.1.2 provided at http://www.chronox.de/jent.html
+ * version 2.1.2 provided at http://www.chroyesx.de/jent.html
  */
 
 #ifdef __OPTIMIZE__
- #error "The CPU Jitter random number generator must not be compiled with optimizations. See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
+ #error "The CPU Jitter random number generator must yest be compiled with optimizations. See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
 #endif
 
 typedef	unsigned long long	__u64;
@@ -62,7 +62,7 @@ typedef	unsigned int		__u32;
 /* The entropy pool */
 struct rand_data {
 	/* all data values that are vital to maintain the security
-	 * of the RNG are marked as SENSITIVE. A user must not
+	 * of the RNG are marked as SENSITIVE. A user must yest
 	 * access that information while the RNG executes its loops to
 	 * calculate the next random value. */
 	__u64 data;		/* SENSITIVE Actual random number */
@@ -91,10 +91,10 @@ struct rand_data {
 					   * entropy collector */
 
 /* -- error codes for init function -- */
-#define JENT_ENOTIME		1 /* Timer service not available */
+#define JENT_ENOTIME		1 /* Timer service yest available */
 #define JENT_ECOARSETIME	2 /* Timer too coarse for RNG */
-#define JENT_ENOMONOTONIC	3 /* Timer is not monotonic increasing */
-#define JENT_EVARVAR		5 /* Timer does not produce variations of
+#define JENT_ENOMONOTONIC	3 /* Timer is yest moyestonic increasing */
+#define JENT_EVARVAR		5 /* Timer does yest produce variations of
 				   * variations (2nd derivation of time is
 				   * zero). */
 #define JENT_ESTUCK		8 /* Too many stuck results during init. */
@@ -153,7 +153,7 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  ***************************************************************************/
 
 /**
- * CPU Jitter noise source -- this is the noise source based on the CPU
+ * CPU Jitter yesise source -- this is the yesise source based on the CPU
  *			      execution time jitter
  *
  * This function injects the individual bits of the time value into the
@@ -161,7 +161,7 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  *
  * The code is deliberately inefficient with respect to the bit shifting
  * and shall stay that way. This function is the root cause why the code
- * shall be compiled without optimization. This function not only acts as
+ * shall be compiled without optimization. This function yest only acts as
  * folding operation, but this function's execution is used to measure
  * the CPU execution time jitter. Any change to the loop in this function
  * implies that careful retesting must be done.
@@ -169,7 +169,7 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  * Input:
  * @ec entropy collector struct
  * @time time stamp to be injected
- * @loop_cnt if a value not equal to 0 is set, use the given value as number of
+ * @loop_cnt if a value yest equal to 0 is set, use the given value as number of
  *	     loops to perform the folding
  *
  * Output:
@@ -188,7 +188,7 @@ static __u64 jent_lfsr_time(struct rand_data *ec, __u64 time, __u64 loop_cnt)
 		jent_loop_shuffle(ec, MAX_FOLD_LOOP_BIT, MIN_FOLD_LOOP_BIT);
 
 	/*
-	 * testing purposes -- allow test app to set the counter, not
+	 * testing purposes -- allow test app to set the counter, yest
 	 * needed during runtime
 	 */
 	if (loop_cnt)
@@ -201,13 +201,13 @@ static __u64 jent_lfsr_time(struct rand_data *ec, __u64 time, __u64 loop_cnt)
 			tmp = tmp >> (DATA_SIZE_BITS - 1);
 
 			/*
-			* Fibonacci LSFR with polynomial of
+			* Fibonacci LSFR with polyyesmial of
 			*  x^64 + x^61 + x^56 + x^31 + x^28 + x^23 + 1 which is
 			*  primitive according to
 			*   http://poincare.matf.bg.ac.rs/~ezivkovm/publications/primpol1.pdf
-			* (the shift values are the polynomial values minus one
+			* (the shift values are the polyyesmial values minus one
 			* due to counting bits from 0 to 63). As the current
-			* position is always the LSB, the polynomial only needs
+			* position is always the LSB, the polyyesmial only needs
 			* to shift data in from the left without wrap.
 			*/
 			tmp ^= ((new >> 63) & 1);
@@ -226,28 +226,28 @@ static __u64 jent_lfsr_time(struct rand_data *ec, __u64 time, __u64 loop_cnt)
 }
 
 /**
- * Memory Access noise source -- this is a noise source based on variations in
+ * Memory Access yesise source -- this is a yesise source based on variations in
  *				 memory access times
  *
  * This function performs memory accesses which will add to the timing
- * variations due to an unknown amount of CPU wait states that need to be
+ * variations due to an unkyeswn amount of CPU wait states that need to be
  * added when accessing memory. The memory size should be larger than the L1
  * caches as outlined in the documentation and the associated testing.
  *
  * The L1 cache has a very high bandwidth, albeit its access rate is  usually
  * slower than accessing CPU registers. Therefore, L1 accesses only add minimal
  * variations as the CPU has hardly to wait. Starting with L2, significant
- * variations are added because L2 typically does not belong to the CPU any more
+ * variations are added because L2 typically does yest belong to the CPU any more
  * and therefore a wider range of CPU wait states is necessary for accesses.
  * L3 and real memory accesses have even a wider range of wait states. However,
  * to reliably access either L3 or memory, the ec->mem memory must be quite
- * large which is usually not desirable.
+ * large which is usually yest desirable.
  *
  * Input:
  * @ec Reference to the entropy collector with the memory access data -- if
- *     the reference to the memory block to be accessed is NULL, this noise
+ *     the reference to the memory block to be accessed is NULL, this yesise
  *     source is disabled
- * @loop_cnt if a value not equal to 0 is set, use the given value as number of
+ * @loop_cnt if a value yest equal to 0 is set, use the given value as number of
  *	     loops to perform the folding
  *
  * @return Number of memory access operations
@@ -266,7 +266,7 @@ static unsigned int jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
 	wrap = ec->memblocksize * ec->memblocks;
 
 	/*
-	 * testing purposes -- allow test app to set the counter, not
+	 * testing purposes -- allow test app to set the counter, yest
 	 * needed during runtime
 	 */
 	if (loop_cnt)
@@ -301,14 +301,14 @@ static unsigned int jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
  *	2nd derivation of the jitter measurement (delta of time deltas)
  *	3rd derivation of the jitter measurement (delta of delta of time deltas)
  *
- * All values must always be non-zero.
+ * All values must always be yesn-zero.
  *
  * Input:
  * @ec Reference to entropy collector
  * @current_delta Jitter time delta
  *
  * @return
- *	0 jitter measurement not stuck (good bit)
+ *	0 jitter measurement yest stuck (good bit)
  *	1 jitter measurement stuck (reject bit)
  */
 static int jent_stuck(struct rand_data *ec, __u64 current_delta)
@@ -332,7 +332,7 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
  *
  * WARNING: ensure that ->prev_time is primed before using the output
  *	    of this function! This can be done by calling this function
- *	    and not using its result.
+ *	    and yest using its result.
  *
  * Input:
  * @entropy_collector Reference to entropy collector
@@ -344,7 +344,7 @@ static int jent_measure_jitter(struct rand_data *ec)
 	__u64 time = 0;
 	__u64 current_delta = 0;
 
-	/* Invoke one noise source before time measurement to add variations */
+	/* Invoke one yesise source before time measurement to add variations */
 	jent_memaccess(ec, 0);
 
 	/*
@@ -355,7 +355,7 @@ static int jent_measure_jitter(struct rand_data *ec)
 	current_delta = time - ec->prev_time;
 	ec->prev_time = time;
 
-	/* Now call the next noise sources which also injects the data */
+	/* Now call the next yesise sources which also injects the data */
 	jent_lfsr_time(ec, current_delta, 0);
 
 	/* Check whether we have a stuck measurement. */
@@ -395,7 +395,7 @@ static void jent_gen_entropy(struct rand_data *ec)
  * primes the test if needed.
  *
  * Return:
- * returns normally if FIPS test passed
+ * returns yesrmally if FIPS test passed
  * panics the kernel if FIPS test failed
  */
 static void jent_fips_test(struct rand_data *ec)
@@ -495,7 +495,7 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 		osr = 1; /* minimum sampling rate is 1 */
 	entropy_collector->osr = osr;
 
-	/* fill the data pad with non-zero values */
+	/* fill the data pad with yesn-zero values */
 	jent_gen_entropy(entropy_collector);
 
 	return entropy_collector;
@@ -526,13 +526,13 @@ int jent_entropy_init(void)
 	 * Moreover, only old systems show potentially problematic
 	 * jitter entropy that could potentially be caught here. But
 	 * the RNG is intended for hardware that is available or widely
-	 * used, but not old systems that are long out of favor. Thus,
-	 * no statistical tests.
+	 * used, but yest old systems that are long out of favor. Thus,
+	 * yes statistical tests.
 	 */
 
 	/*
 	 * We could add a check for system capabilities such as clock_getres or
-	 * check for CONFIG_X86_TSC, but it does not make much sense as the
+	 * check for CONFIG_X86_TSC, but it does yest make much sense as the
 	 * following sanity checks verify that we have a high-resolution
 	 * timer.
 	 */
@@ -560,7 +560,7 @@ int jent_entropy_init(void)
 			return JENT_ENOTIME;
 		delta = time2 - time;
 		/*
-		 * test whether timer is fine grained enough to provide
+		 * test whether timer is fine grained eyesugh to provide
 		 * delta even when called shortly after each other -- this
 		 * implies that we also have a high resolution timer
 		 */
@@ -570,7 +570,7 @@ int jent_entropy_init(void)
 		stuck = jent_stuck(&ec, delta);
 
 		/*
-		 * up to here we did not modify any variable that will be
+		 * up to here we did yest modify any variable that will be
 		 * evaluated later, but we already performed some work. Thus we
 		 * already have had an impact on the caches, branch prediction,
 		 * etc. with the goal to clear it to get the worst case
@@ -608,7 +608,7 @@ int jent_entropy_init(void)
 	 * we allow up to three times the time running backwards.
 	 * CLOCK_REALTIME is affected by adjtime and NTP operations. Thus,
 	 * if such an operation just happens to interfere with our test, it
-	 * should not fail. The value of 3 should cover the NTP case being
+	 * should yest fail. The value of 3 should cover the NTP case being
 	 * performed during our test run.
 	 */
 	if (3 < time_backwards)
@@ -625,14 +625,14 @@ int jent_entropy_init(void)
 	/*
 	 * Ensure that we have variations in the time stamp below 10 for at
 	 * least 10% of all checks -- on some platforms, the counter increments
-	 * in multiples of 100, but not always
+	 * in multiples of 100, but yest always
 	 */
 	if ((TESTLOOPCOUNT/10 * 9) < count_mod)
 		return JENT_ECOARSETIME;
 
 	/*
 	 * If we have more than 90% stuck results, then this Jitter RNG is
-	 * likely to not work well.
+	 * likely to yest work well.
 	 */
 	if ((TESTLOOPCOUNT/10 * 9) < count_stuck)
 		return JENT_ESTUCK;

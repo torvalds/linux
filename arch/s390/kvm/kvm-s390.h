@@ -52,7 +52,7 @@ static inline void kvm_s390_set_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
 
 static inline void kvm_s390_clear_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
 {
-	atomic_andnot(flags, &vcpu->arch.sie_block->cpuflags);
+	atomic_andyest(flags, &vcpu->arch.sie_block->cpuflags);
 }
 
 static inline bool kvm_s390_test_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
@@ -271,7 +271,7 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu);
 /* implemented in vsie.c */
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
 void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
-void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+void kvm_s390_vsie_gmap_yestifier(struct gmap *gmap, unsigned long start,
 				 unsigned long end);
 void kvm_s390_vsie_init(struct kvm *kvm);
 void kvm_s390_vsie_destroy(struct kvm *kvm);
@@ -344,7 +344,7 @@ static inline u64 kvm_s390_get_tod_clock_fast(struct kvm *kvm)
  *	return kvm_s390_inject_prog_cond(vcpu, rc);
  *
  * A negative return code from guest access functions implies an internal error
- * like e.g. out of memory. In these cases no program check should be injected
+ * like e.g. out of memory. In these cases yes program check should be injected
  * to the guest.
  * A positive value implies that an exception happened while accessing a guest's
  * memory. In this case all data belonging to the corresponding program check
@@ -406,8 +406,8 @@ static inline int kvm_s390_use_sca_entries(void)
 {
 	/*
 	 * Without SIGP interpretation, only SRS interpretation (if available)
-	 * might use the entries. By not setting the entries and keeping them
-	 * invalid, hardware will not access them but intercept.
+	 * might use the entries. By yest setting the entries and keeping them
+	 * invalid, hardware will yest access them but intercept.
 	 */
 	return sclp.has_sigpif;
 }

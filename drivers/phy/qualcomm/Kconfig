@@ -30,7 +30,7 @@ config PHY_QCOM_PCIE2
 	depends on OF && COMMON_CLK && (ARCH_QCOM || COMPILE_TEST)
 	select GENERIC_PHY
 	help
-	  Enable this to support the Qualcomm PCIe PHY, used with the Synopsys
+	  Enable this to support the Qualcomm PCIe PHY, used with the Syyespsys
 	  based PCIe controller.
 
 config PHY_QCOM_QMP
@@ -49,7 +49,7 @@ config PHY_QCOM_QUSB2
 	help
 	  Enable this to support the HighSpeed QUSB2 PHY transceiver for USB
 	  controllers on Qualcomm chips. This driver supports the high-speed
-	  PHY which is usually paired with either the ChipIdea or Synopsys DWC3
+	  PHY which is usually paired with either the ChipIdea or Syyespsys DWC3
 	  USB IPs on MSM SOCs.
 
 config PHY_QCOM_UFS
@@ -79,7 +79,7 @@ endif
 config PHY_QCOM_USB_HS
 	tristate "Qualcomm USB HS PHY module"
 	depends on USB_ULPI_BUS
-	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	depends on EXTCON || !EXTCON # if EXTCON=m, this canyest be built-in
 	select GENERIC_PHY
 	help
 	  Support for the USB high-speed ULPI compliant phy on Qualcomm

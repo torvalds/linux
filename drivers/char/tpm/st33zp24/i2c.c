@@ -31,7 +31,7 @@ struct st33zp24_i2c_phy {
  * @param: tpm_register, the tpm tis register where the data should be written
  * @param: tpm_data, the tpm_data to write inside the tpm_register
  * @param: tpm_size, The length of the data
- * @return: Returns negative errno, or else the number of bytes written.
+ * @return: Returns negative erryes, or else the number of bytes written.
  */
 static int write8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size)
 {
@@ -126,7 +126,7 @@ static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 			"Failed to retrieve lpcpd-gpios from acpi.\n");
 		phy->io_lpcpd = -1;
 		/*
-		 * lpcpd pin is not specified. This is not an issue as
+		 * lpcpd pin is yest specified. This is yest an issue as
 		 * power management can be also managed by TPM specific
 		 * commands. So leave with a success status code.
 		 */
@@ -143,11 +143,11 @@ static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 	struct tpm_chip *chip = i2c_get_clientdata(client);
 	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	struct st33zp24_i2c_phy *phy = tpm_dev->phy_id;
-	struct device_node *pp;
+	struct device_yesde *pp;
 	int gpio;
 	int ret;
 
-	pp = client->dev.of_node;
+	pp = client->dev.of_yesde;
 	if (!pp) {
 		dev_err(&client->dev, "No platform data\n");
 		return -ENODEV;
@@ -160,7 +160,7 @@ static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 			"Failed to retrieve lpcpd-gpios from dts.\n");
 		phy->io_lpcpd = -1;
 		/*
-		 * lpcpd pin is not specified. This is not an issue as
+		 * lpcpd pin is yest specified. This is yest an issue as
 		 * power management can be also managed by TPM specific
 		 * commands. So leave with a success status code.
 		 */
@@ -223,13 +223,13 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 	struct st33zp24_i2c_phy *phy;
 
 	if (!client) {
-		pr_info("%s: i2c client is NULL. Device not accessible.\n",
+		pr_info("%s: i2c client is NULL. Device yest accessible.\n",
 			__func__);
 		return -ENODEV;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_info(&client->dev, "client not i2c capable\n");
+		dev_info(&client->dev, "client yest i2c capable\n");
 		return -ENODEV;
 	}
 
@@ -241,7 +241,7 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 	phy->client = client;
 
 	pdata = client->dev.platform_data;
-	if (!pdata && client->dev.of_node) {
+	if (!pdata && client->dev.of_yesde) {
 		ret = st33zp24_i2c_of_request_resources(client);
 		if (ret)
 			return ret;

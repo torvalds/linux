@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -137,12 +137,12 @@ inline u32 i40iw_rd32(struct i40iw_hw *hw, u32 reg)
 }
 
 /**
- * i40iw_inetaddr_event - system notifier for ipv4 addr events
- * @notfier: not used
- * @event: event for notifier
+ * i40iw_inetaddr_event - system yestifier for ipv4 addr events
+ * @yestfier: yest used
+ * @event: event for yestifier
  * @ptr: if address
  */
-int i40iw_inetaddr_event(struct notifier_block *notifier,
+int i40iw_inetaddr_event(struct yestifier_block *yestifier,
 			 unsigned long event,
 			 void *ptr)
 {
@@ -195,7 +195,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		/* Fall through */
 	case NETDEV_CHANGEADDR:
 
-		/* Just skip if no need to handle ARP cache */
+		/* Just skip if yes need to handle ARP cache */
 		if (!local_ipaddr)
 			break;
 
@@ -204,7 +204,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 				       &local_ipaddr,
 				       true,
 				       action);
-		i40iw_if_notify(iwdev, netdev, &local_ipaddr, true,
+		i40iw_if_yestify(iwdev, netdev, &local_ipaddr, true,
 				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
@@ -214,12 +214,12 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_inet6addr_event - system notifier for ipv6 addr events
- * @notfier: not used
- * @event: event for notifier
+ * i40iw_inet6addr_event - system yestifier for ipv6 addr events
+ * @yestfier: yest used
+ * @event: event for yestifier
  * @ptr: if address
  */
-int i40iw_inet6addr_event(struct notifier_block *notifier,
+int i40iw_inet6addr_event(struct yestifier_block *yestifier,
 			  unsigned long event,
 			  void *ptr)
 {
@@ -256,7 +256,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 				       local_ipaddr6,
 				       false,
 				       action);
-		i40iw_if_notify(iwdev, netdev, local_ipaddr6, false,
+		i40iw_if_yestify(iwdev, netdev, local_ipaddr6, false,
 				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
@@ -266,12 +266,12 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_net_event - system notifier for netevents
- * @notfier: not used
- * @event: event for notifier
+ * i40iw_net_event - system yestifier for netevents
+ * @yestfier: yest used
+ * @event: event for yestifier
  * @ptr: neighbor
  */
-int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *ptr)
+int i40iw_net_event(struct yestifier_block *yestifier, unsigned long event, void *ptr)
 {
 	struct neighbour *neigh = ptr;
 	struct i40iw_device *iwdev;
@@ -311,12 +311,12 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 }
 
 /**
- * i40iw_netdevice_event - system notifier for netdev events
- * @notfier: not used
- * @event: event for notifier
+ * i40iw_netdevice_event - system yestifier for netdev events
+ * @yestfier: yest used
+ * @event: event for yestifier
  * @ptr: netdev
  */
-int i40iw_netdevice_event(struct notifier_block *notifier,
+int i40iw_netdevice_event(struct yestifier_block *yestifier,
 			  unsigned long event,
 			  void *ptr)
 {
@@ -325,7 +325,7 @@ int i40iw_netdevice_event(struct notifier_block *notifier,
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
 
-	event_netdev = netdev_notifier_info_to_dev(ptr);
+	event_netdev = netdev_yestifier_info_to_dev(ptr);
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -451,7 +451,7 @@ static void i40iw_free_pending_cqp_request(struct i40iw_cqp *cqp,
 }
 
 /**
- * i40iw_cleanup_pending_cqp_op - clean-up cqp with no completions
+ * i40iw_cleanup_pending_cqp_op - clean-up cqp with yes completions
  * @iwdev: iwarp device
  */
 void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev)
@@ -482,7 +482,7 @@ void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev)
 /**
  * i40iw_free_qp - callback after destroy cqp completes
  * @cqp_request: cqp request for destroy qp
- * @num: not used
+ * @num: yest used
  */
 static void i40iw_free_qp(struct i40iw_cqp_request *cqp_request, u32 num)
 {
@@ -816,7 +816,7 @@ enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 		return I40IW_ERR_PARAM;
 	/*
 	 * mem->va points to the parent of mem, so both mem and mem->va
-	 * can not be touched once mem->va is freed
+	 * can yest be touched once mem->va is freed
 	 */
 	kfree(mem->va);
 	return 0;
@@ -1397,7 +1397,7 @@ struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev,
 {
 	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
 	struct i40iw_qp *iwqp;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	u32 loc_addr[4], rem_addr[4];
 	u16 loc_port, rem_port;
 	struct ipv6hdr *ip6h;
@@ -1417,11 +1417,11 @@ struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev,
 	loc_port = ntohs(tcph->dest);
 	rem_port = ntohs(tcph->source);
 
-	cm_node = i40iw_find_node(&iwdev->cm_core, rem_port, rem_addr, loc_port,
+	cm_yesde = i40iw_find_yesde(&iwdev->cm_core, rem_port, rem_addr, loc_port,
 				  loc_addr, false, true);
-	if (!cm_node)
+	if (!cm_yesde)
 		return NULL;
-	iwqp = cm_node->iwqp;
+	iwqp = cm_yesde->iwqp;
 	return &iwqp->sc_qp;
 }
 

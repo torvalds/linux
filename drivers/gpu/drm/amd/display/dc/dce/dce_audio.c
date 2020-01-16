@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -252,7 +252,7 @@ static void check_audio_bandwidth_dpsst(
 	uint32_t channel_count,
 	union audio_sample_rates *sample_rates)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 /*For DP MST, calculate if specified sample rates can fit into a given timing */
@@ -261,7 +261,7 @@ static void check_audio_bandwidth_dpmst(
 	uint32_t channel_count,
 	union audio_sample_rates *sample_rates)
 {
-	/* do nothing  */
+	/* do yesthing  */
 }
 
 static void check_audio_bandwidth(
@@ -289,7 +289,7 @@ static void check_audio_bandwidth(
 	}
 }
 
-/* expose/not expose HBR capability to Audio driver */
+/* expose/yest expose HBR capability to Audio driver */
 static void set_high_bit_rate_capable(
 	struct audio *audio,
 	bool capable)
@@ -431,7 +431,7 @@ void dce_aud_az_configure(
 		SPEAKER_ALLOCATION);
 
 	/* LFE_PLAYBACK_LEVEL = LFEPBL
-	 * LFEPBL = 0 : Unknown or refer to other information
+	 * LFEPBL = 0 : Unkyeswn or refer to other information
 	 * LFEPBL = 1 : 0dB playback
 	 * LFEPBL = 2 : +10dB playback
 	 * LFE_BL = 3 : Reserved
@@ -441,7 +441,7 @@ void dce_aud_az_configure(
 		AZALIA_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER,
 		LFE_PLAYBACK_LEVEL);
 	/* todo: according to reg spec LFE_PLAYBACK_LEVEL is read only.
-	 *  why are we writing to it?  DCE8 does not write this */
+	 *  why are we writing to it?  DCE8 does yest write this */
 
 
 	set_reg_field_value(value,
@@ -760,7 +760,7 @@ static void get_azalia_clock_info_dp(
 	struct azalia_clock_info *azalia_clock_info)
 {
 	/* Reported dpDtoSourceClockInkhz value for
-	 * DCE8 already adjusted for SS, do not need any
+	 * DCE8 already adjusted for SS, do yest need any
 	 * adjustment here anymore
 	 */
 
@@ -808,7 +808,7 @@ void dce_aud_wall_dto_setup(
 
 		/* On TN/SI, Program DTO source select and DTO select before
 		programming DTO modulo and DTO phase. These bits must be
-		programmed first, otherwise there will be no HDMI audio at boot
+		programmed first, otherwise there will be yes HDMI audio at boot
 		up. This is a HW sequence change (different from old ASICs).
 		Caution when changing this programming sequence.
 
@@ -847,7 +847,7 @@ void dce_aud_wall_dto_setup(
 
 			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
 			 * Select 512fs for DP TODO: web register definition
-			 * does not match register header file
+			 * does yest match register header file
 			 * DCE11 version it's commented out while DCE8 it's set to 1
 			*/
 

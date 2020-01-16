@@ -6,7 +6,7 @@
  * Authors: Rameshwar Prasad Sahu <rsahu@apm.com>
  *	    Loc Ho <lho@apm.com>
  *
- * NOTE: PM support is currently not available.
+ * NOTE: PM support is currently yest available.
  */
 
 #include <linux/acpi.h>
@@ -236,7 +236,7 @@ struct xgene_dma_desc_sw {
 	struct xgene_dma_desc_hw desc1;
 	struct xgene_dma_desc_hw desc2;
 	u32 flags;
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor tx;
 };
@@ -253,7 +253,7 @@ struct xgene_dma_desc_sw {
  * @pending: number of transaction request pushed to DMA controller for
  *	execution, but still waiting for completion,
  * @max_outstanding: max number of outstanding request we can push to channel
- * @ld_pending: descriptors which are queued to run, but have not yet been
+ * @ld_pending: descriptors which are queued to run, but have yest yet been
  *	submitted to the hardware for execution
  * @ld_running: descriptors which are currently being executing by the hardware
  * @ld_completed: descriptors which have finished execution by the hardware.
@@ -311,13 +311,13 @@ struct xgene_dma {
 
 static const char * const xgene_dma_desc_err[] = {
 	[ERR_DESC_AXI] = "AXI error when reading src/dst link list",
-	[ERR_BAD_DESC] = "ERR or El_ERR fields not set to zero in desc",
+	[ERR_BAD_DESC] = "ERR or El_ERR fields yest set to zero in desc",
 	[ERR_READ_DATA_AXI] = "AXI error when reading data",
 	[ERR_WRITE_DATA_AXI] = "AXI error when writing data",
 	[ERR_FBP_TIMEOUT] = "Timeout on bufpool fetch",
 	[ERR_ECC] = "ECC double bit error",
 	[ERR_DIFF_SIZE] = "Bufpool too small to hold all the DIF result",
-	[ERR_SCT_GAT_LEN] = "Gather and scatter data length not same",
+	[ERR_SCT_GAT_LEN] = "Gather and scatter data length yest same",
 	[ERR_CRC_ERR] = "CRC error",
 	[ERR_CHKSUM] = "Checksum error",
 	[ERR_DIF] = "DIF error",
@@ -325,7 +325,7 @@ static const char * const xgene_dma_desc_err[] = {
 
 static const char * const xgene_dma_err[] = {
 	[ERR_DIF_SIZE_INT] = "DIF size error",
-	[ERR_GS_ERR_INT] = "Gather scatter not same size error",
+	[ERR_GS_ERR_INT] = "Gather scatter yest same size error",
 	[ERR_FPB_TIMEO_INT] = "Free pool time out error",
 	[ERR_WFIFO_OVF_INT] = "Write FIFO over flow error",
 	[ERR_RFIFO_OVF_INT] = "Read FIFO over flow error",
@@ -333,7 +333,7 @@ static const char * const xgene_dma_err[] = {
 	[ERR_RD_TIMEO_INT] = "Read time out error",
 	[ERR_WR_ERR_INT] = "HBF bus write error",
 	[ERR_RD_ERR_INT] = "HBF bus read error",
-	[ERR_BAD_DESC_INT] = "Ring descriptor HE0 not set error",
+	[ERR_BAD_DESC_INT] = "Ring descriptor HE0 yest set error",
 	[ERR_DESC_DST_INT] = "HFB reading dst link address error",
 	[ERR_DESC_SRC_INT] = "HFB reading src link address error",
 };
@@ -478,7 +478,7 @@ static dma_cookie_t xgene_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 static void xgene_dma_clean_descriptor(struct xgene_dma_chan *chan,
 				       struct xgene_dma_desc_sw *desc)
 {
-	list_del(&desc->node);
+	list_del(&desc->yesde);
 	chan_dbg(chan, "LD %p free\n", desc);
 	dma_pool_free(chan->desc_pool, desc, desc->tx.phys);
 }
@@ -517,7 +517,7 @@ static void xgene_dma_clean_completed_descriptor(struct xgene_dma_chan *chan)
 	struct xgene_dma_desc_sw *desc, *_desc;
 
 	/* Run the callback for each descriptor, in order */
-	list_for_each_entry_safe(desc, _desc, &chan->ld_completed, node) {
+	list_for_each_entry_safe(desc, _desc, &chan->ld_completed, yesde) {
 		if (async_tx_test_ack(&desc->tx))
 			xgene_dma_clean_descriptor(chan, desc);
 	}
@@ -537,9 +537,9 @@ static void xgene_dma_run_tx_complete_actions(struct xgene_dma_chan *chan,
 	struct dma_async_tx_descriptor *tx = &desc->tx;
 
 	/*
-	 * If this is not the last transaction in the group,
-	 * then no need to complete cookie and run any callback as
-	 * this is not the tx_descriptor which had been sent to caller
+	 * If this is yest the last transaction in the group,
+	 * then yes need to complete cookie and run any callback as
+	 * this is yest the tx_descriptor which had been sent to caller
 	 * of this DMA request
 	 */
 
@@ -569,7 +569,7 @@ static void xgene_dma_clean_running_descriptor(struct xgene_dma_chan *chan,
 					       struct xgene_dma_desc_sw *desc)
 {
 	/* Remove from the list of running transactions */
-	list_del(&desc->node);
+	list_del(&desc->yesde);
 
 	/*
 	 * the client is allowed to attach dependent operations
@@ -580,7 +580,7 @@ static void xgene_dma_clean_running_descriptor(struct xgene_dma_chan *chan,
 		 * Move this descriptor to the list of descriptors which is
 		 * completed, but still awaiting the 'ack' bit to be set.
 		 */
-		list_add_tail(&desc->node, &chan->ld_completed);
+		list_add_tail(&desc->yesde, &chan->ld_completed);
 		return;
 	}
 
@@ -652,7 +652,7 @@ static void xgene_chan_xfer_ld_pending(struct xgene_dma_chan *chan)
 	 * Move elements from the queue of pending transactions onto the list
 	 * of running transactions and push it to hw for further executions
 	 */
-	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_pending, node) {
+	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_pending, yesde) {
 		/*
 		 * Check if have pushed max number of transactions to hw
 		 * as capable, so let's stop here and will push remaining
@@ -668,7 +668,7 @@ static void xgene_chan_xfer_ld_pending(struct xgene_dma_chan *chan)
 		 * Delete this element from ld pending queue and append it to
 		 * ld running queue
 		 */
-		list_move_tail(&desc_sw->node, &chan->ld_running);
+		list_move_tail(&desc_sw->yesde, &chan->ld_running);
 	}
 }
 
@@ -697,7 +697,7 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	xgene_dma_clean_completed_descriptor(chan);
 
 	/* Move all completed descriptors to ld completed queue, in order */
-	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_running, node) {
+	list_for_each_entry_safe(desc_sw, _desc_sw, &chan->ld_running, yesde) {
 		/* Get subsequent hw descriptor from DMA rx ring */
 		desc_hw = &ring->desc_hw[ring->head];
 
@@ -747,10 +747,10 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 				  XGENE_DMA_FLAG_64B_DESC) ? 2 : 1);
 
 		/*
-		 * Delete this node from ld running queue and append it to
+		 * Delete this yesde from ld running queue and append it to
 		 * ld completed queue for further processing
 		 */
-		list_move_tail(&desc_sw->node, &ld_completed);
+		list_move_tail(&desc_sw->yesde, &ld_completed);
 	}
 
 	/*
@@ -763,7 +763,7 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	spin_unlock(&chan->lock);
 
 	/* Run the callback for each descriptor, in order */
-	list_for_each_entry_safe(desc_sw, _desc_sw, &ld_completed, node) {
+	list_for_each_entry_safe(desc_sw, _desc_sw, &ld_completed, yesde) {
 		xgene_dma_run_tx_complete_actions(chan, desc_sw);
 		xgene_dma_clean_running_descriptor(chan, desc_sw);
 	}
@@ -802,7 +802,7 @@ static void xgene_dma_free_desc_list(struct xgene_dma_chan *chan,
 {
 	struct xgene_dma_desc_sw *desc, *_desc;
 
-	list_for_each_entry_safe(desc, _desc, list, node)
+	list_for_each_entry_safe(desc, _desc, list, yesde)
 		xgene_dma_clean_descriptor(chan, desc);
 }
 
@@ -863,7 +863,7 @@ static struct dma_async_tx_descriptor *xgene_dma_prep_xor(
 		async_tx_ack(&new->tx);
 
 		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->tx_list);
+		list_add_tail(&new->yesde, &first->tx_list);
 	} while (len);
 
 	new->tx.flags = flags; /* client is in control of this ack */
@@ -921,11 +921,11 @@ static struct dma_async_tx_descriptor *xgene_dma_prep_pq(
 		async_tx_ack(&new->tx);
 
 		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->tx_list);
+		list_add_tail(&new->yesde, &first->tx_list);
 
 		/*
 		 * Prepare DMA descriptor to generate P,
-		 * if DMA_PREP_PQ_DISABLE_P flag is not set
+		 * if DMA_PREP_PQ_DISABLE_P flag is yest set
 		 */
 		if (len) {
 			xgene_dma_prep_xor_desc(chan, new, &dst[0], src,
@@ -935,7 +935,7 @@ static struct dma_async_tx_descriptor *xgene_dma_prep_pq(
 
 		/*
 		 * Prepare DMA descriptor to generate Q,
-		 * if DMA_PREP_PQ_DISABLE_Q flag is not set
+		 * if DMA_PREP_PQ_DISABLE_Q flag is yest set
 		 */
 		if (_len) {
 			xgene_dma_prep_xor_desc(chan, new, &dst[1], _src,
@@ -994,7 +994,7 @@ static irqreturn_t xgene_dma_chan_ring_isr(int irq, void *id)
 	 * Disable DMA channel IRQ until we process completed
 	 * descriptors
 	 */
-	disable_irq_nosync(chan->rx_irq);
+	disable_irq_yessync(chan->rx_irq);
 
 	/*
 	 * Schedule the tasklet to handle all cleanup of the current
@@ -1338,7 +1338,7 @@ static void xgene_dma_init_hw(struct xgene_dma *pdma)
 	iowrite32(XGENE_DMA_ASSOC_RING_MNGR1,
 		  pdma->csr_dma + XGENE_DMA_CFG_RING_WQ_ASSOC);
 
-	/* Configure RAID6 polynomial control setting */
+	/* Configure RAID6 polyyesmial control setting */
 	if (is_pq_enabled(pdma))
 		iowrite32(XGENE_DMA_RAID6_MULTI_CTRL(0x1D),
 			  pdma->csr_dma + XGENE_DMA_RAID6_CONT);
@@ -1549,7 +1549,7 @@ static int xgene_dma_async_register(struct xgene_dma *pdma, int id)
 
 	/* Initialize DMA device list head */
 	INIT_LIST_HEAD(&dma_dev->channels);
-	list_add_tail(&chan->dma_chan.device_node, &dma_dev->channels);
+	list_add_tail(&chan->dma_chan.device_yesde, &dma_dev->channels);
 
 	/* Register with Linux async DMA framework*/
 	ret = dma_async_device_register(dma_dev);

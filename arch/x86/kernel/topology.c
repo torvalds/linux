@@ -20,12 +20,12 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <colpatch@us.ibm.com>
  */
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/export.h>
 #include <linux/mmzone.h>
 #include <linux/init.h>
@@ -71,7 +71,7 @@ int _debug_hotplug_cpu(int cpu, int action)
 	case 0:
 		ret = cpu_down(cpu);
 		if (!ret) {
-			pr_info("DEBUG_HOTPLUG_CPU0: CPU %u is now offline\n", cpu);
+			pr_info("DEBUG_HOTPLUG_CPU0: CPU %u is yesw offline\n", cpu);
 			dev->offline = true;
 			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 		} else
@@ -118,7 +118,7 @@ int arch_register_cpu(int num)
 		cpu0_hotpluggable = 0;
 
 	/*
-	 * Two known BSP/CPU0 dependencies: Resume from suspend/hibernate
+	 * Two kyeswn BSP/CPU0 dependencies: Resume from suspend/hibernate
 	 * depends on BSP. PIC interrupts depend on BSP.
 	 *
 	 * If the BSP depencies are under control, one can tell kernel to
@@ -163,8 +163,8 @@ static int __init topology_init(void)
 	int i;
 
 #ifdef CONFIG_NUMA
-	for_each_online_node(i)
-		register_one_node(i);
+	for_each_online_yesde(i)
+		register_one_yesde(i);
 #endif
 
 	for_each_present_cpu(i)

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 
 #define pr_fmt(fmt) "mips-gic-timer: " fmt
@@ -13,7 +13,7 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_irq.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
@@ -24,7 +24,7 @@ static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
 
-static u64 notrace gic_read_count(void)
+static u64 yestrace gic_read_count(void)
 {
 	unsigned int hi, hi2, lo;
 
@@ -109,10 +109,10 @@ static int gic_starting_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
+static int gic_clk_yestifier(struct yestifier_block *nb, unsigned long action,
 			    void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_yestifier_data *cnd = data;
 
 	if (action == POST_RATE_CHANGE)
 		on_each_cpu(gic_update_frequency, (void *)cnd->new_rate, 1);
@@ -126,8 +126,8 @@ static int gic_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static struct notifier_block gic_clk_nb = {
-	.notifier_call = gic_clk_notifier,
+static struct yestifier_block gic_clk_nb = {
+	.yestifier_call = gic_clk_yestifier,
 };
 
 static int gic_clockevent_init(void)
@@ -183,18 +183,18 @@ static int __init __gic_clocksource_init(void)
 	return ret;
 }
 
-static int __init gic_clocksource_of_init(struct device_node *node)
+static int __init gic_clocksource_of_init(struct device_yesde *yesde)
 {
 	struct clk *clk;
 	int ret;
 
-	if (!mips_gic_present() || !node->parent ||
-	    !of_device_is_compatible(node->parent, "mti,gic")) {
+	if (!mips_gic_present() || !yesde->parent ||
+	    !of_device_is_compatible(yesde->parent, "mti,gic")) {
 		pr_warn("No DT definition\n");
 		return -ENXIO;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare_enable(clk);
 		if (ret < 0) {
@@ -204,14 +204,14 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 		}
 
 		gic_frequency = clk_get_rate(clk);
-	} else if (of_property_read_u32(node, "clock-frequency",
+	} else if (of_property_read_u32(yesde, "clock-frequency",
 					&gic_frequency)) {
-		pr_err("Frequency not specified\n");
+		pr_err("Frequency yest specified\n");
 		return -EINVAL;
 	}
-	gic_timer_irq = irq_of_parse_and_map(node, 0);
+	gic_timer_irq = irq_of_parse_and_map(yesde, 0);
 	if (!gic_timer_irq) {
-		pr_err("IRQ not specified\n");
+		pr_err("IRQ yest specified\n");
 		return -EINVAL;
 	}
 
@@ -221,8 +221,8 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	ret = gic_clockevent_init();
 	if (!ret && !IS_ERR(clk)) {
-		if (clk_notifier_register(clk, &gic_clk_nb) < 0)
-			pr_warn("Unable to register clock notifier\n");
+		if (clk_yestifier_register(clk, &gic_clk_nb) < 0)
+			pr_warn("Unable to register clock yestifier\n");
 	}
 
 	/* And finally start the counter */

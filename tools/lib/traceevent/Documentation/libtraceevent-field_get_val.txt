@@ -25,7 +25,7 @@ These functions can be used to find a field and retrieve its value.
 
 The _tep_get_any_field_val()_ function searches in the _record_ for a field
 with _name_, part of the _event_. If the field is found, its value is stored in
-_val_. If there is an error and _err_ is not zero, then an error string is
+_val_. If there is an error and _err_ is yest zero, then an error string is
 written into _s_.
 
 The _tep_get_common_field_val()_ function does the same as
@@ -38,7 +38,7 @@ but searches only in the event specific fields.
 The _tep_get_field_raw()_ function searches in the _record_ for a field with
 _name_, part of the _event_. If the field is found, a pointer to where the field
 exists in the record's raw data is returned. The size of the data is stored in
-_len_. If there is an error and _err_ is not zero, then an error string is
+_len_. If there is an error and _err_ is yest zero, then an error string is
 written into _s_.
 
 RETURN VALUE
@@ -107,7 +107,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

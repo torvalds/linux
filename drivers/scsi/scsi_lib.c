@@ -42,7 +42,7 @@
 
 /*
  * Size of integrity metadata is usually small, 1 inline sg should
- * cover normal cases.
+ * cover yesrmal cases.
  */
 #ifdef CONFIG_ARCH_NO_SG_CHAIN
 #define  SCSI_INLINE_PROT_SG_CNT  0
@@ -73,10 +73,10 @@ static void scsi_free_sense_buffer(bool unchecked_isa_dma,
 }
 
 static unsigned char *scsi_alloc_sense_buffer(bool unchecked_isa_dma,
-	gfp_t gfp_mask, int numa_node)
+	gfp_t gfp_mask, int numa_yesde)
 {
-	return kmem_cache_alloc_node(scsi_select_sense_cache(unchecked_isa_dma),
-				     gfp_mask, numa_node);
+	return kmem_cache_alloc_yesde(scsi_select_sense_cache(unchecked_isa_dma),
+				     gfp_mask, numa_yesde);
 }
 
 int scsi_init_sense_cache(struct Scsi_Host *shost)
@@ -111,7 +111,7 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
 
 /*
  * When to reinvoke queueing after a resource shortage. It's 3 msecs to
- * not change behaviour from the previous unplug mechanism, experimentation
+ * yest change behaviour from the previous unplug mechanism, experimentation
  * may prove this needs changing.
  */
 #define SCSI_QUEUE_DELAY	3
@@ -127,13 +127,13 @@ scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 	 * Set the appropriate busy bit for the device/host.
 	 *
 	 * If the host/device isn't busy, assume that something actually
-	 * completed, and that we should be able to queue a command now.
+	 * completed, and that we should be able to queue a command yesw.
 	 *
 	 * Note that the prior mid-layer assumption that any host could
-	 * always queue at least one command is now broken.  The mid-layer
+	 * always queue at least one command is yesw broken.  The mid-layer
 	 * will implement a user specifiable stall (see
 	 * scsi_host.max_host_blocked and scsi_device.max_device_blocked)
-	 * if a command is requeued with no other commands outstanding
+	 * if a command is requeued with yes other commands outstanding
 	 * either for the device or for the host.
 	 */
 	switch (reason) {
@@ -185,7 +185,7 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
 	scsi_set_blocked(cmd, reason);
 
 	/*
-	 * Decrement the counters, since these commands are no longer
+	 * Decrement the counters, since these commands are yes longer
 	 * active on the host/device.
 	 */
 	if (unbusy)
@@ -210,16 +210,16 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
  * Arguments:   cmd    - command that we are adding to queue.
  *              reason - why we are inserting command to queue.
  *
- * Lock status: Assumed that lock is not held upon entry.
+ * Lock status: Assumed that lock is yest held upon entry.
  *
  * Returns:     Nothing.
  *
  * Notes:       We do this for one of two cases.  Either the host is busy
- *              and it cannot accept any more commands for the time being,
- *              or the device returned QUEUE_FULL and can accept no more
+ *              and it canyest accept any more commands for the time being,
+ *              or the device returned QUEUE_FULL and can accept yes more
  *              commands.
  * Notes:       This could be called either from an interrupt context or a
- *              normal process context.
+ *              yesrmal process context.
  */
 void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 {
@@ -292,7 +292,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (sense && rq->sense_len)
 		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
 	if (sshdr)
-		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
+		scsi_yesrmalize_sense(rq->sense, rq->sense_len, sshdr);
 	ret = rq->result;
  out:
 	blk_put_request(req);
@@ -322,11 +322,11 @@ static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 
 /*
  * Wake up the error handler if necessary. Avoid as follows that the error
- * handler is not woken up if host in-flight requests number ==
+ * handler is yest woken up if host in-flight requests number ==
  * shost->host_failed: use call_rcu() in scsi_eh_scmd_add() in combination
  * with an RCU read lock in this function to ensure that this function in
  * its entirety either finishes before scsi_eh_scmd_add() increases the
- * host_failed counter or that it notices the shost state change made by
+ * host_failed counter or that it yestices the shost state change made by
  * scsi_eh_scmd_add().
  */
 static void scsi_dec_host_busy(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
@@ -367,7 +367,7 @@ static void scsi_kick_queue(struct request_queue *q)
  * and call blk_run_queue for all the scsi_devices on the target -
  * including current_sdev first.
  *
- * Called with *no* scsi locks held.
+ * Called with *yes* scsi locks held.
  */
 static void scsi_single_lun_run(struct scsi_device *current_sdev)
 {
@@ -565,7 +565,7 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 	scsi_del_cmd_from_list(cmd);
 }
 
-/* Returns false when no more bytes to process, true if there are more */
+/* Returns false when yes more bytes to process, true if there are more */
 static bool scsi_end_request(struct request *req, blk_status_t error,
 		unsigned int bytes)
 {
@@ -585,7 +585,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	}
 
 	/*
-	 * Calling rcu_barrier() is not necessary here because the
+	 * Calling rcu_barrier() is yest necessary here because the
 	 * SCSI error handler guarantees that the function called by
 	 * call_rcu() has been called before scsi_end_request() is
 	 * called.
@@ -680,7 +680,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 	bool sense_current = true;      /* false implies "deferred sense" */
 	blk_status_t blk_stat;
 
-	sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
+	sense_valid = scsi_command_yesrmalize_sense(cmd, &sshdr);
 	if (sense_valid)
 		sense_current = !scsi_sense_is_deferred(&sshdr);
 
@@ -703,7 +703,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 				action = ACTION_FAIL;
 			} else {
 				/* Must have been a power glitch, or a
-				 * bus reset.  Could not have been a
+				 * bus reset.  Could yest have been a
 				 * media change, so we just retry the
 				 * command and see what happens.
 				 */
@@ -825,7 +825,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 }
 
 /*
- * Helper for scsi_io_completion() when cmd->result is non-zero. Returns a
+ * Helper for scsi_io_completion() when cmd->result is yesn-zero. Returns a
  * new result that may suppress further error checking. Also modifies
  * *blk_statp in some cases.
  */
@@ -837,7 +837,7 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 	struct request *req = cmd->request;
 	struct scsi_sense_hdr sshdr;
 
-	sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
+	sense_valid = scsi_command_yesrmalize_sense(cmd, &sshdr);
 	if (sense_valid)
 		sense_current = !scsi_sense_is_deferred(&sshdr);
 
@@ -854,7 +854,7 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 			*blk_statp = scsi_result_to_blk_status(cmd, result);
 	} else if (blk_rq_bytes(req) == 0 && sense_current) {
 		/*
-		 * Flush commands do not transfers any data, and thus cannot use
+		 * Flush commands do yest transfers any data, and thus canyest use
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
 		 * This sets *blk_statp explicitly for the problem case.
 		 */
@@ -884,9 +884,9 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 		*blk_statp = BLK_STS_OK;
 	}
 	/*
-	 * Another corner case: the SCSI status byte is non-zero but 'good'.
+	 * Ayesther corner case: the SCSI status byte is yesn-zero but 'good'.
 	 * Example: PRE-FETCH command returns SAM_STAT_CONDITION_MET when
-	 * it is able to fit nominated LBs in its cache (and SAM_STAT_GOOD
+	 * it is able to fit yesminated LBs in its cache (and SAM_STAT_GOOD
 	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
 	 * intermediate statuses (both obsolete in SAM-4) as good.
 	 */
@@ -904,13 +904,13 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
  *
  * Arguments:   cmd   - command that is finished.
  *
- * Lock status: Assumed that no lock is held upon entry.
+ * Lock status: Assumed that yes lock is held upon entry.
  *
  * Returns:     Nothing
  *
  * Notes:       We will finish off the specified number of sectors.  If we
  *		are done, the command block will be released and the queue
- *		function will be goosed.  If we are not done then we have to
+ *		function will be goosed.  If we are yest done then we have to
  *		figure out what to do next:
  *
  *		a) We can call scsi_requeue_command().  The request
@@ -933,7 +933,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	struct request *req = cmd->request;
 	blk_status_t blk_stat = BLK_STS_OK;
 
-	if (unlikely(result))	/* a nz result may or may not be an error */
+	if (unlikely(result))	/* a nz result may or may yest be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 
 	if (unlikely(blk_rq_is_passthrough(req))) {
@@ -958,19 +958,19 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 */
 	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
 		if (likely(!scsi_end_request(req, blk_stat, good_bytes)))
-			return; /* no bytes remaining */
+			return; /* yes bytes remaining */
 	}
 
-	/* Kill remainder if no retries. */
-	if (unlikely(blk_stat && scsi_noretry_cmd(cmd))) {
+	/* Kill remainder if yes retries. */
+	if (unlikely(blk_stat && scsi_yesretry_cmd(cmd))) {
 		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req)))
 			WARN_ONCE(true,
-			    "Bytes remaining after failed, no-retry command");
+			    "Bytes remaining after failed, yes-retry command");
 		return;
 	}
 
 	/*
-	 * If there had been no error, but we have leftover bytes in the
+	 * If there had been yes error, but we have leftover bytes in the
 	 * requeues just queue the command up again.
 	 */
 	if (likely(result == 0))
@@ -1034,7 +1034,7 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 			/*
 			 * This can happen if someone (e.g. multipath)
 			 * queues a command to a device on an adapter
-			 * that does not support DIX.
+			 * that does yest support DIX.
 			 */
 			ret = BLK_STS_IOERR;
 			goto out_free_sgtables;
@@ -1087,7 +1087,7 @@ static void scsi_initialize_rq(struct request *rq)
 }
 
 /*
- * Only called when the request isn't completed by SCSI, and not freed by
+ * Only called when the request isn't completed by SCSI, and yest freed by
  * SCSI
  */
 static void scsi_cleanup_rq(struct request *rq)
@@ -1171,7 +1171,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	/*
 	 * Passthrough requests may transfer data, in which case they must
 	 * a bio attached to them.  Or they might contain a SCSI command
-	 * that does not transfer data, in which case they may optionally
+	 * that does yest transfer data, in which case they may optionally
 	 * submit a request without an attached bio.
 	 */
 	if (req->bio) {
@@ -1192,7 +1192,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 }
 
 /*
- * Setup a normal block command.  These are simple request from filesystems
+ * Setup a yesrmal block command.  These are simple request from filesystems
  * that still need to be translated to SCSI CDBs from the ULD.
  */
 static blk_status_t scsi_setup_fs_cmnd(struct scsi_device *sdev,
@@ -1256,16 +1256,16 @@ scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 		return BLK_STS_RESOURCE;
 	case SDEV_QUIESCE:
 		/*
-		 * If the devices is blocked we defer normal commands.
+		 * If the devices is blocked we defer yesrmal commands.
 		 */
 		if (req && !(req->rq_flags & RQF_PREEMPT))
 			return BLK_STS_RESOURCE;
 		return BLK_STS_OK;
 	default:
 		/*
-		 * For any other not fully online state we only allow
+		 * For any other yest fully online state we only allow
 		 * special commands.  In particular any user initiated
-		 * command is not allowed.
+		 * command is yest allowed.
 		 */
 		if (req && !(req->rq_flags & RQF_PREEMPT))
 			return BLK_STS_IOERR;
@@ -1417,13 +1417,13 @@ out_dec:
 /*
  * Busy state exporting function for request stacking drivers.
  *
- * For efficiency, no lock is taken to check the busy state of
- * shost/starget/sdev, since the returned value is not guaranteed and
+ * For efficiency, yes lock is taken to check the busy state of
+ * shost/starget/sdev, since the returned value is yest guaranteed and
  * may be changed after request stacking drivers call the function,
- * regardless of taking lock or not.
+ * regardless of taking lock or yest.
  *
  * When scsi can't dispatch I/Os anymore and needs to kill I/Os scsi
- * needs to return 'not busy'. Otherwise, request stacking drivers
+ * needs to return 'yest busy'. Otherwise, request stacking drivers
  * may hold requests forever.
  */
 static bool scsi_mq_lld_busy(struct request_queue *q)
@@ -1437,8 +1437,8 @@ static bool scsi_mq_lld_busy(struct request_queue *q)
 	shost = sdev->host;
 
 	/*
-	 * Ignore host/starget busy state.
-	 * Since block layer does not have a concept of fairness across
+	 * Igyesre host/starget busy state.
+	 * Since block layer does yest have a concept of fairness across
 	 * multiple queues, congestion of host/starget needs to be handled
 	 * in SCSI layer.
 	 */
@@ -1491,7 +1491,7 @@ static void scsi_softirq_done(struct request *rq)
  * scsi_dispatch_command - Dispatch a command to the low-level driver.
  * @cmd: command block we are dispatching.
  *
- * Return: nonzero return request was rejected and device's queue needs to be
+ * Return: yesnzero return request was rejected and device's queue needs to be
  * plugged.
  */
 static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
@@ -1505,7 +1505,7 @@ static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	if (unlikely(cmd->device->sdev_state == SDEV_DEL)) {
 		/* in SDEV_DEL we error all commands. DID_NO_CONNECT
 		 * returns an immediate error upwards, and signals
-		 * that the device is no longer present */
+		 * that the device is yes longer present */
 		cmd->result = DID_NO_CONNECT << 16;
 		goto done;
 	}
@@ -1515,7 +1515,7 @@ static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 		/*
 		 * in blocked state, the command is just put back on
 		 * the device queue.  The suspend state has already
-		 * blocked the queue so future requests should not
+		 * blocked the queue so future requests should yest
 		 * occur until the device transitions out of the
 		 * suspend state.
 		 */
@@ -1652,7 +1652,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int reason;
 
 	/*
-	 * If the device is not in running state we will reject some or all
+	 * If the device is yest in running state we will reject some or all
 	 * commands.
 	 */
 	if (unlikely(sdev->sdev_state != SDEV_RUNNING)) {
@@ -1736,7 +1736,7 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 }
 
 static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
-				unsigned int hctx_idx, unsigned int numa_node)
+				unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct Scsi_Host *shost = set->driver_data;
 	const bool unchecked_isa_dma = shost->unchecked_isa_dma;
@@ -1746,7 +1746,7 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	if (unchecked_isa_dma)
 		cmd->flags |= SCMD_UNCHECKED_ISA_DMA;
 	cmd->sense_buffer = scsi_alloc_sense_buffer(unchecked_isa_dma,
-						    GFP_KERNEL, numa_node);
+						    GFP_KERNEL, numa_yesde);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
 	cmd->req.sense = cmd->sense_buffer;
@@ -1790,7 +1790,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 
 	if (scsi_host_prot_dma(shost)) {
 		shost->sg_prot_tablesize =
-			min_not_zero(shost->sg_prot_tablesize,
+			min_yest_zero(shost->sg_prot_tablesize,
 				     (unsigned short)SCSI_MAX_PROT_SG_SEGMENTS);
 		BUG_ON(shost->sg_prot_tablesize < shost->sg_tablesize);
 		blk_queue_max_integrity_segments(q, shost->sg_prot_tablesize);
@@ -1821,7 +1821,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
-static const struct blk_mq_ops scsi_mq_ops_no_commit = {
+static const struct blk_mq_ops scsi_mq_ops_yes_commit = {
 	.get_budget	= scsi_mq_get_budget,
 	.put_budget	= scsi_mq_put_budget,
 	.queue_rq	= scsi_queue_rq,
@@ -1893,11 +1893,11 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	if (shost->hostt->commit_rqs)
 		shost->tag_set.ops = &scsi_mq_ops;
 	else
-		shost->tag_set.ops = &scsi_mq_ops_no_commit;
+		shost->tag_set.ops = &scsi_mq_ops_yes_commit;
 	shost->tag_set.nr_hw_queues = shost->nr_hw_queues ? : 1;
 	shost->tag_set.queue_depth = shost->can_queue;
 	shost->tag_set.cmd_size = cmd_size;
-	shost->tag_set.numa_node = NUMA_NO_NODE;
+	shost->tag_set.numa_yesde = NUMA_NO_NODE;
 	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	shost->tag_set.flags |=
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
@@ -1916,13 +1916,13 @@ void scsi_mq_destroy_tags(struct Scsi_Host *shost)
  * @q: The request queue to return the sdev from
  *
  * Return the sdev associated with a request queue or NULL if the
- * request_queue does not reference a SCSI device.
+ * request_queue does yest reference a SCSI device.
  */
 struct scsi_device *scsi_device_from_queue(struct request_queue *q)
 {
 	struct scsi_device *sdev = NULL;
 
-	if (q->mq_ops == &scsi_mq_ops_no_commit ||
+	if (q->mq_ops == &scsi_mq_ops_yes_commit ||
 	    q->mq_ops == &scsi_mq_ops)
 		sdev = q->queuedata;
 	if (!sdev || !get_device(&sdev->sdev_gendev))
@@ -1944,7 +1944,7 @@ EXPORT_SYMBOL_GPL(scsi_device_from_queue);
  *
  * Lock status: No locks are assumed held.
  *
- * Notes:       There is no timer nor any other means by which the requests
+ * Notes:       There is yes timer yesr any other means by which the requests
  *		get unblocked other than the low-level driver calling
  *		scsi_unblock_requests().
  */
@@ -1966,7 +1966,7 @@ EXPORT_SYMBOL(scsi_block_requests);
  *
  * Lock status: No locks are assumed held.
  *
- * Notes:       There is no timer nor any other means by which the requests
+ * Notes:       There is yes timer yesr any other means by which the requests
  *		get unblocked other than the low-level driver calling
  *		scsi_unblock_requests().
  *
@@ -2007,12 +2007,12 @@ void scsi_exit_queue(void)
  *	@pf:	Page format bit (1 == standard, 0 == vendor specific)
  *	@sp:	Save page bit (0 == don't save, 1 == save)
  *	@modepage: mode page being requested
- *	@buffer: request buffer (may not be smaller than eight bytes)
+ *	@buffer: request buffer (may yest be smaller than eight bytes)
  *	@len:	length of request buffer.
  *	@timeout: command timeout
  *	@retries: number of retries before failing
  *	@data: returns a structure abstracting the mode header data
- *	@sshdr: place to put sense data (or NULL if no sense to be collected).
+ *	@sshdr: place to put sense data (or NULL if yes sense to be collected).
  *		must be SCSI_SENSE_BUFFERSIZE big.
  *
  *	Returns zero if successful; negative error number or scsi
@@ -2083,12 +2083,12 @@ EXPORT_SYMBOL_GPL(scsi_mode_select);
  *	@sdev:	SCSI device to be queried
  *	@dbd:	set if mode sense will allow block descriptors to be returned
  *	@modepage: mode page being requested
- *	@buffer: request buffer (may not be smaller than eight bytes)
+ *	@buffer: request buffer (may yest be smaller than eight bytes)
  *	@len:	length of request buffer.
  *	@timeout: command timeout
  *	@retries: number of retries before failing
  *	@data: returns a structure abstracting the mode header data
- *	@sshdr: place to put sense data (or NULL if no sense to be collected).
+ *	@sshdr: place to put sense data (or NULL if yes sense to be collected).
  *		must be SCSI_SENSE_BUFFERSIZE big.
  *
  *	Returns zero if unsuccessful, or the header offset (either 4
@@ -2111,7 +2111,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 	cmd[1] = dbd & 0x18;	/* allows DBD and LLBA bits */
 	cmd[2] = modepage;
 
-	/* caller might not be interested in sense, but we need it */
+	/* caller might yest be interested in sense, but we need it */
 	if (!sshdr)
 		sshdr = &my_sshdr;
 
@@ -2212,7 +2212,7 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	};
 	int result;
 
-	/* try to eat the UNIT_ATTENTION if there are enough retries */
+	/* try to eat the UNIT_ATTENTION if there are eyesugh retries */
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
 					  timeout, 1, NULL);
@@ -2391,7 +2391,7 @@ static void scsi_evt_emit(struct scsi_device *sdev, struct scsi_event *evt)
 		envp[idx++] = "SDEV_UA=POWER_ON_RESET_OCCURRED";
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -2432,8 +2432,8 @@ void scsi_evt_thread(struct work_struct *work)
 			break;
 
 		list_for_each_safe(this, tmp, &event_list) {
-			evt = list_entry(this, struct scsi_event, node);
-			list_del(&evt->node);
+			evt = list_entry(this, struct scsi_event, yesde);
+			list_del(&evt->yesde);
 			scsi_evt_emit(sdev, evt);
 			kfree(evt);
 		}
@@ -2445,7 +2445,7 @@ void scsi_evt_thread(struct work_struct *work)
  *	@sdev: scsi_device event occurred on
  *	@evt: event to send
  *
- *	Assert scsi device event asynchronously.
+ *	Assert scsi device event asynchroyesusly.
  */
 void sdev_evt_send(struct scsi_device *sdev, struct scsi_event *evt)
 {
@@ -2462,7 +2462,7 @@ void sdev_evt_send(struct scsi_device *sdev, struct scsi_event *evt)
 #endif
 
 	spin_lock_irqsave(&sdev->list_lock, flags);
-	list_add_tail(&evt->node, &sdev->event_list);
+	list_add_tail(&evt->yesde, &sdev->event_list);
 	schedule_work(&sdev->event_work);
 	spin_unlock_irqrestore(&sdev->list_lock, flags);
 }
@@ -2483,7 +2483,7 @@ struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
 		return NULL;
 
 	evt->evt_type = evt_type;
-	INIT_LIST_HEAD(&evt->node);
+	INIT_LIST_HEAD(&evt->yesde);
 
 	/* evt_type-specific initialization, if any */
 	switch (evt_type) {
@@ -2496,7 +2496,7 @@ struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
 	case SDEV_EVT_ALUA_STATE_CHANGE_REPORTED:
 	case SDEV_EVT_POWER_ON_RESET_OCCURRED:
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -2510,7 +2510,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_alloc);
  *	@evt_type: type of event to send
  *	@gfpflags: GFP flags for allocation
  *
- *	Assert scsi device event asynchronously, given an event type.
+ *	Assert scsi device event asynchroyesusly, given an event type.
  */
 void sdev_evt_send_simple(struct scsi_device *sdev,
 			  enum scsi_device_event evt_type, gfp_t gfpflags)
@@ -2539,7 +2539,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_send_simple);
  *
  *	Must be called with user context, may sleep.
  *
- *	Returns zero if unsuccessful or an error if not.
+ *	Returns zero if unsuccessful or an error if yest.
  */
 int
 scsi_device_quiesce(struct scsi_device *sdev)
@@ -2550,7 +2550,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	/*
 	 * It is allowed to call scsi_device_quiesce() multiple times from
 	 * the same context but concurrent scsi_device_quiesce() calls are
-	 * not allowed.
+	 * yest allowed.
 	 */
 	WARN_ON_ONCE(sdev->quiesced_by && sdev->quiesced_by != current);
 
@@ -2634,10 +2634,10 @@ scsi_target_resume(struct scsi_target *starget)
 EXPORT_SYMBOL(scsi_target_resume);
 
 /**
- * scsi_internal_device_block_nowait - try to transition to the SDEV_BLOCK state
+ * scsi_internal_device_block_yeswait - try to transition to the SDEV_BLOCK state
  * @sdev: device to block
  *
- * Pause SCSI command processing on the specified device. Does not sleep.
+ * Pause SCSI command processing on the specified device. Does yest sleep.
  *
  * Returns zero if successful or a negative error code upon failure.
  *
@@ -2645,9 +2645,9 @@ EXPORT_SYMBOL(scsi_target_resume);
  * This routine transitions the device to the SDEV_BLOCK state (which must be
  * a legal transition). When the device is in this state, command processing
  * is paused until the device leaves the SDEV_BLOCK state. See also
- * scsi_internal_device_unblock_nowait().
+ * scsi_internal_device_unblock_yeswait().
  */
-int scsi_internal_device_block_nowait(struct scsi_device *sdev)
+int scsi_internal_device_block_yeswait(struct scsi_device *sdev)
 {
 	struct request_queue *q = sdev->request_queue;
 	int err = 0;
@@ -2665,10 +2665,10 @@ int scsi_internal_device_block_nowait(struct scsi_device *sdev)
 	 * block layer from calling the midlayer with this device's
 	 * request queue. 
 	 */
-	blk_mq_quiesce_queue_nowait(q);
+	blk_mq_quiesce_queue_yeswait(q);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scsi_internal_device_block_nowait);
+EXPORT_SYMBOL_GPL(scsi_internal_device_block_yeswait);
 
 /**
  * scsi_internal_device_block - try to transition to the SDEV_BLOCK state
@@ -2691,7 +2691,7 @@ static int scsi_internal_device_block(struct scsi_device *sdev)
 	int err;
 
 	mutex_lock(&sdev->state_mutex);
-	err = scsi_internal_device_block_nowait(sdev);
+	err = scsi_internal_device_block_yeswait(sdev);
 	if (err == 0)
 		blk_mq_quiesce_queue(q);
 	mutex_unlock(&sdev->state_mutex);
@@ -2707,11 +2707,11 @@ void scsi_start_queue(struct scsi_device *sdev)
 }
 
 /**
- * scsi_internal_device_unblock_nowait - resume a device after a block request
+ * scsi_internal_device_unblock_yeswait - resume a device after a block request
  * @sdev:	device to resume
  * @new_state:	state to set the device to after unblocking
  *
- * Restart the device queue for a previously suspended SCSI device. Does not
+ * Restart the device queue for a previously suspended SCSI device. Does yest
  * sleep.
  *
  * Returns zero if successful or a negative error code upon failure.
@@ -2721,7 +2721,7 @@ void scsi_start_queue(struct scsi_device *sdev)
  * the offline states (which must be a legal transition) allowing the midlayer
  * to goose the queue for this device.
  */
-int scsi_internal_device_unblock_nowait(struct scsi_device *sdev,
+int scsi_internal_device_unblock_yeswait(struct scsi_device *sdev,
 					enum scsi_device_state new_state)
 {
 	switch (new_state) {
@@ -2758,7 +2758,7 @@ int scsi_internal_device_unblock_nowait(struct scsi_device *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scsi_internal_device_unblock_nowait);
+EXPORT_SYMBOL_GPL(scsi_internal_device_unblock_yeswait);
 
 /**
  * scsi_internal_device_unblock - resume a device after a block request
@@ -2780,7 +2780,7 @@ static int scsi_internal_device_unblock(struct scsi_device *sdev,
 	int ret;
 
 	mutex_lock(&sdev->state_mutex);
-	ret = scsi_internal_device_unblock_nowait(sdev, new_state);
+	ret = scsi_internal_device_unblock_yeswait(sdev, new_state);
 	mutex_unlock(&sdev->state_mutex);
 
 	return ret;
@@ -2929,7 +2929,7 @@ EXPORT_SYMBOL(sdev_enable_disk_events);
  *
  * Returns the length of the identification or error on failure.
  * If the identifier is longer than the supplied buffer the actual
- * identifier length is returned and the buffer is not zero-padded.
+ * identifier length is returned and the buffer is yest zero-padded.
  */
 int scsi_vpd_lun_id(struct scsi_device *sdev, char *id, size_t id_len)
 {
@@ -2969,7 +2969,7 @@ int scsi_vpd_lun_id(struct scsi_device *sdev, char *id, size_t id_len)
 	memset(id, 0, id_len);
 	d = vpd_pg83->data + 4;
 	while (d < vpd_pg83->data + vpd_pg83->len) {
-		/* Skip designators not referring to the LUN */
+		/* Skip designators yest referring to the LUN */
 		if ((d[1] & 0x30) != 0x00)
 			goto next_desig;
 

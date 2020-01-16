@@ -531,7 +531,7 @@ enum ELEMENT_ID {
 	/*  2010/12/26 MH The definition we can declare always!! */
 	EID_PowerCap				= 33,
 	EID_SupportedChannels		= 36,
-	EID_ChlSwitchAnnounce		= 37,
+	EID_ChlSwitchAnyesunce		= 37,
 
 	EID_MeasureRequest			= 38, /*  Measurement Request */
 	EID_MeasureReport			= 39, /*  Measurement Report */
@@ -1062,7 +1062,7 @@ enum P2P_ROLE {
 
 enum P2P_STATE {
 	P2P_STATE_NONE = 0,							/* 	P2P disable */
-	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do nothing */
+	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do yesthing */
 	P2P_STATE_LISTEN = 2,							/* 	In pure listen state */
 	P2P_STATE_SCAN = 3,							/* 	In scan phase */
 	P2P_STATE_FIND_PHASE_LISTEN = 4,				/* 	In the listen state of find phase */
@@ -1082,8 +1082,8 @@ enum P2P_STATE {
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Invitation request and this wifi is GO. */
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Invitation request to join an existing P2P Group. */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Invitation response with failure */
-	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negotiation response with information is not available */
-	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is not available */
+	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negotiation response with information is yest available */
+	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is yest available */
 };
 
 enum P2P_WPSINFO {

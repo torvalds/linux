@@ -16,10 +16,10 @@
 #ifndef _LINUX_MEMORY_H_
 #define _LINUX_MEMORY_H_
 
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/compiler.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
 
@@ -47,10 +47,10 @@ int set_memory_block_size_order(unsigned int order);
 #define	MEM_CANCEL_ONLINE	(1<<4)
 #define	MEM_CANCEL_OFFLINE	(1<<5)
 
-struct memory_notify {
+struct memory_yestify {
 	unsigned long start_pfn;
 	unsigned long nr_pages;
-	int status_change_nid_normal;
+	int status_change_nid_yesrmal;
 	int status_change_nid_high;
 	int status_change_nid;
 };
@@ -58,17 +58,17 @@ struct memory_notify {
 /*
  * During pageblock isolation, count the number of pages within the
  * range [start_pfn, start_pfn + nr_pages) which are owned by code
- * in the notifier chain.
+ * in the yestifier chain.
  */
 #define MEM_ISOLATE_COUNT	(1<<0)
 
-struct memory_isolate_notify {
+struct memory_isolate_yestify {
 	unsigned long start_pfn;	/* Start of range to check */
 	unsigned int nr_pages;		/* # pages in range to check */
 	unsigned int pages_found;	/* # pages owned found by callbacks */
 };
 
-struct notifier_block;
+struct yestifier_block;
 struct mem_section;
 
 /*
@@ -83,38 +83,38 @@ static inline void memory_dev_init(void)
 {
 	return;
 }
-static inline int register_memory_notifier(struct notifier_block *nb)
+static inline int register_memory_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
-static inline void unregister_memory_notifier(struct notifier_block *nb)
+static inline void unregister_memory_yestifier(struct yestifier_block *nb)
 {
 }
-static inline int memory_notify(unsigned long val, void *v)
-{
-	return 0;
-}
-static inline int register_memory_isolate_notifier(struct notifier_block *nb)
+static inline int memory_yestify(unsigned long val, void *v)
 {
 	return 0;
 }
-static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
+static inline int register_memory_isolate_yestifier(struct yestifier_block *nb)
+{
+	return 0;
+}
+static inline void unregister_memory_isolate_yestifier(struct yestifier_block *nb)
 {
 }
-static inline int memory_isolate_notify(unsigned long val, void *v)
+static inline int memory_isolate_yestify(unsigned long val, void *v)
 {
 	return 0;
 }
 #else
-extern int register_memory_notifier(struct notifier_block *nb);
-extern void unregister_memory_notifier(struct notifier_block *nb);
-extern int register_memory_isolate_notifier(struct notifier_block *nb);
-extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+extern int register_memory_yestifier(struct yestifier_block *nb);
+extern void unregister_memory_yestifier(struct yestifier_block *nb);
+extern int register_memory_isolate_yestifier(struct yestifier_block *nb);
+extern void unregister_memory_isolate_yestifier(struct yestifier_block *nb);
 int create_memory_block_devices(unsigned long start, unsigned long size);
 void remove_memory_block_devices(unsigned long start, unsigned long size);
 extern void memory_dev_init(void);
-extern int memory_notify(unsigned long val, void *v);
-extern int memory_isolate_notify(unsigned long val, void *v);
+extern int memory_yestify(unsigned long val, void *v);
+extern int memory_isolate_yestify(unsigned long val, void *v);
 extern struct memory_block *find_memory_block(struct mem_section *);
 typedef int (*walk_memory_blocks_func_t)(struct memory_block *, void *);
 extern int walk_memory_blocks(unsigned long start, unsigned long size,
@@ -124,18 +124,18 @@ extern int for_each_memory_block(void *arg, walk_memory_blocks_func_t func);
 #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-#define hotplug_memory_notifier(fn, pri) ({		\
-	static __meminitdata struct notifier_block fn##_mem_nb =\
-		{ .notifier_call = fn, .priority = pri };\
-	register_memory_notifier(&fn##_mem_nb);			\
+#define hotplug_memory_yestifier(fn, pri) ({		\
+	static __meminitdata struct yestifier_block fn##_mem_nb =\
+		{ .yestifier_call = fn, .priority = pri };\
+	register_memory_yestifier(&fn##_mem_nb);			\
 })
-#define register_hotmemory_notifier(nb)		register_memory_notifier(nb)
-#define unregister_hotmemory_notifier(nb) 	unregister_memory_notifier(nb)
+#define register_hotmemory_yestifier(nb)		register_memory_yestifier(nb)
+#define unregister_hotmemory_yestifier(nb) 	unregister_memory_yestifier(nb)
 #else
-#define hotplug_memory_notifier(fn, pri)	({ 0; })
+#define hotplug_memory_yestifier(fn, pri)	({ 0; })
 /* These aren't inline functions due to a GCC bug. */
-#define register_hotmemory_notifier(nb)    ({ (void)(nb); 0; })
-#define unregister_hotmemory_notifier(nb)  ({ (void)(nb); })
+#define register_hotmemory_yestifier(nb)    ({ (void)(nb); 0; })
+#define unregister_hotmemory_yestifier(nb)  ({ (void)(nb); })
 #endif
 
 /*

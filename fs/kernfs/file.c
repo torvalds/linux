@@ -13,25 +13,25 @@
 #include <linux/poll.h>
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 
 #include "kernfs-internal.h"
 
 /*
- * There's one kernfs_open_file for each open file and one kernfs_open_node
- * for each kernfs_node with one or more open files.
+ * There's one kernfs_open_file for each open file and one kernfs_open_yesde
+ * for each kernfs_yesde with one or more open files.
  *
- * kernfs_node->attr.open points to kernfs_open_node.  attr.open is
- * protected by kernfs_open_node_lock.
+ * kernfs_yesde->attr.open points to kernfs_open_yesde.  attr.open is
+ * protected by kernfs_open_yesde_lock.
  *
  * filp->private_data points to seq_file whose ->private points to
  * kernfs_open_file.  kernfs_open_files are chained at
- * kernfs_open_node->files, which is protected by kernfs_open_file_mutex.
+ * kernfs_open_yesde->files, which is protected by kernfs_open_file_mutex.
  */
-static DEFINE_SPINLOCK(kernfs_open_node_lock);
+static DEFINE_SPINLOCK(kernfs_open_yesde_lock);
 static DEFINE_MUTEX(kernfs_open_file_mutex);
 
-struct kernfs_open_node {
+struct kernfs_open_yesde {
 	atomic_t		refcnt;
 	atomic_t		event;
 	wait_queue_head_t	poll;
@@ -39,17 +39,17 @@ struct kernfs_open_node {
 };
 
 /*
- * kernfs_notify() may be called from any context and bounces notifications
- * through a work item.  To minimize space overhead in kernfs_node, the
- * pending queue is implemented as a singly linked list of kernfs_nodes.
+ * kernfs_yestify() may be called from any context and bounces yestifications
+ * through a work item.  To minimize space overhead in kernfs_yesde, the
+ * pending queue is implemented as a singly linked list of kernfs_yesdes.
  * The list is terminated with the self pointer so that whether a
- * kernfs_node is on the list or not can be determined by testing the next
+ * kernfs_yesde is on the list or yest can be determined by testing the next
  * pointer for NULL.
  */
-#define KERNFS_NOTIFY_EOL			((void *)&kernfs_notify_list)
+#define KERNFS_NOTIFY_EOL			((void *)&kernfs_yestify_list)
 
-static DEFINE_SPINLOCK(kernfs_notify_lock);
-static struct kernfs_node *kernfs_notify_list = KERNFS_NOTIFY_EOL;
+static DEFINE_SPINLOCK(kernfs_yestify_lock);
+static struct kernfs_yesde *kernfs_yestify_list = KERNFS_NOTIFY_EOL;
 
 static struct kernfs_open_file *kernfs_of(struct file *file)
 {
@@ -57,10 +57,10 @@ static struct kernfs_open_file *kernfs_of(struct file *file)
 }
 
 /*
- * Determine the kernfs_ops for the given kernfs_node.  This function must
+ * Determine the kernfs_ops for the given kernfs_yesde.  This function must
  * be called while holding an active reference.
  */
-static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
+static const struct kernfs_ops *kernfs_ops(struct kernfs_yesde *kn)
 {
 	if (kn->flags & KERNFS_LOCKDEP)
 		lockdep_assert_held(kn);
@@ -81,7 +81,7 @@ static const struct kernfs_ops *kernfs_ops(struct kernfs_node *kn)
  * operations which may return ERR_PTR(-ENODEV) too.  kernfs_seq_stop()
  * can't distinguish whether ERR_PTR(-ENODEV) is from get_active failure or
  * custom seq_file operations and thus can't decide whether put_active
- * should be performed or not only on ERR_PTR(-ENODEV).
+ * should be performed or yest only on ERR_PTR(-ENODEV).
  *
  * This is worked around by factoring out the custom seq_stop() and
  * put_active part into kernfs_seq_stop_active(), skipping it from
@@ -263,7 +263,7 @@ static ssize_t kernfs_fop_read(struct file *file, char __user *user_buf,
  * Copy data in from userland and pass it to the matching kernfs write
  * operation.
  *
- * There is no easy way for us to know if userspace is only doing a partial
+ * There is yes easy way for us to kyesw if userspace is only doing a partial
  * write, so we don't support them. We expect the entire buffer to come on
  * the first write.  Hint: if you're writing a value, first read the file,
  * modify only the the value you're changing, then write entire buffer
@@ -506,7 +506,7 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out_put;
 
 	/*
-	 * It is not possible to successfully wrap close.
+	 * It is yest possible to successfully wrap close.
 	 * So error if someone is trying to use close.
 	 */
 	rc = -EINVAL;
@@ -526,8 +526,8 @@ out_unlock:
 }
 
 /**
- *	kernfs_get_open_node - get or create kernfs_open_node
- *	@kn: target kernfs_node
+ *	kernfs_get_open_yesde - get or create kernfs_open_yesde
+ *	@kn: target kernfs_yesde
  *	@of: kernfs_open_file for this instance of open
  *
  *	If @kn->attr.open exists, increment its reference count; otherwise,
@@ -537,16 +537,16 @@ out_unlock:
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, -erryes on failure.
  */
-static int kernfs_get_open_node(struct kernfs_node *kn,
+static int kernfs_get_open_yesde(struct kernfs_yesde *kn,
 				struct kernfs_open_file *of)
 {
-	struct kernfs_open_node *on, *new_on = NULL;
+	struct kernfs_open_yesde *on, *new_on = NULL;
 
  retry:
 	mutex_lock(&kernfs_open_file_mutex);
-	spin_lock_irq(&kernfs_open_node_lock);
+	spin_lock_irq(&kernfs_open_yesde_lock);
 
 	if (!kn->attr.open && new_on) {
 		kn->attr.open = new_on;
@@ -559,7 +559,7 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 		list_add_tail(&of->list, &on->files);
 	}
 
-	spin_unlock_irq(&kernfs_open_node_lock);
+	spin_unlock_irq(&kernfs_open_yesde_lock);
 	mutex_unlock(&kernfs_open_file_mutex);
 
 	if (on) {
@@ -567,7 +567,7 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 		return 0;
 	}
 
-	/* not there, initialize a new one and retry */
+	/* yest there, initialize a new one and retry */
 	new_on = kmalloc(sizeof(*new_on), GFP_KERNEL);
 	if (!new_on)
 		return -ENOMEM;
@@ -580,8 +580,8 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 }
 
 /**
- *	kernfs_put_open_node - put kernfs_open_node
- *	@kn: target kernfs_nodet
+ *	kernfs_put_open_yesde - put kernfs_open_yesde
+ *	@kn: target kernfs_yesdet
  *	@of: associated kernfs_open_file
  *
  *	Put @kn->attr.open and unlink @of from the files list.  If
@@ -590,14 +590,14 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
  *	LOCKING:
  *	None.
  */
-static void kernfs_put_open_node(struct kernfs_node *kn,
+static void kernfs_put_open_yesde(struct kernfs_yesde *kn,
 				 struct kernfs_open_file *of)
 {
-	struct kernfs_open_node *on = kn->attr.open;
+	struct kernfs_open_yesde *on = kn->attr.open;
 	unsigned long flags;
 
 	mutex_lock(&kernfs_open_file_mutex);
-	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	spin_lock_irqsave(&kernfs_open_yesde_lock, flags);
 
 	if (of)
 		list_del(&of->list);
@@ -607,15 +607,15 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 	else
 		on = NULL;
 
-	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+	spin_unlock_irqrestore(&kernfs_open_yesde_lock, flags);
 	mutex_unlock(&kernfs_open_file_mutex);
 
 	kfree(on);
 }
 
-static int kernfs_fop_open(struct inode *inode, struct file *file)
+static int kernfs_fop_open(struct iyesde *iyesde, struct file *file)
 {
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 	struct kernfs_root *root = kernfs_root(kn);
 	const struct kernfs_ops *ops;
 	struct kernfs_open_file *of;
@@ -634,11 +634,11 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	/* see the flag definition for details */
 	if (root->flags & KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK) {
 		if ((file->f_mode & FMODE_WRITE) &&
-		    (!(inode->i_mode & S_IWUGO) || !has_write))
+		    (!(iyesde->i_mode & S_IWUGO) || !has_write))
 			goto err_out;
 
 		if ((file->f_mode & FMODE_READ) &&
-		    (!(inode->i_mode & S_IRUGO) || !has_read))
+		    (!(iyesde->i_mode & S_IRUGO) || !has_read))
 			goto err_out;
 	}
 
@@ -658,7 +658,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 * open file has a separate mutex, it's okay as long as those don't
 	 * happen on the same file.  At this point, we can't easily give
 	 * each file a separate locking class.  Let's differentiate on
-	 * whether the file has mmap or not for now.
+	 * whether the file has mmap or yest for yesw.
 	 *
 	 * Both paths of the branch look the same.  They're supposed to
 	 * look that way and give @of->mutex different static lockdep keys.
@@ -696,7 +696,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	/*
 	 * Always instantiate seq_file even if read access doesn't use
-	 * seq_file or is not requested.  This unifies private data access
+	 * seq_file or is yest requested.  This unifies private data access
 	 * and readable regular files are the vast majority anyway.
 	 */
 	if (ops->seq_show)
@@ -713,26 +713,26 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		file->f_mode |= FMODE_PWRITE;
 
-	/* make sure we have open node struct */
-	error = kernfs_get_open_node(kn, of);
+	/* make sure we have open yesde struct */
+	error = kernfs_get_open_yesde(kn, of);
 	if (error)
 		goto err_seq_release;
 
 	if (ops->open) {
-		/* nobody has access to @of yet, skip @of->mutex */
+		/* yesbody has access to @of yet, skip @of->mutex */
 		error = ops->open(of);
 		if (error)
-			goto err_put_node;
+			goto err_put_yesde;
 	}
 
 	/* open succeeded, put active references */
 	kernfs_put_active(kn);
 	return 0;
 
-err_put_node:
-	kernfs_put_open_node(kn, of);
+err_put_yesde:
+	kernfs_put_open_yesde(kn, of);
 err_seq_release:
-	seq_release(inode, file);
+	seq_release(iyesde, file);
 err_free:
 	kfree(of->prealloc_buf);
 	kfree(of);
@@ -742,13 +742,13 @@ err_out:
 }
 
 /* used from release/drain to ensure that ->release() is called exactly once */
-static void kernfs_release_file(struct kernfs_node *kn,
+static void kernfs_release_file(struct kernfs_yesde *kn,
 				struct kernfs_open_file *of)
 {
 	/*
-	 * @of is guaranteed to have no other file operations in flight and
+	 * @of is guaranteed to have yes other file operations in flight and
 	 * we just want to synchronize release and drain paths.
-	 * @kernfs_open_file_mutex is enough.  @of->mutex can't be used
+	 * @kernfs_open_file_mutex is eyesugh.  @of->mutex can't be used
 	 * here because drain path may be called from places which can
 	 * cause circular dependency.
 	 */
@@ -765,9 +765,9 @@ static void kernfs_release_file(struct kernfs_node *kn,
 	}
 }
 
-static int kernfs_fop_release(struct inode *inode, struct file *filp)
+static int kernfs_fop_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 	struct kernfs_open_file *of = kernfs_of(filp);
 
 	if (kn->flags & KERNFS_HAS_RELEASE) {
@@ -776,37 +776,37 @@ static int kernfs_fop_release(struct inode *inode, struct file *filp)
 		mutex_unlock(&kernfs_open_file_mutex);
 	}
 
-	kernfs_put_open_node(kn, of);
-	seq_release(inode, filp);
+	kernfs_put_open_yesde(kn, of);
+	seq_release(iyesde, filp);
 	kfree(of->prealloc_buf);
 	kfree(of);
 
 	return 0;
 }
 
-void kernfs_drain_open_files(struct kernfs_node *kn)
+void kernfs_drain_open_files(struct kernfs_yesde *kn)
 {
-	struct kernfs_open_node *on;
+	struct kernfs_open_yesde *on;
 	struct kernfs_open_file *of;
 
 	if (!(kn->flags & (KERNFS_HAS_MMAP | KERNFS_HAS_RELEASE)))
 		return;
 
-	spin_lock_irq(&kernfs_open_node_lock);
+	spin_lock_irq(&kernfs_open_yesde_lock);
 	on = kn->attr.open;
 	if (on)
 		atomic_inc(&on->refcnt);
-	spin_unlock_irq(&kernfs_open_node_lock);
+	spin_unlock_irq(&kernfs_open_yesde_lock);
 	if (!on)
 		return;
 
 	mutex_lock(&kernfs_open_file_mutex);
 
 	list_for_each_entry(of, &on->files, list) {
-		struct inode *inode = file_inode(of->file);
+		struct iyesde *iyesde = file_iyesde(of->file);
 
 		if (kn->flags & KERNFS_HAS_MMAP)
-			unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+			unmap_mapping_range(iyesde->i_mapping, 0, 0, 1);
 
 		if (kn->flags & KERNFS_HAS_RELEASE)
 			kernfs_release_file(kn, of);
@@ -814,27 +814,27 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 
 	mutex_unlock(&kernfs_open_file_mutex);
 
-	kernfs_put_open_node(kn, NULL);
+	kernfs_put_open_yesde(kn, NULL);
 }
 
 /*
  * Kernfs attribute files are pollable.  The idea is that you read
  * the content and then you use 'poll' or 'select' to wait for
  * the content to change.  When the content changes (assuming the
- * manager for the kobject supports notification), poll will
+ * manager for the kobject supports yestification), poll will
  * return EPOLLERR|EPOLLPRI, and select will return the fd whether
  * it is waiting for read, write, or exceptions.
  * Once poll/select indicates that the value has changed, you
  * need to close and re-open the file, or seek to 0 and read again.
  * Reminder: this only works for attributes which actively support
- * it, and it is not possible to test an attribute from userspace
- * to see if it supports poll (Neither 'poll' nor 'select' return
+ * it, and it is yest possible to test an attribute from userspace
+ * to see if it supports poll (Neither 'poll' yesr 'select' return
  * an appropriate error code).  When in doubt, set a suitable timeout value.
  */
 __poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
 {
-	struct kernfs_node *kn = kernfs_dentry_node(of->file->f_path.dentry);
-	struct kernfs_open_node *on = kn->attr.open;
+	struct kernfs_yesde *kn = kernfs_dentry_yesde(of->file->f_path.dentry);
+	struct kernfs_open_yesde *on = kn->attr.open;
 
 	poll_wait(of->file, &on->poll, wait);
 
@@ -847,7 +847,7 @@ __poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
 static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 {
 	struct kernfs_open_file *of = kernfs_of(filp);
-	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
+	struct kernfs_yesde *kn = kernfs_dentry_yesde(filp->f_path.dentry);
 	__poll_t ret;
 
 	if (!kernfs_get_active(kn))
@@ -862,58 +862,58 @@ static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return ret;
 }
 
-static void kernfs_notify_workfn(struct work_struct *work)
+static void kernfs_yestify_workfn(struct work_struct *work)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	struct kernfs_super_info *info;
 repeat:
-	/* pop one off the notify_list */
-	spin_lock_irq(&kernfs_notify_lock);
-	kn = kernfs_notify_list;
+	/* pop one off the yestify_list */
+	spin_lock_irq(&kernfs_yestify_lock);
+	kn = kernfs_yestify_list;
 	if (kn == KERNFS_NOTIFY_EOL) {
-		spin_unlock_irq(&kernfs_notify_lock);
+		spin_unlock_irq(&kernfs_yestify_lock);
 		return;
 	}
-	kernfs_notify_list = kn->attr.notify_next;
-	kn->attr.notify_next = NULL;
-	spin_unlock_irq(&kernfs_notify_lock);
+	kernfs_yestify_list = kn->attr.yestify_next;
+	kn->attr.yestify_next = NULL;
+	spin_unlock_irq(&kernfs_yestify_lock);
 
-	/* kick fsnotify */
+	/* kick fsyestify */
 	mutex_lock(&kernfs_mutex);
 
-	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
-		struct kernfs_node *parent;
-		struct inode *inode;
+	list_for_each_entry(info, &kernfs_root(kn)->supers, yesde) {
+		struct kernfs_yesde *parent;
+		struct iyesde *iyesde;
 		struct qstr name;
 
 		/*
-		 * We want fsnotify_modify() on @kn but as the
+		 * We want fsyestify_modify() on @kn but as the
 		 * modifications aren't originating from userland don't
-		 * have the matching @file available.  Look up the inodes
+		 * have the matching @file available.  Look up the iyesdes
 		 * and generate the events manually.
 		 */
-		inode = ilookup(info->sb, kernfs_ino(kn));
-		if (!inode)
+		iyesde = ilookup(info->sb, kernfs_iyes(kn));
+		if (!iyesde)
 			continue;
 
 		name = (struct qstr)QSTR_INIT(kn->name, strlen(kn->name));
 		parent = kernfs_get_parent(kn);
 		if (parent) {
-			struct inode *p_inode;
+			struct iyesde *p_iyesde;
 
-			p_inode = ilookup(info->sb, kernfs_ino(parent));
-			if (p_inode) {
-				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
-					 inode, FSNOTIFY_EVENT_INODE, &name, 0);
-				iput(p_inode);
+			p_iyesde = ilookup(info->sb, kernfs_iyes(parent));
+			if (p_iyesde) {
+				fsyestify(p_iyesde, FS_MODIFY | FS_EVENT_ON_CHILD,
+					 iyesde, FSNOTIFY_EVENT_INODE, &name, 0);
+				iput(p_iyesde);
 			}
 
 			kernfs_put(parent);
 		}
 
-		fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
+		fsyestify(iyesde, FS_MODIFY, iyesde, FSNOTIFY_EVENT_INODE,
 			 &name, 0);
-		iput(inode);
+		iput(iyesde);
 	}
 
 	mutex_unlock(&kernfs_mutex);
@@ -922,41 +922,41 @@ repeat:
 }
 
 /**
- * kernfs_notify - notify a kernfs file
- * @kn: file to notify
+ * kernfs_yestify - yestify a kernfs file
+ * @kn: file to yestify
  *
  * Notify @kn such that poll(2) on @kn wakes up.  Maybe be called from any
  * context.
  */
-void kernfs_notify(struct kernfs_node *kn)
+void kernfs_yestify(struct kernfs_yesde *kn)
 {
-	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
+	static DECLARE_WORK(kernfs_yestify_work, kernfs_yestify_workfn);
 	unsigned long flags;
-	struct kernfs_open_node *on;
+	struct kernfs_open_yesde *on;
 
 	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
 		return;
 
 	/* kick poll immediately */
-	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	spin_lock_irqsave(&kernfs_open_yesde_lock, flags);
 	on = kn->attr.open;
 	if (on) {
 		atomic_inc(&on->event);
 		wake_up_interruptible(&on->poll);
 	}
-	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+	spin_unlock_irqrestore(&kernfs_open_yesde_lock, flags);
 
-	/* schedule work to kick fsnotify */
-	spin_lock_irqsave(&kernfs_notify_lock, flags);
-	if (!kn->attr.notify_next) {
+	/* schedule work to kick fsyestify */
+	spin_lock_irqsave(&kernfs_yestify_lock, flags);
+	if (!kn->attr.yestify_next) {
 		kernfs_get(kn);
-		kn->attr.notify_next = kernfs_notify_list;
-		kernfs_notify_list = kn;
-		schedule_work(&kernfs_notify_work);
+		kn->attr.yestify_next = kernfs_yestify_list;
+		kernfs_yestify_list = kn;
+		schedule_work(&kernfs_yestify_work);
 	}
-	spin_unlock_irqrestore(&kernfs_notify_lock, flags);
+	spin_unlock_irqrestore(&kernfs_yestify_lock, flags);
 }
-EXPORT_SYMBOL_GPL(kernfs_notify);
+EXPORT_SYMBOL_GPL(kernfs_yestify);
 
 const struct file_operations kernfs_file_fops = {
 	.read		= kernfs_fop_read,
@@ -966,7 +966,7 @@ const struct file_operations kernfs_file_fops = {
 	.open		= kernfs_fop_open,
 	.release	= kernfs_fop_release,
 	.poll		= kernfs_fop_poll,
-	.fsync		= noop_fsync,
+	.fsync		= yesop_fsync,
 };
 
 /**
@@ -982,9 +982,9 @@ const struct file_operations kernfs_file_fops = {
  * @ns: optional namespace tag of the file
  * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
- * Returns the created node on success, ERR_PTR() value on error.
+ * Returns the created yesde on success, ERR_PTR() value on error.
  */
-struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
+struct kernfs_yesde *__kernfs_create_file(struct kernfs_yesde *parent,
 					 const char *name,
 					 umode_t mode, kuid_t uid, kgid_t gid,
 					 loff_t size,
@@ -992,13 +992,13 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 void *priv, const void *ns,
 					 struct lock_class_key *key)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	unsigned flags;
 	int rc;
 
 	flags = KERNFS_FILE;
 
-	kn = kernfs_new_node(parent, name, (mode & S_IALLUGO) | S_IFREG,
+	kn = kernfs_new_yesde(parent, name, (mode & S_IALLUGO) | S_IFREG,
 			     uid, gid, flags);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
@@ -1017,7 +1017,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 	/*
 	 * kn->attr.ops is accesible only while holding active ref.  We
-	 * need to know whether some ops are implemented outside active
+	 * need to kyesw whether some ops are implemented outside active
 	 * ref.  Cache their existence in flags.
 	 */
 	if (ops->seq_show)

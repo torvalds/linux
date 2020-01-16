@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -40,17 +40,17 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/*
 	 * reserve the vidreg space of smi adaptor
 	 * if you do this, you need to add release region code
-	 * in lynxfb_remove, or memory will not be mapped again
+	 * in lynxfb_remove, or memory will yest be mapped again
 	 * successfully
 	 */
 	ret = pci_request_region(pdev, 1, "sm750fb");
 	if (ret) {
-		pr_err("Can not request PCI regions.\n");
+		pr_err("Can yest request PCI regions.\n");
 		goto exit;
 	}
 
-	/* now map mmio and vidmem */
-	sm750_dev->pvReg = ioremap_nocache(sm750_dev->vidreg_start,
+	/* yesw map mmio and vidmem */
+	sm750_dev->pvReg = ioremap_yescache(sm750_dev->vidreg_start,
 					   sm750_dev->vidreg_size);
 	if (!sm750_dev->pvReg) {
 		pr_err("mmio failed\n");
@@ -70,7 +70,7 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/*
 	 * don't use pdev_resource[x].end - resource[x].start to
 	 * calculate the resource size, it's only the maximum available
-	 * size but not the actual size, using
+	 * size but yest the actual size, using
 	 * @ddk750_get_vm_size function can be safe.
 	 */
 	sm750_dev->vidmem_size = ddk750_get_vm_size();
@@ -116,7 +116,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (sm750_get_chip_type() != SM750LE) {
 		unsigned int val;
 		/* does user need CRT? */
-		if (sm750_dev->nocrt) {
+		if (sm750_dev->yescrt) {
 			poke32(MISC_CTRL,
 			       peek32(MISC_CTRL) | MISC_CTRL_DAC_POWER_OFF);
 			/* shut off dpms */
@@ -148,8 +148,8 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		poke32(PANEL_DISPLAY_CTRL, val);
 	} else {
 		/*
-		 * for 750LE, no DVI chip initialization
-		 * makes Monitor no signal
+		 * for 750LE, yes DVI chip initialization
+		 * makes Monitor yes signal
 		 *
 		 * Set up GPIO for software I2C to program DVI chip in the
 		 * Xilinx SP605 board, in order to have video signal.
@@ -163,9 +163,9 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
 			/*
 			 * The following register values for CH7301 are from
-			 * Chrontel app note and our experiment.
+			 * Chrontel app yeste and our experiment.
 			 */
-			pr_info("yes,CH7301 DVI chip found\n");
+			pr_info("no,CH7301 DVI chip found\n");
 			sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
 			sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
 			sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
@@ -235,7 +235,7 @@ int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
 		break;
 	case 32:
 		if (sm750_dev->revid == SM750LE_REVISION_ID) {
-			pr_debug("750le do not support 32bpp\n");
+			pr_debug("750le do yest support 32bpp\n");
 			return -EINVAL;
 		}
 		break;
@@ -318,7 +318,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 		reg = var->xres * (var->bits_per_pixel >> 3);
 		/*
-		 * crtc->channel is not equal to par->index on numeric,
+		 * crtc->channel is yest equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad);
@@ -349,11 +349,11 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		reg = peek32(PANEL_DISPLAY_CTRL);
 		poke32(PANEL_DISPLAY_CTRL, reg | (var->bits_per_pixel >> 4));
 	} else {
-		/* not implemented now */
+		/* yest implemented yesw */
 		poke32(CRT_FB_ADDRESS, crtc->oScreen);
 		reg = var->xres * (var->bits_per_pixel >> 3);
 		/*
-		 * crtc->channel is not equal to par->index on numeric,
+		 * crtc->channel is yest equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad) << CRT_FB_WIDTH_WIDTH_SHIFT;

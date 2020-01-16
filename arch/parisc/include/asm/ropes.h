@@ -40,7 +40,7 @@ struct ioc {
 	unsigned int	res_bitshift;	/* from the LEFT! */
 	unsigned int	res_size;	/* size of resource map in bytes */
 #ifdef SBA_HINT_SUPPORT
-/* FIXME : DMA HINTs not used */
+/* FIXME : DMA HINTs yest used */
 	unsigned long	hint_mask_pdir; /* bits used for DMA hints */
 	unsigned int	hint_shift_pdir;
 #endif
@@ -183,7 +183,7 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 ** page since the Virtual Coherence Index has to be generated
 ** and updated for each page.
 **
-** PAGE_SIZE could be greater than IOVP_SIZE. But not the inverse.
+** PAGE_SIZE could be greater than IOVP_SIZE. But yest the inverse.
 */
 #define IOVP_SIZE	PAGE_SIZE
 #define IOVP_SHIFT	PAGE_SHIFT
@@ -246,9 +246,9 @@ static inline int agp_mode_mercury(void __iomem *hpa) {
 
 /*
 ** I/O SAPIC init function
-** Caller knows where an I/O SAPIC is. LBA has an integrated I/O SAPIC.
+** Caller kyesws where an I/O SAPIC is. LBA has an integrated I/O SAPIC.
 ** Call setup as part of per instance initialization.
-** (ie *not* init_module() function unless only one is present.)
+** (ie *yest* init_module() function unless only one is present.)
 ** fixup_irq is to initialize PCI IRQ line support and
 ** virtualize pcidev->irq value. To be called by pci_fixup_bus().
 */
@@ -306,7 +306,7 @@ extern int iosapic_fixup_irq(void *obj, struct pci_dev *pcidev);
 #define LBA_IBASE	0x0300	/* SBA DMA support */
 #define LBA_IMASK	0x0308
 
-/* FIXME: ignore DMA Hint stuff until we can measure performance */
+/* FIXME: igyesre DMA Hint stuff until we can measure performance */
 #define LBA_HINT_CFG	0x0310
 #define LBA_HINT_BASE	0x0380	/* 14 registers at every 8 bytes. */
 

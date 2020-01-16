@@ -1,12 +1,12 @@
 Freescale Layerscape PCIe controller
 
-This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+This PCIe host controller is based on the Syyespsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 This controller derives its clocks from the Reset Configuration Word (RCW)
 which is used to describe the PLL settings at the time of chip-reset.
 
-Also as per the available Reference Manuals, there is no specific 'version'
+Also as per the available Reference Manuals, there is yes specific 'version'
 register available in the Freescale PCIe controller register set,
 which can allow determining the underlying DesignWare PCIe controller version
 information.
@@ -30,7 +30,7 @@ Required properties:
 - interrupt-names: Must include the following entries:
   "intr": The interrupt that is asserted for controller interrupts
 - fsl,pcie-scfg: Must include two entries.
-  The first entry must be a link to the SCFG device node
+  The first entry must be a link to the SCFG device yesde
   The second entry must be '0' or '1' based on physical PCIe controller index.
   This is used to get SCFG PEXN registers
 - dma-coherent: Indicates that the hardware IP block can ensure the coherency
@@ -55,7 +55,7 @@ Example:
 		bus-range = <0x0 0xff>;
 		ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
 			  0xc2000000 0x0 0x20000000 0x40 0x20000000 0x0 0x20000000   /* prefetchable memory */
-			  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* yesn-prefetchable memory */
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0000 0 0 1 &gic GIC_SPI 91  IRQ_TYPE_LEVEL_HIGH>,

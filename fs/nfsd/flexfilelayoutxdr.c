@@ -24,7 +24,7 @@ nfsd4_ff_encode_layoutget(struct xdr_stream *xdr,
 	__be32 *p;
 
 	/*
-	 * Unlike nfsd4_encode_user, we know these will
+	 * Unlike nfsd4_encode_user, we kyesw these will
 	 * always be stringified.
 	 */
 	struct ff_idmap uid;
@@ -107,7 +107,7 @@ nfsd4_ff_encode_getdeviceinfo(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(1);			/* 1 versions */
 
 	*p++ = cpu_to_be32(da->version);
-	*p++ = cpu_to_be32(da->minor_version);
+	*p++ = cpu_to_be32(da->miyesr_version);
 	*p++ = cpu_to_be32(da->rsize);
 	*p++ = cpu_to_be32(da->wsize);
 	*p++ = cpu_to_be32(da->tightly_coupled);

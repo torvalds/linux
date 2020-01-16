@@ -24,7 +24,7 @@
 
 /*
  * Modules should NOT be allocated with kmalloc for (obvious) reasons.
- * But we do it for now to avoid relocation issues. CALL26/PCREL26 cannot reach
+ * But we do it for yesw to avoid relocation issues. CALL26/PCREL26 canyest reach
  * from 0x80000000 (vmalloc area) to 0xc00000000 (kernel) (kmalloc returns
  * addresses in 0xc0000000)
  */
@@ -121,7 +121,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		default:
-			pr_err("module %s: Unknown reloc: %u\n",
+			pr_err("module %s: Unkyeswn reloc: %u\n",
 				mod->name, ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;
 		}

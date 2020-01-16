@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Provide access to virtual console memory.
- * /dev/vcs: the screen as it is being viewed right now (possibly scrolled)
+ * /dev/vcs: the screen as it is being viewed right yesw (possibly scrolled)
  * /dev/vcsN: the screen of /dev/ttyN (1 <= N <= 63)
- *            [minor: N]
+ *            [miyesr: N]
  *
  * /dev/vcsaN: idem, but including attributes, and prefixed with
  *	the 4 bytes lines,columns,x,y (as screendump used to give).
  *	Attribute/character pair is in native endianity.
- *            [minor: N+128]
+ *            [miyesr: N+128]
  *
  * /dev/vcsuN: similar to /dev/vcsaN but using 4-byte unicode values
  *	instead of 1-byte screen glyph values.
- *            [minor: N+64]
+ *            [miyesr: N+64]
  *
- * /dev/vcsuaN: same idea as /dev/vcsaN for unicode (not yet implemented).
+ * /dev/vcsuaN: same idea as /dev/vcsaN for unicode (yest yet implemented).
  *
  * This replaces screendump and part of selection, so that the system
  * administrator can control access using file system permissions.
  *
  * aeb@cwi.nl - efter Friedas begravelse - 950211
  *
- * machek@k332.feld.cvut.cz - modified not to send characters to wrong console
- *	 - fixed some fatal off-by-one bugs (0-- no longer == -1 -> looping and looping and looping...)
+ * machek@k332.feld.cvut.cz - modified yest to send characters to wrong console
+ *	 - fixed some fatal off-by-one bugs (0-- yes longer == -1 -> looping and looping and looping...)
  *	 - making it shorter - scr_readw are macros which expand in PRETTY long code
  */
 
 #include <linux/kernel.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/tty.h>
 #include <linux/interrupt.h>
@@ -44,7 +44,7 @@
 #include <linux/poll.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
@@ -58,7 +58,7 @@
 #define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 
 /*
- * Our minor space:
+ * Our miyesr space:
  *
  *   0 ... 63	glyph mode without attributes
  *  64 ... 127	unicode mode without attributes
@@ -66,19 +66,19 @@
  * 192 ... 255	unused (reserved for unicode with attributes)
  *
  * This relies on MAX_NR_CONSOLES being  <= 63, meaning 63 actual consoles
- * with minors 0, 64, 128 and 192 being proxies for the foreground console.
+ * with miyesrs 0, 64, 128 and 192 being proxies for the foreground console.
  */
 #if MAX_NR_CONSOLES > 63
-#warning "/dev/vcs* devices may not accommodate more than 63 consoles"
+#warning "/dev/vcs* devices may yest accommodate more than 63 consoles"
 #endif
 
-#define console(inode)		(iminor(inode) & 63)
-#define use_unicode(inode)	(iminor(inode) & 64)
-#define use_attributes(inode)	(iminor(inode) & 128)
+#define console(iyesde)		(imiyesr(iyesde) & 63)
+#define use_unicode(iyesde)	(imiyesr(iyesde) & 64)
+#define use_attributes(iyesde)	(imiyesr(iyesde) & 128)
 
 
 struct vcs_poll_data {
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	unsigned int cons_num;
 	int event;
 	wait_queue_head_t waitq;
@@ -86,12 +86,12 @@ struct vcs_poll_data {
 };
 
 static int
-vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
+vcs_yestifier(struct yestifier_block *nb, unsigned long code, void *_param)
 {
-	struct vt_notifier_param *param = _param;
+	struct vt_yestifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 	struct vcs_poll_data *poll =
-		container_of(nb, struct vcs_poll_data, notifier);
+		container_of(nb, struct vcs_poll_data, yestifier);
 	int currcons = poll->cons_num;
 	int fa_band;
 
@@ -122,7 +122,7 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 static void
 vcs_poll_data_free(struct vcs_poll_data *poll)
 {
-	unregister_vt_notifier(&poll->notifier);
+	unregister_vt_yestifier(&poll->yestifier);
 	kfree(poll);
 }
 
@@ -137,19 +137,19 @@ vcs_poll_data_get(struct file *file)
 	poll = kzalloc(sizeof(*poll), GFP_KERNEL);
 	if (!poll)
 		return NULL;
-	poll->cons_num = console(file_inode(file));
+	poll->cons_num = console(file_iyesde(file));
 	init_waitqueue_head(&poll->waitq);
-	poll->notifier.notifier_call = vcs_notifier;
+	poll->yestifier.yestifier_call = vcs_yestifier;
 	/*
-	 * In order not to lose any update event, we must pretend one might
-	 * have occurred before we have a chance to register our notifier.
+	 * In order yest to lose any update event, we must pretend one might
+	 * have occurred before we have a chance to register our yestifier.
 	 * This is also how user space has come to detect which kernels
 	 * support POLLPRI on /dev/vcs* devices i.e. using poll() with
 	 * POLLPRI and a zero timeout.
 	 */
 	poll->event = VT_UPDATE;
 
-	if (register_vt_notifier(&poll->notifier) != 0) {
+	if (register_vt_yestifier(&poll->yestifier) != 0) {
 		kfree(poll);
 		return NULL;
 	}
@@ -157,10 +157,10 @@ vcs_poll_data_get(struct file *file)
 	/*
 	 * This code may be called either through ->poll() or ->fasync().
 	 * If we have two threads using the same file descriptor, they could
-	 * both enter this function, both notice that the structure hasn't
+	 * both enter this function, both yestice that the structure hasn't
 	 * been allocated yet and go ahead allocating it in parallel, but
 	 * only one of them must survive and be shared otherwise we'd leak
-	 * memory with a dangling notifier callback.
+	 * memory with a dangling yestifier callback.
 	 */
 	spin_lock(&file->f_lock);
 	if (!file->private_data) {
@@ -178,13 +178,13 @@ vcs_poll_data_get(struct file *file)
 }
 
 /*
- * Returns VC for inode.
+ * Returns VC for iyesde.
  * Must be called with console_lock.
  */
 static struct vc_data*
-vcs_vc(struct inode *inode, int *viewed)
+vcs_vc(struct iyesde *iyesde, int *viewed)
 {
-	unsigned int currcons = console(inode);
+	unsigned int currcons = console(iyesde);
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -201,28 +201,28 @@ vcs_vc(struct inode *inode, int *viewed)
 }
 
 /*
- * Returns size for VC carried by inode.
+ * Returns size for VC carried by iyesde.
  * Must be called with console_lock.
  */
 static int
-vcs_size(struct inode *inode)
+vcs_size(struct iyesde *iyesde)
 {
 	int size;
 	struct vc_data *vc;
 
 	WARN_CONSOLE_UNLOCKED();
 
-	vc = vcs_vc(inode, NULL);
+	vc = vcs_vc(iyesde, NULL);
 	if (!vc)
 		return -ENXIO;
 
 	size = vc->vc_rows * vc->vc_cols;
 
-	if (use_attributes(inode)) {
-		if (use_unicode(inode))
+	if (use_attributes(iyesde)) {
+		if (use_unicode(iyesde))
 			return -EOPNOTSUPP;
 		size = 2*size + HEADER_SIZE;
-	} else if (use_unicode(inode))
+	} else if (use_unicode(iyesde))
 		size *= 4;
 	return size;
 }
@@ -232,7 +232,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	int size;
 
 	console_lock();
-	size = vcs_size(file_inode(file));
+	size = vcs_size(file_iyesde(file));
 	console_unlock();
 	if (size < 0)
 		return size;
@@ -243,7 +243,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
 	long pos, read;
@@ -263,10 +263,10 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	 */
 	console_lock();
 
-	uni_mode = use_unicode(inode);
-	attr = use_attributes(inode);
+	uni_mode = use_unicode(iyesde);
+	attr = use_attributes(iyesde);
 	ret = -ENXIO;
-	vc = vcs_vc(inode, &viewed);
+	vc = vcs_vc(iyesde, &viewed);
 	if (!vc)
 		goto unlock_out;
 
@@ -292,7 +292,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		 * as copy_to_user at the end of this loop
 		 * could sleep.
 		 */
-		size = vcs_size(inode);
+		size = vcs_size(iyesde);
 		if (size < 0) {
 			if (read)
 				break;
@@ -396,7 +396,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 				p += maxcol - col;
 
 				/* Buffer has even length, so we can always copy
-				 * character + attribute. We do not copy last byte
+				 * character + attribute. We do yest copy last byte
 				 * to userspace if this_round is odd.
 				 */
 				this_round = (this_round + 1) >> 1;
@@ -446,7 +446,7 @@ unlock_out:
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct vc_data *vc;
 	long pos;
 	long attr, size, written;
@@ -456,7 +456,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	size_t ret;
 	char *con_buf;
 
-	if (use_unicode(inode))
+	if (use_unicode(iyesde))
 		return -EOPNOTSUPP;
 
 	con_buf = (char *) __get_free_page(GFP_KERNEL);
@@ -470,13 +470,13 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	 */
 	console_lock();
 
-	attr = use_attributes(inode);
+	attr = use_attributes(iyesde);
 	ret = -ENXIO;
-	vc = vcs_vc(inode, &viewed);
+	vc = vcs_vc(iyesde, &viewed);
 	if (!vc)
 		goto unlock_out;
 
-	size = vcs_size(inode);
+	size = vcs_size(iyesde);
 	ret = -EINVAL;
 	if (pos < 0 || pos > size)
 		goto unlock_out;
@@ -501,7 +501,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		if (ret) {
 			this_round -= ret;
 			if (!this_round) {
-				/* Abort loop if no data were copied. Otherwise
+				/* Abort loop if yes data were copied. Otherwise
 				 * fail with -EFAULT.
 				 */
 				if (written)
@@ -513,9 +513,9 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 		/* The vcs_size might have changed while we slept to grab
 		 * the user buffer, so recheck.
-		 * Return data written up to now on failure.
+		 * Return data written up to yesw on failure.
 		 */
-		size = vcs_size(inode);
+		size = vcs_size(iyesde);
 		if (size < 0) {
 			if (written)
 				break;
@@ -527,7 +527,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		if (this_round > size - pos)
 			this_round = size - pos;
 
-		/* OK, now actually push the write to the console
+		/* OK, yesw actually push the write to the console
 		 * under the lock using the local kernel buffer.
 		 */
 
@@ -674,11 +674,11 @@ vcs_fasync(int fd, struct file *file, int on)
 }
 
 static int
-vcs_open(struct inode *inode, struct file *filp)
+vcs_open(struct iyesde *iyesde, struct file *filp)
 {
-	unsigned int currcons = console(inode);
-	bool attr = use_attributes(inode);
-	bool uni_mode = use_unicode(inode);
+	unsigned int currcons = console(iyesde);
+	bool attr = use_attributes(iyesde);
+	bool uni_mode = use_unicode(iyesde);
 	int ret = 0;
 
 	/* we currently don't support attributes in unicode mode */
@@ -692,7 +692,7 @@ vcs_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int vcs_release(struct inode *inode, struct file *file)
+static int vcs_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vcs_poll_data *poll = file->private_data;
 

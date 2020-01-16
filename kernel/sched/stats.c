@@ -56,8 +56,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_imbalance[itype],
 				    sd->lb_gained[itype],
 				    sd->lb_hot_gained[itype],
-				    sd->lb_nobusyq[itype],
-				    sd->lb_nobusyg[itype]);
+				    sd->lb_yesbusyq[itype],
+				    sd->lb_yesbusyg[itype]);
 			}
 			seq_printf(seq,
 				   " %u %u %u %u %u %u %u %u %u %u %u %u\n",

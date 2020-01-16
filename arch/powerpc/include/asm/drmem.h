@@ -89,12 +89,12 @@ static inline bool drmem_lmb_reserved(struct drmem_lmb *lmb)
 }
 
 u64 drmem_lmb_memory_max(void);
-void __init walk_drmem_lmbs(struct device_node *dn,
+void __init walk_drmem_lmbs(struct device_yesde *dn,
 			void (*func)(struct drmem_lmb *, const __be32 **));
 int drmem_update_dt(void);
 
 #ifdef CONFIG_PPC_PSERIES
-void __init walk_drmem_lmbs_early(unsigned long node,
+void __init walk_drmem_lmbs_early(unsigned long yesde,
 			void (*func)(struct drmem_lmb *, const __be32 **));
 #endif
 

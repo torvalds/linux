@@ -40,7 +40,7 @@ void ibmasm_receive_message(struct service_processor *sp, void *message, int mes
 		ibmasm_receive_heartbeat(sp, message, size);
 		break;
 	default:
-		dev_err(sp->dev, "Received unknown message from service processor\n");
+		dev_err(sp->dev, "Received unkyeswn message from service processor\n");
 	}
 }
 

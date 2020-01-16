@@ -22,7 +22,7 @@
  * Copyright 2002 Andi Kleen, SuSE Labs.
  *
  * This hasn't been optimized for the hammer yet, but there are likely
- * no advantages to be gotten from x86-64 here anyways.
+ * yes advantages to be gotten from x86-64 here anyways.
  */
 
 #include <asm/fpu/api.h>

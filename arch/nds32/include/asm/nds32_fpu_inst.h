@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2005-2018 Andes Technology Corporation */
+/* Copyright (C) 2005-2018 Andes Techyeslogy Corporation */
 
 #ifndef __NDS32_FPU_INST_H
 #define __NDS32_FPU_INST_H

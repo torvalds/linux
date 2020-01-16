@@ -18,7 +18,7 @@
 #include <linux/pm.h>
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #ifdef CONFIG_MIPS
 #include <asm/traps.h>
@@ -262,24 +262,24 @@ static irqreturn_t brcmstb_gisb_tea_handler(int irq, void *dev_id)
 /*
  * Dump out gisb errors on die or panic.
  */
-static int dump_gisb_error(struct notifier_block *self, unsigned long v,
+static int dump_gisb_error(struct yestifier_block *self, unsigned long v,
 			   void *p);
 
-static struct notifier_block gisb_die_notifier = {
-	.notifier_call = dump_gisb_error,
+static struct yestifier_block gisb_die_yestifier = {
+	.yestifier_call = dump_gisb_error,
 };
 
-static struct notifier_block gisb_panic_notifier = {
-	.notifier_call = dump_gisb_error,
+static struct yestifier_block gisb_panic_yestifier = {
+	.yestifier_call = dump_gisb_error,
 };
 
-static int dump_gisb_error(struct notifier_block *self, unsigned long v,
+static int dump_gisb_error(struct yestifier_block *self, unsigned long v,
 			   void *p)
 {
 	struct brcmstb_gisb_arb_device *gdev;
 	const char *reason = "panic";
 
-	if (self == &gisb_die_notifier)
+	if (self == &gisb_die_yestifier)
 		reason = "die";
 
 	/* iterate over each GISB arb registered handlers */
@@ -313,7 +313,7 @@ static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
 
 static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct brcmstb_gisb_arb_device *gdev;
 	const struct of_device_id *of_id;
 	struct resource *r;
@@ -336,7 +336,7 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	if (IS_ERR(gdev->base))
 		return PTR_ERR(gdev->base);
 
-	of_id = of_match_node(brcmstb_gisb_arb_of_match, dn);
+	of_id = of_match_yesde(brcmstb_gisb_arb_of_match, dn);
 	if (!of_id) {
 		pr_err("failed to look up compatible string\n");
 		return -EINVAL;
@@ -356,7 +356,7 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	/* If we do not have a valid mask, assume all masters are enabled */
+	/* If we do yest have a valid mask, assume all masters are enabled */
 	if (of_property_read_u32(dn, "brcm,gisb-arb-master-mask",
 				&gdev->valid_mask))
 		gdev->valid_mask = 0xffffffff;
@@ -394,9 +394,9 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 #endif
 
 	if (list_is_singular(&brcmstb_gisb_arb_device_list)) {
-		register_die_notifier(&gisb_die_notifier);
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &gisb_panic_notifier);
+		register_die_yestifier(&gisb_die_yestifier);
+		atomic_yestifier_chain_register(&panic_yestifier_list,
+					       &gisb_panic_yestifier);
 	}
 
 	dev_info(&pdev->dev, "registered irqs: %d, %d\n",
@@ -418,7 +418,7 @@ static int brcmstb_gisb_arb_suspend(struct device *dev)
 /* Make sure we provide the same timeout value that was configured before, and
  * do this before the GISB timeout interrupt handler has any chance to run.
  */
-static int brcmstb_gisb_arb_resume_noirq(struct device *dev)
+static int brcmstb_gisb_arb_resume_yesirq(struct device *dev)
 {
 	struct brcmstb_gisb_arb_device *gdev = dev_get_drvdata(dev);
 
@@ -428,12 +428,12 @@ static int brcmstb_gisb_arb_resume_noirq(struct device *dev)
 }
 #else
 #define brcmstb_gisb_arb_suspend       NULL
-#define brcmstb_gisb_arb_resume_noirq  NULL
+#define brcmstb_gisb_arb_resume_yesirq  NULL
 #endif
 
 static const struct dev_pm_ops brcmstb_gisb_arb_pm_ops = {
 	.suspend	= brcmstb_gisb_arb_suspend,
-	.resume_noirq	= brcmstb_gisb_arb_resume_noirq,
+	.resume_yesirq	= brcmstb_gisb_arb_resume_yesirq,
 };
 
 static struct platform_driver brcmstb_gisb_arb_driver = {

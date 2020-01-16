@@ -127,24 +127,24 @@ static inline int timespec_compare(const struct timespec *lhs, const struct time
 }
 
 /*
- * Returns true if the timespec is norm, false if denorm:
+ * Returns true if the timespec is yesrm, false if deyesrm:
  */
 static inline bool timespec_valid(const struct timespec *ts)
 {
 	/* Dates before 1970 are bogus */
 	if (ts->tv_sec < 0)
 		return false;
-	/* Can't have more nanoseconds then a second */
+	/* Can't have more nayesseconds then a second */
 	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
 		return false;
 	return true;
 }
 
 /**
- * timespec_to_ns - Convert timespec to nanoseconds
+ * timespec_to_ns - Convert timespec to nayesseconds
  * @ts:		pointer to the timespec variable to be converted
  *
- * Returns the scalar nanosecond representation of the timespec
+ * Returns the scalar nayessecond representation of the timespec
  * parameter.
  */
 static inline s64 timespec_to_ns(const struct timespec *ts)
@@ -153,20 +153,20 @@ static inline s64 timespec_to_ns(const struct timespec *ts)
 }
 
 /**
- * ns_to_timespec - Convert nanoseconds to timespec
- * @nsec:	the nanoseconds value to be converted
+ * ns_to_timespec - Convert nayesseconds to timespec
+ * @nsec:	the nayesseconds value to be converted
  *
  * Returns the timespec representation of the nsec parameter.
  */
 extern struct timespec ns_to_timespec(const s64 nsec);
 
 /**
- * timespec_add_ns - Adds nanoseconds to a timespec
+ * timespec_add_ns - Adds nayesseconds to a timespec
  * @a:		pointer to timespec to be incremented
- * @ns:		unsigned nanoseconds value to be added
+ * @ns:		unsigned nayesseconds value to be added
  *
  * This must always be inlined because its used from the x86-64 vdso,
- * which cannot call other kernel functions.
+ * which canyest call other kernel functions.
  */
 static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 {
@@ -196,10 +196,10 @@ static inline bool timeval_valid(const struct timeval *tv)
 }
 
 /**
- * timeval_to_ns - Convert timeval to nanoseconds
+ * timeval_to_ns - Convert timeval to nayesseconds
  * @ts:		pointer to the timeval variable to be converted
  *
- * Returns the scalar nanosecond representation of the timeval
+ * Returns the scalar nayessecond representation of the timeval
  * parameter.
  */
 static inline s64 timeval_to_ns(const struct timeval *tv)
@@ -209,8 +209,8 @@ static inline s64 timeval_to_ns(const struct timeval *tv)
 }
 
 /**
- * ns_to_timeval - Convert nanoseconds to timeval
- * @nsec:	the nanoseconds value to be converted
+ * ns_to_timeval - Convert nayesseconds to timeval
+ * @nsec:	the nayesseconds value to be converted
  *
  * Returns the timeval representation of the nsec parameter.
  */

@@ -8,7 +8,7 @@
 #include "i40e_alloc.h"
 #include <linux/avf/virtchnl.h>
 
-/* Prototypes for shared code functions that are not in
+/* Prototypes for shared code functions that are yest in
  * the standard function pointer structures.  These are
  * mostly because they are needed even before the init
  * has happened and will assist in the early SW and FW
@@ -61,9 +61,9 @@ i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
 /* admin send queue commands */
 
 i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
-				u16 *fw_major_version, u16 *fw_minor_version,
+				u16 *fw_major_version, u16 *fw_miyesr_version,
 				u32 *fw_build,
-				u16 *api_major_version, u16 *api_minor_version,
+				u16 *api_major_version, u16 *api_miyesr_version,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
 					u32 reg_addr, u64 reg_val,

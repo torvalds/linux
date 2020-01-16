@@ -139,7 +139,7 @@ static int salsa20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	ctx->initial_state[10] = get_unaligned_le32(constants + 8);
 	ctx->initial_state[15] = get_unaligned_le32(constants + 12);
 
-	/* space for the nonce; it will be overridden for each request */
+	/* space for the yesnce; it will be overridden for each request */
 	ctx->initial_state[6] = 0;
 	ctx->initial_state[7] = 0;
 

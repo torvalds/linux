@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) AND MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) AND MIT) */
 /*
  *  compress_params.h - codec types and parameters for compressed data
  *  streaming interface
  *
  *  Copyright (C) 2011 Intel Corporation
  *  Authors:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
- *              Vinod Koul <vinod.koul@linux.intel.com>
+ *              Viyesd Koul <viyesd.koul@linux.intel.com>
  *
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -19,15 +19,15 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * The definitions in this file are derived from the OpenMAX AL version 1.1
- * and OpenMAX IL v 1.1.2 header files which contain the copyright notice below.
+ * and OpenMAX IL v 1.1.2 header files which contain the copyright yestice below.
  *
- * Copyright (c) 2007-2010 The Khronos Group Inc.
+ * Copyright (c) 2007-2010 The Khroyess Group Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and/or associated documentation files (the
@@ -37,7 +37,7 @@
  * permit persons to whom the Materials are furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Materials.
  *
  * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -79,7 +79,7 @@
 
 /*
  * Profile and modes are listed with bit masks. This allows for a
- * more compact representation of fields that will not evolve
+ * more compact representation of fields that will yest evolve
  * (in contrast to the list of codecs)
  */
 
@@ -197,7 +197,7 @@
 /*
  * IEC modes are mandatory for decoders. Format autodetection
  * will only happen on the DSP side with mode 0. The PCM mode should
- * not be used, the PCM codec should be used instead.
+ * yest be used, the PCM codec should be used instead.
  */
 #define SND_AUDIOMODE_IEC_REF_STREAM_HEADER  ((__u32) 0x00000000)
 #define SND_AUDIOMODE_IEC_LPCM		     ((__u32) 0x00000001)
@@ -230,7 +230,7 @@
 #define SND_AUDIOMODE_G729_ANNEX_A           ((__u32) 0x00000001)
 #define SND_AUDIOMODE_G729_ANNEX_B           ((__u32) 0x00000002)
 
-/* <FIXME: multichannel encoders aren't supported for now. Would need
+/* <FIXME: multichannel encoders aren't supported for yesw. Would need
    an additional definition of channel arrangement> */
 
 /* VBR/CBR definitions */
@@ -250,13 +250,13 @@ struct snd_enc_wma {
  * In the default mode of operation, the quality level is 3.
  * Normal quality range is 0 - 10.
  * @managed: Boolean. Set  bitrate  management  mode. This turns off the
- * normal VBR encoding, but allows hard or soft bitrate constraints to be
+ * yesrmal VBR encoding, but allows hard or soft bitrate constraints to be
  * enforced by the encoder. This mode can be slower, and may also be
  * lower quality. It is primarily useful for streaming.
  * @max_bit_rate: Enabled only if managed is TRUE
  * @min_bit_rate: Enabled only if managed is TRUE
- * @downmix: Boolean. Downmix input from stereo to mono (has no effect on
- * non-stereo streams). Useful for lower-bitrate encoding.
+ * @downmix: Boolean. Downmix input from stereo to moyes (has yes effect on
+ * yesn-stereo streams). Useful for lower-bitrate encoding.
  *
  * These options were extracted from the OpenMAX IL spec and Gstreamer vorbisenc
  * properties
@@ -303,8 +303,8 @@ struct snd_enc_real {
  *
  * By default the Subset format is used by encoders.
  *
- * TAGS such as pictures, etc, cannot be handled by an offloaded encoder and are
- * not supported in this API.
+ * TAGS such as pictures, etc, canyest be handled by an offloaded encoder and are
+ * yest supported in this API.
  */
 
 struct snd_enc_flac {
@@ -381,10 +381,10 @@ struct snd_codec_desc {
  *		overrides.
  * @sample_rate: Audio sample rate of input data in Hz, use values like 48000
  *		for this.
- * @bit_rate: Bitrate of encoded data. May be ignored by decoders
+ * @bit_rate: Bitrate of encoded data. May be igyesred by decoders
  * @rate_control: Encoding rate control. See SND_RATECONTROLMODE defines.
  *               Encoders may rely on profiles for quality levels.
- *		 May be ignored by decoders.
+ *		 May be igyesred by decoders.
  * @profile: Mandatory for encoders, can be mandatory for specific
  *		decoders as well. See SND_AUDIOPROFILE defines.
  * @level: Supported level (Only used by WMA at the moment)

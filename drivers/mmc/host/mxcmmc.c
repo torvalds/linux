@@ -5,7 +5,7 @@
  *  This is a driver for the SDHC controller found in Freescale MX2/MX3
  *  SoCs. It is basically the same hardware as found on MX1 (imxmmc.c).
  *  Unlike the hardware found on MX1, this hardware just works and does
- *  not need all the quirks found in imxmmc.c, hence the separate driver.
+ *  yest need all the quirks found in imxmmc.c, hence the separate driver.
  *
  *  Copyright (C) 2008 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
  *  Copyright (C) 2006 Pavel Pisa, PiKRON <ppisa@pikron.com>
@@ -137,7 +137,7 @@ struct mxcmci_host {
 	unsigned int		datasize;
 	unsigned int		dma_dir;
 
-	u16			rev_no;
+	u16			rev_yes;
 	unsigned int		cmdat;
 
 	struct clk		*clk_ipg;
@@ -295,9 +295,9 @@ static inline void mxcmci_swap_buffers(struct mmc_data *data) {}
 
 static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 {
-	unsigned int nob = data->blocks;
+	unsigned int yesb = data->blocks;
 	unsigned int blksz = data->blksz;
-	unsigned int datasize = nob * blksz;
+	unsigned int datasize = yesb * blksz;
 	struct scatterlist *sg;
 	enum dma_transfer_direction slave_dirn;
 	int i, nents;
@@ -305,7 +305,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	host->data = data;
 	data->bytes_xfered = 0;
 
-	mxcmci_writew(host, nob, MMC_REG_NOB);
+	mxcmci_writew(host, yesb, MMC_REG_NOB);
 	mxcmci_writew(host, blksz, MMC_REG_BLK_LEN);
 	host->datasize = datasize;
 
@@ -703,7 +703,7 @@ static void mxcmci_cmd_done(struct mxcmci_host *host, unsigned int stat)
 	}
 
 	/* For the DMA case the DMA engine handles the data transfer
-	 * automatically. For non DMA we have to do it ourselves.
+	 * automatically. For yesn DMA we have to do it ourselves.
 	 * Don't do it in interrupt context though.
 	 */
 	if (!mxcmci_use_dma(host) && host->data)
@@ -902,7 +902,7 @@ static int mxcmci_get_ro(struct mmc_host *mmc)
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
 	/*
-	 * If board doesn't support read only detection (no mmc_gpio
+	 * If board doesn't support read only detection (yes mmc_gpio
 	 * context or gpio is invalid), then let the mmc core decide
 	 * what to do.
 	 */
@@ -1062,7 +1062,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	if (pdata)
 		dat3_card_detect = pdata->dat3_card_detect;
 	else if (mmc_card_is_removable(mmc)
-			&& !of_property_read_bool(pdev->dev.of_node, "cd-gpios"))
+			&& !of_property_read_bool(pdev->dev.of_yesde, "cd-gpios"))
 		dat3_card_detect = true;
 
 	ret = mmc_regulator_get_supply(mmc);
@@ -1104,11 +1104,11 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	mxcmci_softreset(host);
 
-	host->rev_no = mxcmci_readw(host, MMC_REG_REV_NO);
-	if (host->rev_no != 0x400) {
+	host->rev_yes = mxcmci_readw(host, MMC_REG_REV_NO);
+	if (host->rev_yes != 0x400) {
 		ret = -ENODEV;
-		dev_err(mmc_dev(host->mmc), "wrong rev.no. 0x%08x. aborting.\n",
-			host->rev_no);
+		dev_err(mmc_dev(host->mmc), "wrong rev.yes. 0x%08x. aborting.\n",
+			host->rev_yes);
 		goto out_clk_put;
 	}
 
@@ -1138,7 +1138,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 		mmc->max_seg_size = dma_get_max_seg_size(
 				host->dma->device->dev);
 	else
-		dev_info(mmc_dev(host->mmc), "dma not available. Using PIO\n");
+		dev_info(mmc_dev(host->mmc), "dma yest available. Using PIO\n");
 
 	INIT_WORK(&host->datawork, mxcmci_datawork);
 

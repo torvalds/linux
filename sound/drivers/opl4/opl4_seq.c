@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed and/or modified under the
@@ -101,9 +101,9 @@ static int snd_opl4_seq_unuse(void *private_data, struct snd_seq_port_subscribe 
 }
 
 static struct snd_midi_op opl4_ops = {
-	.note_on =		snd_opl4_note_on,
-	.note_off =		snd_opl4_note_off,
-	.note_terminate =	snd_opl4_terminate_note,
+	.yeste_on =		snd_opl4_yeste_on,
+	.yeste_off =		snd_opl4_yeste_off,
+	.yeste_terminate =	snd_opl4_terminate_yeste,
 	.control =		snd_opl4_control,
 	.sysex =		snd_opl4_sysex,
 };

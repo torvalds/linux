@@ -316,10 +316,10 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
  *  writing zeroes to the device.
  *
  *  If a device is using logical block provisioning, the underlying space will
- *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
+ *  yest be released if %flags contains BLKDEV_ZERO_NOUNMAP.
  *
  *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
- *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
+ *  -EOPNOTSUPP if yes explicit hardware offload for zeroing is provided.
  */
 int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
@@ -395,7 +395,7 @@ retry:
 			/*
 			 * Zeroing offload support was indicated, but the
 			 * device reported ILLEGAL REQUEST (for some devices
-			 * there is no non-destructive way to verify whether
+			 * there is yes yesn-destructive way to verify whether
 			 * WRITE ZEROES is actually supported).
 			 */
 			ret = -EOPNOTSUPP;

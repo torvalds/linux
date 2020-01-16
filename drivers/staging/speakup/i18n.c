@@ -27,7 +27,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_ON_BLINKING] = "on blinking",
 	[MSG_OFF] = "off",
 	[MSG_ON] = "on",
-	[MSG_NO_WINDOW] = "no window",
+	[MSG_NO_WINDOW] = "yes window",
 	[MSG_CURSORING_OFF] = "cursoring off",
 	[MSG_CURSORING_ON] = "cursoring on",
 	[MSG_HIGHLIGHT_TRACKING] = "highlight tracking",
@@ -65,7 +65,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_WINDOW_LINE] = "window is line %d",
 	[MSG_WINDOW_BOUNDARY] = "%s at line %d, column %d",
 	[MSG_EDIT_PROMPT] = "edit  %s, press space when done",
-	[MSG_NO_COMMAND] = "no commands for %c",
+	[MSG_NO_COMMAND] = "yes commands for %c",
 	[MSG_KEYDESC] = "is %s",
 
 	/* Control keys. */
@@ -379,7 +379,7 @@ static struct msg_group_t all_groups[] = {
 		.end = MSG_KEYNAMES_END,
 	},
 	{
-		.name = "announcements",
+		.name = "anyesuncements",
 		.start = MSG_ANNOUNCEMENTS_START,
 		.end = MSG_ANNOUNCEMENTS_END,
 	},
@@ -401,7 +401,7 @@ char *spk_msg_get(enum msg_index_t index)
  * Function: next_specifier
  * Finds the start of the next format specifier in the argument string.
  * Return value: pointer to start of format
- * specifier, or NULL if no specifier exists.
+ * specifier, or NULL if yes specifier exists.
  */
 static char *next_specifier(char *input)
 {

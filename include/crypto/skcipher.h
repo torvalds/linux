@@ -56,12 +56,12 @@ struct crypto_sync_skcipher {
  * @min_keysize: Minimum key size supported by the transformation. This is the
  *		 smallest key length supported by this transformation algorithm.
  *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
+ *		 yest hardware specific. Possible values for this field can be
  *		 found via git grep "_MIN_KEY_SIZE" include/crypto/
  * @max_keysize: Maximum key size supported by the transformation. This is the
  *		 largest key length supported by this transformation algorithm.
  *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
+ *		 yest hardware specific. Possible values for this field can be
  *		 found via git grep "_MAX_KEY_SIZE" include/crypto/
  * @setkey: Set key for the transformation. This function is used to either
  *	    program a supplied key into the hardware or store the key in the
@@ -82,7 +82,7 @@ struct crypto_sync_skcipher {
  *	     the algorithm doesn't support all of the key sizes. In case the
  *	     key was stored in transformation context, the key might need to be
  *	     re-programmed into the hardware in this function. This function
- *	     shall not modify the transformation context, as this function may
+ *	     shall yest modify the transformation context, as this function may
  *	     be called in parallel with the same transformation object.
  * @decrypt: Decrypt a single block. This is a reverse counterpart to @encrypt
  *	     and the conditions are exactly the same.
@@ -144,7 +144,7 @@ struct skcipher_alg {
  * Symmetric key cipher API is used with the ciphers of type
  * CRYPTO_ALG_TYPE_SKCIPHER (listed as type "skcipher" in /proc/crypto).
  *
- * Asynchronous cipher operations imply that the function invocation for a
+ * Asynchroyesus cipher operations imply that the function invocation for a
  * cipher request returns immediately before the completion of the operation.
  * The cipher request is scheduled as a separate kernel thread and therefore
  * load-balanced on the different CPUs via the process scheduler. To allow
@@ -152,13 +152,13 @@ struct skcipher_alg {
  * request, the caller must provide a callback function. That function is
  * invoked with the cipher handle when the request completes.
  *
- * To support the asynchronous operation, additional information than just the
+ * To support the asynchroyesus operation, additional information than just the
  * cipher handle must be supplied to the kernel crypto API. That additional
  * information is given by filling in the skcipher_request data structure.
  *
  * For the symmetric key cipher API, the state is maintained with the tfm
  * cipher handle. A single tfm can be used across multiple calls and in
- * parallel. For asynchronous block cipher calls, context data supplied and
+ * parallel. For asynchroyesus block cipher calls, context data supplied and
  * only used by the caller can be referenced the request data structure in
  * addition to the IV used for the cipher request. The maintenance of such
  * state information would be important for a crypto driver implementer to
@@ -221,7 +221,7 @@ static inline void crypto_free_sync_skcipher(struct crypto_sync_skcipher *tfm)
  * @type: specifies the type of the skcipher
  * @mask: specifies the mask for the skcipher
  *
- * Return: true when the skcipher is known to the kernel crypto API; false
+ * Return: true when the skcipher is kyeswn to the kernel crypto API; false
  *	   otherwise
  */
 int crypto_has_skcipher(const char *alg_name, u32 type, u32 mask);
@@ -249,7 +249,7 @@ static inline unsigned int crypto_skcipher_alg_ivsize(struct skcipher_alg *alg)
  * @tfm: cipher handle
  *
  * The size of the IV for the skcipher referenced by the cipher handle is
- * returned. This IV size may be zero if the cipher does not need an IV.
+ * returned. This IV size may be zero if the cipher does yest need an IV.
  *
  * Return: IV size in bytes
  */
@@ -292,8 +292,8 @@ static inline unsigned int crypto_skcipher_alg_chunksize(
  *
  * The block size is set to one for ciphers such as CTR.  However,
  * you still need to provide incremental updates in multiples of
- * the underlying block size as the IV does not have sub-block
- * granularity.  This is known in this API as the chunk size.
+ * the underlying block size as the IV does yest have sub-block
+ * granularity.  This is kyeswn in this API as the chunk size.
  *
  * Return: chunk size in bytes
  */
@@ -439,7 +439,7 @@ int crypto_skcipher_decrypt(struct skcipher_request *req);
  * The skcipher_request data structure contains all pointers to data
  * required for the symmetric key cipher operation. This includes the cipher
  * handle (which can be used by multiple skcipher_request instances), pointer
- * to plaintext and ciphertext, asynchronous callback function, etc. It acts
+ * to plaintext and ciphertext, asynchroyesus callback function, etc. It acts
  * as a handle to the skcipher_request_* API calls in a similar way as
  * skcipher handle to the crypto_skcipher_* API calls.
  */
@@ -523,17 +523,17 @@ static inline void skcipher_request_zero(struct skcipher_request *req)
 }
 
 /**
- * skcipher_request_set_callback() - set asynchronous callback function
+ * skcipher_request_set_callback() - set asynchroyesus callback function
  * @req: request handle
  * @flags: specify zero or an ORing of the flags
  *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
  *	   increase the wait queue beyond the initial maximum size;
  *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
  * @compl: callback function pointer to be registered with the request handle
- * @data: The data pointer refers to memory that is not used by the kernel
+ * @data: The data pointer refers to memory that is yest used by the kernel
  *	  crypto API, but provided to the callback function for it to use. Here,
  *	  the caller can provide a reference to memory the callback function can
- *	  operate on. As the callback function is invoked asynchronously to the
+ *	  operate on. As the callback function is invoked asynchroyesusly to the
  *	  related functionality, it may need to access data structures of the
  *	  related functionality which can be referenced using this pointer. The
  *	  callback function can access the memory via the "data" field in the

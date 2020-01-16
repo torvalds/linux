@@ -28,7 +28,7 @@ static struct buf_cache_t *FAT_cache_find(struct super_block *sb, sector_t sec)
 	for (bp = hp->hash_next; bp != hp; bp = bp->hash_next) {
 		if ((bp->drv == p_fs->drv) && (bp->sec == sec)) {
 			WARN(!bp->buf_bh,
-			     "[EXFAT] FAT_cache has no bh. It will make system panic.\n");
+			     "[EXFAT] FAT_cache has yes bh. It will make system panic.\n");
 
 			touch_buffer(bp->buf_bh);
 			return bp;

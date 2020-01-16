@@ -3,7 +3,7 @@
 A device which handles data aquisition from compatible USB based peripherals.
 SPI is used for device management.
 
-Note: This device does not expose the peripherals as USB devices.
+Note: This device does yest expose the peripherals as USB devices.
 
 Required properties:
 

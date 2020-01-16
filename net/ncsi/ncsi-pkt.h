@@ -161,7 +161,7 @@ struct ncsi_rsp_oem_pkt {
 	unsigned char           data[];      /* Payload data      */
 };
 
-/* Mellanox Response Data */
+/* Mellayesx Response Data */
 struct ncsi_rsp_oem_mlx_pkt {
 	unsigned char           cmd_rev;     /* Command Revision  */
 	unsigned char           cmd;         /* Command ID        */
@@ -431,10 +431,10 @@ struct ncsi_aen_hncdsc_pkt {
 #define NCSI_PKT_RSP_C_UNAVAILABLE	0x0002 /* Command Unavailable      */
 #define NCSI_PKT_RSP_C_UNSUPPORTED	0x0003 /* Command Unsupported      */
 #define NCSI_PKT_RSP_R_NO_ERROR		0x0000 /* No Error                 */
-#define NCSI_PKT_RSP_R_INTERFACE	0x0001 /* Interface not ready      */
+#define NCSI_PKT_RSP_R_INTERFACE	0x0001 /* Interface yest ready      */
 #define NCSI_PKT_RSP_R_PARAM		0x0002 /* Invalid Parameter        */
-#define NCSI_PKT_RSP_R_CHANNEL		0x0003 /* Channel not Ready        */
-#define NCSI_PKT_RSP_R_PACKAGE		0x0004 /* Package not Ready        */
+#define NCSI_PKT_RSP_R_CHANNEL		0x0003 /* Channel yest Ready        */
+#define NCSI_PKT_RSP_R_PACKAGE		0x0004 /* Package yest Ready        */
 #define NCSI_PKT_RSP_R_LENGTH		0x0005 /* Invalid payload length   */
 #define NCSI_PKT_RSP_R_UNKNOWN		0x7fff /* Command type unsupported */
 

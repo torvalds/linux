@@ -2,7 +2,7 @@
 //
 // Device driver for regulators in Hi6421 IC
 //
-// Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+// Copyright (c) <2011-2014> HiSilicon Techyeslogies Co., Ltd.
 //              http://www.hisilicon.com
 // Copyright (c) <2013-2014> Linaro Ltd.
 //              http://www.linaro.org
@@ -132,7 +132,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.ops		= &hi6421_ldo_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -171,7 +171,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.ops		= &hi6421_ldo_linear_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -211,7 +211,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.ops		= &hi6421_ldo_linear_range_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -248,7 +248,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.ops		= &hi6421_buck012_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -285,7 +285,7 @@ static const struct regulator_ops hi6421_buck345_ops;
 		.desc = {						\
 			.name		= #_id,				\
 			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.ops		= &hi6421_buck345_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -371,7 +371,7 @@ static int hi6421_regulator_enable(struct regulator_dev *rdev)
 	pdata = dev_get_drvdata(rdev->dev.parent);
 	/* hi6421 spec requires regulator enablement must be serialized:
 	 *  - Because when BUCK, LDO switching from off to on, it will have
-	 *    a huge instantaneous current; so you can not turn on two or
+	 *    a huge instantaneous current; so you can yest turn on two or
 	 *    more LDO or BUCKs simultaneously, or it may burn the chip.
 	 */
 	mutex_lock(&pdata->lock);

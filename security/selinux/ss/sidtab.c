@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2018 Red Hat, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -178,11 +178,11 @@ static int sidtab_find_context(union sidtab_entry_inner entry,
 	u32 i;
 
 	if (level != 0) {
-		struct sidtab_node_inner *node = entry.ptr_inner;
+		struct sidtab_yesde_inner *yesde = entry.ptr_inner;
 
 		i = 0;
 		while (i < SIDTAB_INNER_ENTRIES && *pos < count) {
-			rc = sidtab_find_context(node->entries[i],
+			rc = sidtab_find_context(yesde->entries[i],
 						 pos, count, level - 1,
 						 context, index);
 			if (rc == 0)
@@ -190,11 +190,11 @@ static int sidtab_find_context(union sidtab_entry_inner entry,
 			i++;
 		}
 	} else {
-		struct sidtab_node_leaf *node = entry.ptr_leaf;
+		struct sidtab_yesde_leaf *yesde = entry.ptr_leaf;
 
 		i = 0;
 		while (i < SIDTAB_LEAF_ENTRIES && *pos < count) {
-			if (context_cmp(&node->entries[i].context, context)) {
+			if (context_cmp(&yesde->entries[i].context, context)) {
 				*index = *pos;
 				return 0;
 			}
@@ -264,7 +264,7 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 		return 0;
 	}
 
-	/* lock-free search failed: lock, re-search, and insert if not found */
+	/* lock-free search failed: lock, re-search, and insert if yest found */
 	spin_lock_irqsave(&s->lock, flags);
 
 	convert = s->convert;
@@ -315,12 +315,12 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 			goto out_unlock;
 		}
 
-		/* at this point we know the insert won't fail */
+		/* at this point we kyesw the insert won't fail */
 		convert->target->count = count + 1;
 	}
 
 	if (context->len)
-		pr_info("SELinux:  Context %s is not valid (left unmapped).\n",
+		pr_info("SELinux:  Context %s is yest valid (left unmapped).\n",
 			context->str);
 
 	sidtab_rcache_push(s, count);
@@ -411,7 +411,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 
 	spin_lock_irqsave(&s->lock, flags);
 
-	/* concurrent policy loads are not allowed */
+	/* concurrent policy loads are yest allowed */
 	if (s->convert) {
 		spin_unlock_irqrestore(&s->lock, flags);
 		return -EBUSY;
@@ -429,7 +429,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 		return rc;
 	}
 
-	/* set count in case no new entries are added during conversion */
+	/* set count in case yes new entries are added during conversion */
 	params->target->count = count;
 
 	/* enable live convert of new entries */
@@ -440,7 +440,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 
 	pr_info("SELinux:  Converting %u SID table entries...\n", count);
 
-	/* convert all entries not covered by live convert */
+	/* convert all entries yest covered by live convert */
 	pos = 0;
 	rc = sidtab_convert_tree(&params->target->roots[level],
 				 &s->roots[level], &pos, count, level, params);
@@ -458,23 +458,23 @@ static void sidtab_destroy_tree(union sidtab_entry_inner entry, u32 level)
 	u32 i;
 
 	if (level != 0) {
-		struct sidtab_node_inner *node = entry.ptr_inner;
+		struct sidtab_yesde_inner *yesde = entry.ptr_inner;
 
-		if (!node)
+		if (!yesde)
 			return;
 
 		for (i = 0; i < SIDTAB_INNER_ENTRIES; i++)
-			sidtab_destroy_tree(node->entries[i], level - 1);
-		kfree(node);
+			sidtab_destroy_tree(yesde->entries[i], level - 1);
+		kfree(yesde);
 	} else {
-		struct sidtab_node_leaf *node = entry.ptr_leaf;
+		struct sidtab_yesde_leaf *yesde = entry.ptr_leaf;
 
-		if (!node)
+		if (!yesde)
 			return;
 
 		for (i = 0; i < SIDTAB_LEAF_ENTRIES; i++)
-			context_destroy(&node->entries[i].context);
-		kfree(node);
+			context_destroy(&yesde->entries[i].context);
+		kfree(yesde);
 	}
 }
 

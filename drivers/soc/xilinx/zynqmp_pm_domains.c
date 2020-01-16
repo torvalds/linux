@@ -20,7 +20,7 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 
 #define ZYNQMP_NUM_DOMAINS		(100)
-/* Flag stating if PM nodes mapped to the PM domain has been requested */
+/* Flag stating if PM yesdes mapped to the PM domain has been requested */
 #define ZYNQMP_PM_DOMAIN_REQUESTED	BIT(0)
 
 static const struct zynqmp_eemi_ops *eemi_ops;
@@ -30,12 +30,12 @@ static int min_capability;
 /**
  * struct zynqmp_pm_domain - Wrapper around struct generic_pm_domain
  * @gpd:		Generic power domain
- * @node_id:		PM node ID corresponding to device inside PM domain
+ * @yesde_id:		PM yesde ID corresponding to device inside PM domain
  * @flags:		ZynqMP PM domain flags
  */
 struct zynqmp_pm_domain {
 	struct generic_pm_domain gpd;
-	u32 node_id;
+	u32 yesde_id;
 	u8 flags;
 };
 
@@ -43,14 +43,14 @@ struct zynqmp_pm_domain {
  * zynqmp_gpd_is_active_wakeup_path() - Check if device is in wakeup source
  *					path
  * @dev:	Device to check for wakeup source path
- * @not_used:	Data member (not required)
+ * @yest_used:	Data member (yest required)
  *
  * This function is checks device's child hierarchy and checks if any device is
  * set as wakeup source.
  *
  * Return: 1 if device is in wakeup source path else 0
  */
-static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *not_used)
+static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *yest_used)
 {
 	int may_wakeup;
 
@@ -80,13 +80,13 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 		return -ENXIO;
 
 	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
-	ret = eemi_ops->set_requirement(pd->node_id,
+	ret = eemi_ops->set_requirement(pd->yesde_id,
 					ZYNQMP_PM_CAPABILITY_ACCESS,
 					ZYNQMP_PM_MAX_QOS,
 					ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		pr_err("%s() %s set requirement for yesde %d failed: %d\n",
+		       __func__, domain->name, pd->yesde_id, ret);
 		return ret;
 	}
 
@@ -116,14 +116,14 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 
 	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
-	/* If domain is already released there is nothing to be done */
+	/* If domain is already released there is yesthing to be done */
 	if (!(pd->flags & ZYNQMP_PM_DOMAIN_REQUESTED)) {
 		pr_debug("%s() %s domain is already released\n",
 			 __func__, domain->name);
 		return 0;
 	}
 
-	list_for_each_entry_safe(pdd, tmp, &domain->dev_list, list_node) {
+	list_for_each_entry_safe(pdd, tmp, &domain->dev_list, list_yesde) {
 		/* If device is in wakeup path, set capability to WAKEUP */
 		may_wakeup = zynqmp_gpd_is_active_wakeup_path(pdd->dev, NULL);
 		if (may_wakeup) {
@@ -134,15 +134,15 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 		}
 	}
 
-	ret = eemi_ops->set_requirement(pd->node_id, capabilities, 0,
+	ret = eemi_ops->set_requirement(pd->yesde_id, capabilities, 0,
 					ZYNQMP_PM_REQUEST_ACK_NO);
 	/**
-	 * If powering down of any node inside this domain fails,
+	 * If powering down of any yesde inside this domain fails,
 	 * report and return the error
 	 */
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		pr_err("%s() %s set requirement for yesde %d failed: %d\n",
+		       __func__, domain->name, pd->yesde_id, ret);
 		return ret;
 	}
 
@@ -163,21 +163,21 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 	int ret;
 	struct zynqmp_pm_domain *pd;
 
-	if (!eemi_ops->request_node)
+	if (!eemi_ops->request_yesde)
 		return -ENXIO;
 
 	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
-	/* If this is not the first device to attach there is nothing to do */
+	/* If this is yest the first device to attach there is yesthing to do */
 	if (domain->device_count)
 		return 0;
 
-	ret = eemi_ops->request_node(pd->node_id, 0, 0,
+	ret = eemi_ops->request_yesde(pd->yesde_id, 0, 0,
 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
-	/* If requesting a node fails print and return the error */
+	/* If requesting a yesde fails print and return the error */
 	if (ret) {
-		pr_err("%s() %s request failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		pr_err("%s() %s request failed for yesde %d: %d\n",
+		       __func__, domain->name, pd->yesde_id, ret);
 		return ret;
 	}
 
@@ -199,20 +199,20 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 	int ret;
 	struct zynqmp_pm_domain *pd;
 
-	if (!eemi_ops->release_node)
+	if (!eemi_ops->release_yesde)
 		return;
 
 	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
-	/* If this is not the last device to detach there is nothing to do */
+	/* If this is yest the last device to detach there is yesthing to do */
 	if (domain->device_count)
 		return;
 
-	ret = eemi_ops->release_node(pd->node_id);
-	/* If releasing a node fails print the error and return */
+	ret = eemi_ops->release_yesde(pd->yesde_id);
+	/* If releasing a yesde fails print the error and return */
 	if (ret) {
-		pr_err("%s() %s release failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		pr_err("%s() %s release failed for yesde %d: %d\n",
+		       __func__, domain->name, pd->yesde_id, ret);
 		return;
 	}
 
@@ -236,17 +236,17 @@ static struct generic_pm_domain *zynqmp_gpd_xlate
 
 	/* Check for existing pm domains */
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++) {
-		if (pd[i].node_id == idx)
+		if (pd[i].yesde_id == idx)
 			goto done;
 	}
 
 	/**
-	 * Add index in empty node_id of power domain list as no existing
+	 * Add index in empty yesde_id of power domain list as yes existing
 	 * power domain found for current index.
 	 */
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++) {
-		if (pd[i].node_id == 0) {
-			pd[i].node_id = idx;
+		if (pd[i].yesde_id == 0) {
+			pd[i].yesde_id = idx;
 			break;
 		}
 	}
@@ -285,12 +285,12 @@ static int zynqmp_gpd_probe(struct platform_device *pdev)
 	if (!domains)
 		return -ENOMEM;
 
-	if (!of_device_is_compatible(dev->parent->of_node,
+	if (!of_device_is_compatible(dev->parent->of_yesde,
 				     "xlnx,zynqmp-firmware"))
 		min_capability = ZYNQMP_PM_CAPABILITY_UNUSABLE;
 
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++, pd++) {
-		pd->node_id = 0;
+		pd->yesde_id = 0;
 		pd->gpd.name = kasprintf(GFP_KERNEL, "domain%d", i);
 		pd->gpd.power_off = zynqmp_gpd_power_off;
 		pd->gpd.power_on = zynqmp_gpd_power_on;
@@ -305,14 +305,14 @@ static int zynqmp_gpd_probe(struct platform_device *pdev)
 
 	zynqmp_pd_data->domains = domains;
 	zynqmp_pd_data->num_domains = ZYNQMP_NUM_DOMAINS;
-	of_genpd_add_provider_onecell(dev->parent->of_node, zynqmp_pd_data);
+	of_genpd_add_provider_onecell(dev->parent->of_yesde, zynqmp_pd_data);
 
 	return 0;
 }
 
 static int zynqmp_gpd_remove(struct platform_device *pdev)
 {
-	of_genpd_del_provider(pdev->dev.parent->of_node);
+	of_genpd_del_provider(pdev->dev.parent->of_yesde);
 
 	return 0;
 }

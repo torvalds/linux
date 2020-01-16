@@ -10,7 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
-#include "nonstdio.h"
+#include "yesnstdio.h"
 #include "ppc.h"
 
 #define ATTRIBUTE_UNUSED
@@ -23,7 +23,7 @@
    strictly constant data, so the compiler should be able to put it in
    the .text section.
 
-   This file also holds the operand table.  All knowledge about
+   This file also holds the operand table.  All kyeswledge about
    inserting operands into instructions and vice-versa is kept in this
    file.  */
 
@@ -503,7 +503,7 @@ const struct powerpc_operand powerpc_operands[] =
 #define RA_MASK (0x1f << 16)
   { 0x1f, 16, NULL, NULL, PPC_OPERAND_GPR },
 
-  /* As above, but 0 in the RA field means zero, not r0.  */
+  /* As above, but 0 in the RA field means zero, yest r0.  */
 #define RA0 RA + 1
   { 0x1f, 16, NULL, NULL, PPC_OPERAND_GPR_0 },
 
@@ -514,7 +514,7 @@ const struct powerpc_operand powerpc_operands[] =
   { 0x1f, 16, insert_raq, NULL, PPC_OPERAND_GPR_0 },
 
   /* The RA field in a D or X form instruction which is an updating
-     load, which means that the RA field may not be zero and may not
+     load, which means that the RA field may yest be zero and may yest
      equal the RT field.  */
 #define RAL RAQ + 1
   { 0x1f, 16, insert_ral, NULL, PPC_OPERAND_GPR_0 },
@@ -526,7 +526,7 @@ const struct powerpc_operand powerpc_operands[] =
 
   /* The RA field in a D or X form instruction which is an updating
      store or an updating floating point load, which means that the RA
-     field may not be zero.  */
+     field may yest be zero.  */
 #define RAS RAM + 1
   { 0x1f, 16, insert_ras, NULL, PPC_OPERAND_GPR_0 },
 
@@ -1116,17 +1116,17 @@ extract_bba (unsigned long insn,
 }
 
 /* The BD field in a B form instruction when the - modifier is used.
-   This modifier means that the branch is not expected to be taken.
+   This modifier means that the branch is yest expected to be taken.
    For chips built to versions of the architecture prior to version 2
-   (ie. not Power4 compatible), we set the y bit of the BO field to 1
+   (ie. yest Power4 compatible), we set the y bit of the BO field to 1
    if the offset is negative.  When extracting, we require that the y
    bit be 1 and that the offset be positive, since if the y bit is 0
-   we just want to print the normal form of the instruction.
+   we just want to print the yesrmal form of the instruction.
    Power4 compatible targets use two bits, "a", and "t", instead of
-   the "y" bit.  "at" == 00 => no hint, "at" == 01 => unpredictable,
-   "at" == 10 => not taken, "at" == 11 => taken.  The "t" bit is 00001
+   the "y" bit.  "at" == 00 => yes hint, "at" == 01 => unpredictable,
+   "at" == 10 => yest taken, "at" == 11 => taken.  The "t" bit is 00001
    in BO field, the "a" bit is 00010 for branch on CR(BI) and 01000
-   for branch on CTR.  We only handle the taken/not-taken hint here.
+   for branch on CTR.  We only handle the taken/yest-taken hint here.
    Note that we don't relax the conditions tested here when
    disassembling with -Many because insns using extract_bdm and
    extract_bdp always occur in pairs.  One or the other will always
@@ -1427,7 +1427,7 @@ insert_fxm (unsigned long insn,
 
   /* If only one bit of the FXM field is set, we can use the new form
      of the instruction, which is faster.  Unlike the Power4 branch hint
-     encoding, this is not backward compatible.  Do not generate the
+     encoding, this is yest backward compatible.  Do yest generate the
      new form unless -mpower4 has been given, or -many and the two
      operand form of mfcr was used.  */
   else if (value > 0
@@ -1465,7 +1465,7 @@ extract_fxm (unsigned long insn,
 	*invalid = 1;
     }
 
-  /* Check that non-power4 form of mfcr has a zero MASK.  */
+  /* Check that yesn-power4 form of mfcr has a zero MASK.  */
   else if ((insn & (0x3ff << 1)) == 19 << 1)
     {
       if (mask != 0)
@@ -1526,7 +1526,7 @@ insert_ls (unsigned long insn,
 }
 
 /* The 4-bit E field in a sync instruction that accepts 2 operands.
-   If ESYNC is non-zero, then the L field must be either 0 or 1 and
+   If ESYNC is yesn-zero, then the L field must be either 0 or 1 and
    the complement of ESYNC-bit2.  */
 
 static unsigned long
@@ -1720,7 +1720,7 @@ extract_nsi (unsigned long insn,
 }
 
 /* The RA field in a D or X form instruction which is an updating
-   load, which means that the RA field may not be zero and may not
+   load, which means that the RA field may yest be zero and may yest
    equal the RT field.  */
 
 static unsigned long
@@ -1767,7 +1767,7 @@ insert_raq (unsigned long insn,
 
 /* The RA field in a D or X form instruction which is an updating
    store or an updating floating point load, which means that the RA
-   field may not be zero.  */
+   field may yest be zero.  */
 
 static unsigned long
 insert_ras (unsigned long insn,
@@ -2032,7 +2032,7 @@ extract_sprg (unsigned long insn,
   unsigned long val = (insn >> 16) & 0x1f;
 
   /* mfsprg can use 260..263 and 272..279.  mtsprg only uses spr 272..279
-     If not BOOKE, 405 or VLE, then both use only 272..275.  */
+     If yest BOOKE, 405 or VLE, then both use only 272..275.  */
   if ((val - 0x10 > 3 && (dialect & ALLOW8_SPRG) == 0)
       || (val - 0x10 > 7 && (insn & 0x100) != 0)
       || val <= 3
@@ -2346,7 +2346,7 @@ extract_vleil (unsigned long insn,
 #define BD8(op, aa, lk) (((((unsigned long)(op)) & 0x3f) << 10) | (((aa) & 1) << 9) | (((lk) & 1) << 8))
 #define BD8_MASK BD8 (0x3f, 1, 1)
 
-/* Another BD8 form instruction.  This is a 16-bit instruction.  */
+/* Ayesther BD8 form instruction.  This is a 16-bit instruction.  */
 #define BD8IO(op) ((((unsigned long)(op)) & 0x1f) << 11)
 #define BD8IO_MASK BD8IO (0x1f)
 
@@ -2870,7 +2870,7 @@ extract_vleil (unsigned long insn,
 
 /* An XW form instruction.  */
 #define XW(op, xop, rc) (OP (op) | ((((unsigned long)(xop)) & 0x3f) << 1) | ((rc) & 1))
-/* The mask for a G form instruction. rc not supported at present.  */
+/* The mask for a G form instruction. rc yest supported at present.  */
 #define XW_MASK XW (0x3f, 0x3f, 0)
 
 /* An APU form instruction.  */
@@ -3288,8 +3288,8 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 {"evxor",	VX (4, 534),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
 {"evmr",	VX (4, 535),	VX_MASK,     PPCSPE,	0,		{RS, RA, BBA}},
 {"evor",	VX (4, 535),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
-{"evnor",	VX (4, 536),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
-{"evnot",	VX (4, 536),	VX_MASK,     PPCSPE,	0,		{RS, RA, BBA}},
+{"evyesr",	VX (4, 536),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
+{"evyest",	VX (4, 536),	VX_MASK,     PPCSPE,	0,		{RS, RA, BBA}},
 {"get",		APU(4, 268,0),	APU_RA_MASK, PPC405,	0,		{RT, FSL}},
 {"eveqv",	VX (4, 537),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
 {"evorc",	VX (4, 539),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
@@ -3629,8 +3629,8 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 {"vavgsb",	VX (4,1282),	VX_MASK,     PPCVEC,	0,		{VD, VA, VB}},
 {"evmhessfaaw",	VX (4,1283),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
 {"evmhousiaaw",	VX (4,1284),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
-{"vnot",	VX (4,1284),	VX_MASK,     PPCVEC,	0,		{VD, VA, VBA}},
-{"vnor",	VX (4,1284),	VX_MASK,     PPCVEC,	0,		{VD, VA, VB}},
+{"vyest",	VX (4,1284),	VX_MASK,     PPCVEC,	0,		{VD, VA, VBA}},
+{"vyesr",	VX (4,1284),	VX_MASK,     PPCVEC,	0,		{VD, VA, VB}},
 {"evmhossiaaw",	VX (4,1285),	VX_MASK,     PPCSPE,	0,		{RS, RA, RB}},
 {"udi4fcm.",	APU(4, 643,0),	APU_MASK, PPC405|PPC440, PPC476,	{URT, URA, URB}},
 {"udi4fcm",	APU(4, 643,1),	APU_MASK, PPC405|PPC440, PPC476,	{URT, URA, URB}},
@@ -4375,8 +4375,8 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 
 {"rfid",	XL(19,18),	0xffffffff,  PPC64,	PPCVLE,	{0}},
 
-{"crnot",	XL(19,33),	XL_MASK,     PPCCOM,	PPCVLE,		{BT, BA, BBA}},
-{"crnor",	XL(19,33),	XL_MASK,     COM,	PPCVLE,		{BT, BA, BB}},
+{"cryest",	XL(19,33),	XL_MASK,     PPCCOM,	PPCVLE,		{BT, BA, BBA}},
+{"cryesr",	XL(19,33),	XL_MASK,     COM,	PPCVLE,		{BT, BA, BB}},
 {"rfmci",	X(19,38),    0xffffffff, PPCRFMCI|PPCA2|PPC476, PPCVLE,	{0}},
 
 {"rfdi",	XL(19,39),	0xffffffff,  E500MC,	PPCVLE,		{0}},
@@ -4609,14 +4609,14 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 {"rlwnm.",	M(23,1),	M_MASK,	     PPCCOM,	PPCVLE,		{RA, RS, RB, MBE, ME}},
 {"rlnm.",	M(23,1),	M_MASK,	     PWRCOM,	PPCVLE,		{RA, RS, RB, MBE, ME}},
 
-{"nop",		OP(24),		0xffffffff,  PPCCOM,	PPCVLE,		{0}},
+{"yesp",		OP(24),		0xffffffff,  PPCCOM,	PPCVLE,		{0}},
 {"ori",		OP(24),		OP_MASK,     PPCCOM,	PPCVLE,		{RA, RS, UI}},
 {"oril",	OP(24),		OP_MASK,     PWRCOM,	PPCVLE,		{RA, RS, UI}},
 
 {"oris",	OP(25),		OP_MASK,     PPCCOM,	PPCVLE,		{RA, RS, UI}},
 {"oriu",	OP(25),		OP_MASK,     PWRCOM,	PPCVLE,		{RA, RS, UI}},
 
-{"xnop",	OP(26),		0xffffffff,  PPCCOM,	PPCVLE,		{0}},
+{"xyesp",	OP(26),		0xffffffff,  PPCCOM,	PPCVLE,		{0}},
 {"xori",	OP(26),		OP_MASK,     PPCCOM,	PPCVLE,		{RA, RS, UI}},
 {"xoril",	OP(26),		OP_MASK,     PWRCOM,	PPCVLE,		{RA, RS, UI}},
 
@@ -4882,10 +4882,10 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 
 {"popcntb",	X(31,122),	XRB_MASK,    POWER5,	0,		{RA, RS}},
 
-{"not",		XRC(31,124,0),	X_MASK,	     COM,	0,		{RA, RS, RBS}},
-{"nor",		XRC(31,124,0),	X_MASK,	     COM,	0,		{RA, RS, RB}},
-{"not.",	XRC(31,124,1),	X_MASK,	     COM,	0,		{RA, RS, RBS}},
-{"nor.",	XRC(31,124,1),	X_MASK,	     COM,	0,		{RA, RS, RB}},
+{"yest",		XRC(31,124,0),	X_MASK,	     COM,	0,		{RA, RS, RBS}},
+{"yesr",		XRC(31,124,0),	X_MASK,	     COM,	0,		{RA, RS, RB}},
+{"yest.",	XRC(31,124,1),	X_MASK,	     COM,	0,		{RA, RS, RBS}},
+{"yesr.",	XRC(31,124,1),	X_MASK,	     COM,	0,		{RA, RS, RB}},
 
 {"dcbfep",	XRT(31,127,0),	XRT_MASK, E500MC|PPCA2, 0,		{RA0, RB}},
 
@@ -6588,7 +6588,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 {"xscvsxdsp",	XX2(60,312),	XX2_MASK,    PPCVSX2,	PPCVLE,		{XT6, XB6}},
 {"xsmaxdp",	XX3(60,160),	XX3_MASK,    PPCVSX,	PPCVLE,		{XT6, XA6, XB6}},
 {"xsnmaddadp",	XX3(60,161),	XX3_MASK,    PPCVSX,	PPCVLE,		{XT6, XA6, XB6}},
-{"xxlnor",	XX3(60,162),	XX3_MASK,    PPCVSX,	PPCVLE,		{XT6, XA6, XB6}},
+{"xxlyesr",	XX3(60,162),	XX3_MASK,    PPCVSX,	PPCVLE,		{XT6, XA6, XB6}},
 {"xscvdpuxds",	XX2(60,328),	XX2_MASK,    PPCVSX,	PPCVLE,		{XT6, XB6}},
 {"xscvspdp",	XX2(60,329),	XX2_MASK,    PPCVSX,	PPCVLE,		{XT6, XB6}},
 {"xscvspdpn",	XX2(60,331),	XX2_MASK,    PPCVSX2,	PPCVLE,		{XT6, XB6}},
@@ -6987,7 +6987,7 @@ const struct powerpc_opcode vle_opcodes[] = {
 {"se_rfci",	C(9),		C_MASK,		PPCVLE,	0,		{}},
 {"se_rfdi",	C(10),		C_MASK,		PPCVLE,	0,		{}},
 {"se_rfmci",	C(11),		C_MASK, PPCRFMCI|PPCVLE, 0,		{}},
-{"se_not",	SE_R(0,2),	SE_R_MASK,	PPCVLE,	0,		{RX}},
+{"se_yest",	SE_R(0,2),	SE_R_MASK,	PPCVLE,	0,		{RX}},
 {"se_neg",	SE_R(0,3),	SE_R_MASK,	PPCVLE,	0,		{RX}},
 {"se_mflr",	SE_R(0,8),	SE_R_MASK,	PPCVLE,	0,		{RX}},
 {"se_mtlr",	SE_R(0,9),	SE_R_MASK,	PPCVLE,	0,		{RX}},
@@ -7025,7 +7025,7 @@ const struct powerpc_opcode vle_opcodes[] = {
 {"e_subfic.",	SCI8(6,23),	SCI8_MASK,	PPCVLE,	0,		{RT, RA, SCLSCI8}},
 {"e_andi",	SCI8(6,24),	SCI8_MASK,	PPCVLE,	0,		{RA, RS, SCLSCI8}},
 {"e_andi.",	SCI8(6,25),	SCI8_MASK,	PPCVLE,	0,		{RA, RS, SCLSCI8}},
-{"e_nop",	SCI8(6,26),	0xffffffff,	PPCVLE,	0,		{0}},
+{"e_yesp",	SCI8(6,26),	0xffffffff,	PPCVLE,	0,		{0}},
 {"e_ori",	SCI8(6,26),	SCI8_MASK,	PPCVLE,	0,		{RA, RS, SCLSCI8}},
 {"e_ori.",	SCI8(6,27),	SCI8_MASK,	PPCVLE,	0,		{RA, RS, SCLSCI8}},
 {"e_xori",	SCI8(6,28),	SCI8_MASK,	PPCVLE,	0,		{RA, RS, SCLSCI8}},
@@ -7068,7 +7068,7 @@ const struct powerpc_opcode vle_opcodes[] = {
 {"se_srw",	SE_RR(16,0),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
 {"se_sraw",	SE_RR(16,1),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
 {"se_slw",	SE_RR(16,2),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
-{"se_nop",	SE_RR(17,0),	0xffff,		PPCVLE,	0,		{0}},
+{"se_yesp",	SE_RR(17,0),	0xffff,		PPCVLE,	0,		{0}},
 {"se_or",	SE_RR(17,0),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
 {"se_andc",	SE_RR(17,1),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
 {"se_and",	SE_RR(17,2),	SE_RR_MASK,	PPCVLE,	0,		{RX, RY}},
@@ -7147,8 +7147,8 @@ const struct powerpc_opcode vle_opcodes[] = {
 {"e_cmphl",	X(31,46),	X_MASK,		PPCVLE,	0,		{CRD, RA, RB}},
 {"e_crandc",	XL(31,129),	XL_MASK,	PPCVLE,	0,		{BT, BA, BB}},
 {"e_crnand",	XL(31,225),	XL_MASK,	PPCVLE,	0,		{BT, BA, BB}},
-{"e_crnot",	XL(31,33),	XL_MASK,	PPCVLE,	0,		{BT, BA, BBA}},
-{"e_crnor",	XL(31,33),	XL_MASK,	PPCVLE,	0,		{BT, BA, BB}},
+{"e_cryest",	XL(31,33),	XL_MASK,	PPCVLE,	0,		{BT, BA, BBA}},
+{"e_cryesr",	XL(31,33),	XL_MASK,	PPCVLE,	0,		{BT, BA, BB}},
 {"e_crclr",	XL(31,193),	XL_MASK,	PPCVLE,	0,		{BT, BAT, BBA}},
 {"e_crxor",	XL(31,193),	XL_MASK,	PPCVLE,	0,		{BT, BA, BB}},
 {"e_mcrf",	XL(31,16),	XL_MASK,	PPCVLE,	0,		{CRD, CR}},
@@ -7217,7 +7217,7 @@ const int vle_num_opcodes =
    negative; and are 32 or more otherwise.  This is what you want
    when, for instance, you are emulating a right shift by a
    rotate-left-and-mask, because the underlying instructions support
-   shifts of size 0 but not shifts of size 32.  By comparison, when
+   shifts of size 0 but yest shifts of size 32.  By comparison, when
    extracting x bits from some word you want to use just 32-x, because
    the underlying instructions don't support extracting 0 bits but do
    support extracting the whole word (32 bits in this case).  */

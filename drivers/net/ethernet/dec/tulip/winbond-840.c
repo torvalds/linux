@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -17,9 +17,9 @@
 	Support and updates available at
 	http://www.scyld.com/network/drivers.html
 
-	Do not remove the copyright information.
-	Do not change the version information unless an improvement has been made.
-	Merely removing my name, as Compex has done in the past, does not count
+	Do yest remove the copyright information.
+	Do yest change the version information unless an improvement has been made.
+	Merely removing my name, as Compex has done in the past, does yest count
 	as an improvement.
 
 	Changelog:
@@ -66,7 +66,7 @@ c-help: http://www.scyld.com/network/drivers.html
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 static int max_interrupt_work = 20;
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The '840 uses a 64 element hash table based on the Ethernet CRC.  */
@@ -91,7 +91,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
    The compiler will convert <unsigned>'%'<2^N> into a bit mask.
    Making the Tx ring too large decreases the effectiveness of channel
    bonding and packet priority.
-   There are no ill effects from too-large receive rings. */
+   There are yes ill effects from too-large receive rings. */
 #define TX_QUEUE_LEN	10		/* Limit ring entries actually used.  */
 #define TX_QUEUE_LEN_RESTART	5
 
@@ -105,7 +105,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #define TX_BUG_FIFO_LIMIT (TX_FIFO_SIZE-1514-16)
 
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
 
@@ -114,7 +114,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -139,7 +139,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #undef PKT_BUF_SZ			/* tulip.h also defines this */
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static const char version[] __initconst =
 	"v" DRV_VERSION " (2.4 port) "
 	DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
@@ -191,7 +191,7 @@ subsequent descriptors.
 
 IV. Notes
 
-If you are going to almost clone a Tulip, why not go all the way and avoid
+If you are going to almost clone a Tulip, why yest go all the way and avoid
 the need for a new driver?
 
 IVb. References
@@ -250,7 +250,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 
 /* Offsets to the Command and Status Registers, "CSRs".
    While similar to the Tulip, these registers are longword aligned.
-   Note: It's not useful to define symbolic names for every register bit in
+   Note: It's yest useful to define symbolic names for every register bit in
    the device.  The name can only partially document the semantics and make
    the driver longer and more difficult to read.
 */
@@ -419,7 +419,7 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 			np->mii_if.full_duplex = 1;
 		if (option & 15)
 			dev_info(&dev->dev,
-				 "ignoring user supplied media type %d",
+				 "igyesring user supplied media type %d",
 				 option & 15);
 	}
 	if (find_cnt < MAX_UNITS  &&  full_duplex[find_cnt] > 0)
@@ -459,7 +459,7 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		np->mii_if.phy_id = np->phys[0];
 		if (phy_idx == 0) {
 			dev_warn(&dev->dev,
-				 "MII PHY not found -- this device may not operate correctly\n");
+				 "MII PHY yest found -- this device may yest operate correctly\n");
 		}
 	}
 
@@ -542,7 +542,7 @@ static int eeprom_read(void __iomem *addr, int location)
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with older transceivers, so the extra
-   code size of a per-interface flag is not worthwhile. */
+   code size of a per-interface flag is yest worthwhile. */
 static char mii_preamble_required = 1;
 
 #define MDIO_WRITE0 (MDIO_EnbOutput)
@@ -682,7 +682,7 @@ static int update_link(struct net_device *dev)
 		if (netif_carrier_ok(dev)) {
 			if (debug)
 				dev_info(&dev->dev,
-					 "MII #%d reports no link. Disabling watchdog\n",
+					 "MII #%d reports yes link. Disabling watchdog\n",
 					 np->phys[0]);
 			netif_carrier_off(dev);
 		}
@@ -883,15 +883,15 @@ static void init_registers(struct net_device *dev)
 
 	/* Configure the PCI bus bursts and FIFO thresholds.
 	   486: Set 8 longword cache alignment, 8 longword burst.
-	   586: Set 16 longword cache alignment, no burst limit.
+	   586: Set 16 longword cache alignment, yes burst limit.
 	   Cache alignment bits 15:14	     Burst length 13:8
-		0000	<not allowed> 		0000 align to cache	0800 8 longwords
+		0000	<yest allowed> 		0000 align to cache	0800 8 longwords
 		4000	8  longwords		0100 1 longword		1000 16 longwords
 		8000	16 longwords		0200 2 longwords	2000 32 longwords
 		C000	32  longwords		0400 4 longwords */
 
 #if defined (__i386__) && !defined(MODULE)
-	/* When not a module we can work around broken '486 PCI boards. */
+	/* When yest a module we can work around broken '486 PCI boards. */
 	if (boot_cpu_data.x86 <= 4) {
 		i |= 0x4800;
 		dev_info(&dev->dev,
@@ -904,7 +904,7 @@ static void init_registers(struct net_device *dev)
 #elif defined(CONFIG_SPARC) || defined (CONFIG_PARISC) || defined(CONFIG_ARM)
 	i |= 0x4800;
 #else
-	dev_warn(&dev->dev, "unknown CPU architecture, using default csr0 setting\n");
+	dev_warn(&dev->dev, "unkyeswn CPU architecture, using default csr0 setting\n");
 	i |= 0x4800;
 #endif
 	iowrite32(i, ioaddr + PCIBusCfg);
@@ -1027,8 +1027,8 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	 *   handler could consider the packet as transmitted
 	 *   since DescOwned is cleared.
 	 * - If DescOwned is set first the NIC could report the
-	 *   packet as sent, but the interrupt handler would ignore it
-	 *   since the np->cur_tx was not yet increased.
+	 *   packet as sent, but the interrupt handler would igyesre it
+	 *   since the np->cur_tx was yest yet increased.
 	 */
 	spin_lock_irq(&np->lock);
 	np->cur_tx++;
@@ -1039,7 +1039,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	iowrite32(0, np->base_addr + TxStartDemand);
 	np->tx_q_bytes += skb->len;
 	/* Work around horrible bug in the chip by marking the queue as full
-	   when we do not have FIFO room for a maximum sized packet. */
+	   when we do yest have FIFO room for a maximum sized packet. */
 	if (np->cur_tx - np->dirty_tx > TX_QUEUE_LEN ||
 		((np->drv_flags & HasBrokenTx) && np->tx_q_bytes > TX_BUG_FIFO_LIMIT)) {
 		netif_stop_queue(dev);
@@ -1098,7 +1098,7 @@ static void netdev_tx_done(struct net_device *dev)
 	if (np->tx_full &&
 		np->cur_tx - np->dirty_tx < TX_QUEUE_LEN_RESTART &&
 		np->tx_q_bytes < TX_BUG_FIFO_LIMIT) {
-		/* The ring is no longer full, clear tbusy. */
+		/* The ring is yes longer full, clear tbusy. */
 		np->tx_full = 0;
 		wmb();
 		netif_wake_queue(dev);
@@ -1120,13 +1120,13 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	do {
 		u32 intr_status = ioread32(ioaddr + IntrStatus);
 
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackyeswledge all of the current interrupt sources ASAP. */
 		iowrite32(intr_status & 0x001ffff, ioaddr + IntrStatus);
 
 		if (debug > 4)
 			netdev_dbg(dev, "Interrupt, status %04x\n", intr_status);
 
-		if ((intr_status & (NormalIntr|AbnormalIntr)) == 0)
+		if ((intr_status & (NormalIntr|AbyesrmalIntr)) == 0)
 			break;
 
 		handled = 1;
@@ -1143,8 +1143,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			spin_unlock(&np->lock);
 		}
 
-		/* Abnormal error summary/uncommon events handlers. */
-		if (intr_status & (AbnormalIntr | TxFIFOUnderflow | SystemError |
+		/* Abyesrmal error summary/uncommon events handlers. */
+		if (intr_status & (AbyesrmalIntr | TxFIFOUnderflow | SystemError |
 						   TimerInt | TxDied))
 			netdev_error(dev, intr_status);
 
@@ -1156,7 +1156,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			   10*82usec ticks. */
 			spin_lock(&np->lock);
 			if (netif_device_present(dev)) {
-				iowrite32(AbnormalIntr | TimerInt, ioaddr + IntrEnable);
+				iowrite32(AbyesrmalIntr | TimerInt, ioaddr + IntrEnable);
 				iowrite32(10, ioaddr + GPTimer);
 			}
 			spin_unlock(&np->lock);
@@ -1219,10 +1219,10 @@ static int netdev_rx(struct net_device *dev)
 
 #ifndef final_version
 			if (debug > 4)
-				netdev_dbg(dev, "  netdev_rx() normal Rx pkt length %d status %x\n",
+				netdev_dbg(dev, "  netdev_rx() yesrmal Rx pkt length %d status %x\n",
 					   pkt_len, status);
 #endif
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eyesugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1286,7 +1286,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 	void __iomem *ioaddr = np->base_addr;
 
 	if (debug > 2)
-		netdev_dbg(dev, "Abnormal event, %08x\n", intr_status);
+		netdev_dbg(dev, "Abyesrmal event, %08x\n", intr_status);
 	if (intr_status == 0xffffffff)
 		return;
 	spin_lock(&np->lock);
@@ -1548,7 +1548,7 @@ static void w840_remove1(struct pci_dev *pdev)
  * - open, close, do_ioctl:
  * 	rtnl_lock, & netif_device_detach after the rtnl_unlock.
  * - get_stats:
- * 	spin_lock_irq(np->lock), doesn't touch hw if not present
+ * 	spin_lock_irq(np->lock), doesn't touch hw if yest present
  * - start_xmit:
  * 	synchronize_irq + netif_tx_disable;
  * - tx_timeout:
@@ -1556,7 +1556,7 @@ static void w840_remove1(struct pci_dev *pdev)
  * - set_multicast_list
  * 	netif_device_detach + netif_tx_disable;
  * - interrupt handler
- * 	doesn't touch hw if not present, synchronize_irq waits for
+ * 	doesn't touch hw if yest present, synchronize_irq waits for
  * 	running instances of the interrupt handler.
  *
  * Disabling hw requires clearing csr6 & IntrEnable.
@@ -1587,7 +1587,7 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		np->stats.rx_missed_errors += ioread32(ioaddr + RxMissed) & 0xffff;
 
-		/* no more hardware accesses behind this line. */
+		/* yes more hardware accesses behind this line. */
 
 		BUG_ON(np->csr6 || ioread32(ioaddr + IntrEnable));
 
@@ -1609,7 +1609,7 @@ static int w840_resume (struct pci_dev *pdev)
 
 	rtnl_lock();
 	if (netif_device_present(dev))
-		goto out; /* device not suspended */
+		goto out; /* device yest suspended */
 	if (netif_running(dev)) {
 		if ((retval = pci_enable_device(pdev))) {
 			dev_err(&dev->dev,

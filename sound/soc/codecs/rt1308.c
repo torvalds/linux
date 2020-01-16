@@ -658,7 +658,7 @@ static int rt1308_set_component_pll(struct snd_soc_component *component,
 		freq_in = 25000000;
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -765,7 +765,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt1308 = {
 	.set_pll = rt1308_set_component_pll,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt1308_regmap = {
@@ -837,10 +837,10 @@ static int rt1308_i2c_probe(struct i2c_client *i2c,
 	}
 
 	regmap_read(rt1308->regmap, RT1308_VEN_DEV_ID, &val);
-	/* ignore last byte difference */
+	/* igyesre last byte difference */
 	if ((val & 0xFFFFFF00) != RT1308_DEVICE_ID_NUM) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1308\n", val);
+			"Device with ID register %x is yest rt1308\n", val);
 		return -ENODEV;
 	}
 

@@ -29,7 +29,7 @@ static void qset_print(struct seq_file *s, struct whc_qset *qset)
 	int i;
 
 	seq_printf(s, "qset %08x", (u32)qset->qset_dma);
-	if (&qset->list_node == qset->whc->async_list.prev) {
+	if (&qset->list_yesde == qset->whc->async_list.prev) {
 		seq_printf(s, " (dummy)\n");
 	} else {
 		seq_printf(s, " ep%d%s-%s maxpkt: %d\n",
@@ -54,7 +54,7 @@ static void qset_print(struct seq_file *s, struct whc_qset *qset)
 			(u32)qset->qtd[i].page_list_ptr);
 	}
 	seq_printf(s, "  ntds: %d\n", qset->ntds);
-	list_for_each_entry(std, &qset->stds, list_node) {
+	list_for_each_entry(std, &qset->stds, list_yesde) {
 		if (urb != std->urb) {
 			urb = std->urb;
 			seq_printf(s, "  urb %p transferred: %d bytes\n", urb,
@@ -98,7 +98,7 @@ static int asl_show(struct seq_file *s, void *p)
 	struct whc *whc = s->private;
 	struct whc_qset *qset;
 
-	list_for_each_entry(qset, &whc->async_list, list_node) {
+	list_for_each_entry(qset, &whc->async_list, list_yesde) {
 		qset_print(s, qset);
 	}
 
@@ -114,7 +114,7 @@ static int pzl_show(struct seq_file *s, void *p)
 
 	for (period = 0; period < 5; period++) {
 		seq_printf(s, "Period %d\n", period);
-		list_for_each_entry(qset, &whc->periodic_list[period], list_node) {
+		list_for_each_entry(qset, &whc->periodic_list[period], list_yesde) {
 			qset_print(s, qset);
 		}
 	}

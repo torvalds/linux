@@ -1,7 +1,7 @@
 /*
  * 2006-2009 (C) DENX Software Engineering.
  *
- * Author: Yuri Tikhonov <yur@emcraft.com>
+ * Author: Yuri Tikhoyesv <yur@emcraft.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of
@@ -22,7 +22,7 @@
 #define tx_to_ppc440spe_adma_slot(tx) \
 		container_of(tx, struct ppc440spe_adma_desc_slot, async_tx)
 
-/* Default polynomial (for 440SP is only available) */
+/* Default polyyesmial (for 440SP is only available) */
 #define PPC440SPE_DEFAULT_POLY	0x4d
 
 #define PPC440SPE_ADMA_ENGINES_NUM	(XOR_ENGINES_NUM + DMA_ENGINES_NUM)
@@ -84,7 +84,7 @@ struct ppc440spe_adma_device {
  * @slots_allocated: records the actual size of the descriptor slot pool
  * @hw_chain_inited: h/w descriptor chain initialization flag
  * @irq_tasklet: bottom half where ppc440spe_adma_slot_cleanup runs
- * @needs_unmap: if buffers should not be unmapped upon final processing
+ * @needs_unmap: if buffers should yest be unmapped upon final processing
  * @pdest_page: P destination page for async validate operation
  * @qdest_page: Q destination page for async validate operation
  * @pdest: P dma addr for async validate operation
@@ -124,13 +124,13 @@ struct ppc440spe_rxor {
  * @group_head: first operation in a transaction
  * @hw_next: pointer to the next descriptor in chain
  * @async_tx: support for the async_tx api
- * @slot_node: node on the iop_adma_chan.all_slots list
- * @chain_node: node on the op_adma_chan.chain list
+ * @slot_yesde: yesde on the iop_adma_chan.all_slots list
+ * @chain_yesde: yesde on the op_adma_chan.chain list
  * @group_list: list of slots that make up a multi-descriptor transaction
  *              for example transfer lengths larger than the supported hw max
  * @unmap_len: transaction bytecount
  * @hw_desc: virtual address of the hardware descriptor chain
- * @stride: currently chained or not
+ * @stride: currently chained or yest
  * @idx: pool index
  * @slot_cnt: total slots used in an transaction (group of operations)
  * @src_cnt: number of sources set in this descriptor
@@ -148,8 +148,8 @@ struct ppc440spe_adma_desc_slot {
 	struct ppc440spe_adma_desc_slot *group_head;
 	struct ppc440spe_adma_desc_slot *hw_next;
 	struct dma_async_tx_descriptor async_tx;
-	struct list_head slot_node;
-	struct list_head chain_node; /* node in channel ops list */
+	struct list_head slot_yesde;
+	struct list_head chain_yesde; /* yesde in channel ops list */
 	struct list_head group_list; /* list */
 	unsigned int unmap_len;
 	void *hw_desc;

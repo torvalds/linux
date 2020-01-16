@@ -65,7 +65,7 @@ static int __maybe_unused trace_test_buffer(struct trace_buffer *buf, unsigned l
 	unsigned long flags, cnt = 0;
 	int cpu, ret = 0;
 
-	/* Don't allow flipping of max traces now */
+	/* Don't allow flipping of max traces yesw */
 	local_irq_save(flags);
 	arch_spin_lock(&buf->tr->max_lock);
 
@@ -361,14 +361,14 @@ static int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 
-	/* we should have nothing in the buffer */
+	/* we should have yesthing in the buffer */
 	ret = trace_test_buffer(&tr->trace_buffer, &count);
 	if (ret)
 		goto out;
 
 	if (count) {
 		ret = -1;
-		printk(KERN_CONT ".. filter did not filter .. ");
+		printk(KERN_CONT ".. filter did yest filter .. ");
 		goto out;
 	}
 
@@ -422,7 +422,7 @@ static void trace_selftest_test_recursion_func(unsigned long ip,
 	/*
 	 * This function is registered without the recursion safe flag.
 	 * The ftrace infrastructure should provide the recursion
-	 * protection. If not, this will crash the kernel!
+	 * protection. If yest, this will crash the kernel!
 	 */
 	if (trace_selftest_recursion_cnt++ > 10)
 		return;
@@ -438,7 +438,7 @@ static void trace_selftest_test_recursion_safe_func(unsigned long ip,
 	 * We said we would provide our own recursion. By calling
 	 * this function again, we should recurse back into this function
 	 * and count again. But this only happens if the arch supports
-	 * all of ftrace features and nothing else is using the function
+	 * all of ftrace features and yesthing else is using the function
 	 * tracing utility.
 	 */
 	if (trace_selftest_recursion_cnt++)
@@ -477,13 +477,13 @@ trace_selftest_function_recursion(void)
 
 	ret = ftrace_set_filter(&test_rec_probe, func_name, len, 1);
 	if (ret) {
-		pr_cont("*Could not set filter* ");
+		pr_cont("*Could yest set filter* ");
 		goto out;
 	}
 
 	ret = register_ftrace_function(&test_rec_probe);
 	if (ret) {
-		pr_cont("*could not register callback* ");
+		pr_cont("*could yest register callback* ");
 		goto out;
 	}
 
@@ -493,7 +493,7 @@ trace_selftest_function_recursion(void)
 
 	ret = -1;
 	if (trace_selftest_recursion_cnt != 1) {
-		pr_cont("*callback not called once (%d)* ",
+		pr_cont("*callback yest called once (%d)* ",
 			trace_selftest_recursion_cnt);
 		goto out;
 	}
@@ -505,13 +505,13 @@ trace_selftest_function_recursion(void)
 
 	ret = ftrace_set_filter(&test_recsafe_probe, func_name, len, 1);
 	if (ret) {
-		pr_cont("*Could not set filter* ");
+		pr_cont("*Could yest set filter* ");
 		goto out;
 	}
 
 	ret = register_ftrace_function(&test_recsafe_probe);
 	if (ret) {
-		pr_cont("*could not register callback* ");
+		pr_cont("*could yest register callback* ");
 		goto out;
 	}
 
@@ -521,7 +521,7 @@ trace_selftest_function_recursion(void)
 
 	ret = -1;
 	if (trace_selftest_recursion_cnt != 2) {
-		pr_cont("*callback not called expected 2 times (%d)* ",
+		pr_cont("*callback yest called expected 2 times (%d)* ",
 			trace_selftest_recursion_cnt);
 		goto out;
 	}
@@ -575,7 +575,7 @@ trace_selftest_function_regs(void)
 	/* The previous test PASSED */
 	pr_cont("PASSED\n");
 	pr_info("Testing ftrace regs%s: ",
-		!supported ? "(no arch support)" : "");
+		!supported ? "(yes arch support)" : "");
 
 	/* enable tracing, and record the filter function */
 	ftrace_enabled = 1;
@@ -586,17 +586,17 @@ trace_selftest_function_regs(void)
 
 	ret = ftrace_set_filter(&test_regs_probe, func_name, len, 1);
 	/*
-	 * If DYNAMIC_FTRACE is not set, then we just trace all functions.
+	 * If DYNAMIC_FTRACE is yest set, then we just trace all functions.
 	 * This test really doesn't care.
 	 */
 	if (ret && ret != -ENODEV) {
-		pr_cont("*Could not set filter* ");
+		pr_cont("*Could yest set filter* ");
 		goto out;
 	}
 
 	ret = register_ftrace_function(&test_regs_probe);
 	/*
-	 * Now if the arch does not support passing regs, then this should
+	 * Now if the arch does yest support passing regs, then this should
 	 * have failed.
 	 */
 	if (!supported) {
@@ -608,7 +608,7 @@ trace_selftest_function_regs(void)
 		ret = register_ftrace_function(&test_regs_probe);
 	}
 	if (ret) {
-		pr_cont("*could not register callback* ");
+		pr_cont("*could yest register callback* ");
 		goto out;
 	}
 
@@ -689,7 +689,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	tracing_start();
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 		goto out;
 	}
@@ -718,7 +718,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-/* Maximum number of functions to trace before diagnosing a hang */
+/* Maximum number of functions to trace before diagyessing a hang */
 #define GRAPH_MAX_FUNC_TEST	100000000
 
 static unsigned int graph_hang_thresh;
@@ -799,7 +799,7 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	tracing_start();
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 		goto out;
 	}
@@ -855,7 +855,7 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	tracing_start();
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 	}
 
@@ -874,7 +874,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/*
-	 * Now that the big kernel lock is no longer preemptable,
+	 * Now that the big kernel lock is yes longer preemptable,
 	 * and this is called with the BKL held, it will always
 	 * fail. If preemption is already disabled, simply
 	 * pass the test. When the BKL is removed, or becomes
@@ -882,7 +882,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	 * so keep it in.
 	 */
 	if (preempt_count()) {
-		printk(KERN_CONT "can not test ... force ");
+		printk(KERN_CONT "can yest test ... force ");
 		return 0;
 	}
 
@@ -917,7 +917,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	tracing_start();
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 	}
 
@@ -936,7 +936,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	int ret;
 
 	/*
-	 * Now that the big kernel lock is no longer preemptable,
+	 * Now that the big kernel lock is yes longer preemptable,
 	 * and this is called with the BKL held, it will always
 	 * fail. If preemption is already disabled, simply
 	 * pass the test. When the BKL is removed, or becomes
@@ -944,7 +944,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	 * so keep it in.
 	 */
 	if (preempt_count()) {
-		printk(KERN_CONT "can not test ... force ");
+		printk(KERN_CONT "can yest test ... force ");
 		return 0;
 	}
 
@@ -952,7 +952,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	ret = tracer_init(trace, tr);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
-		goto out_no_start;
+		goto out_yes_start;
 	}
 
 	/* reset the max latency */
@@ -985,7 +985,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 		goto out;
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 		goto out;
 	}
@@ -1013,14 +1013,14 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	ret = trace_test_buffer(&tr->max_buffer, &count);
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 		goto out;
 	}
 
 out:
 	tracing_start();
-out_no_start:
+out_yes_start:
 	trace->reset(tr);
 	tr->max_latency = save_max;
 
@@ -1030,7 +1030,7 @@ out_no_start:
 
 #ifdef CONFIG_NOP_TRACER
 int
-trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
+trace_selftest_startup_yesp(struct tracer *trace, struct trace_array *tr)
 {
 	/* What could possibly go wrong? */
 	return 0;
@@ -1057,10 +1057,10 @@ static int trace_wakeup_test_thread(void *data)
 
 	sched_setattr(current, &attr);
 
-	/* Make it know we have a new prio */
+	/* Make it kyesw we have a new prio */
 	complete(&x->is_ready);
 
-	/* now go to sleep and let the test wake us up */
+	/* yesw go to sleep and let the test wake us up */
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!x->go) {
 		schedule();
@@ -1071,7 +1071,7 @@ static int trace_wakeup_test_thread(void *data)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	/* we are awake, now wait to disappear */
+	/* we are awake, yesw wait to disappear */
 	while (!kthread_should_stop()) {
 		schedule();
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1150,7 +1150,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	kthread_stop(p);
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 	}
 
@@ -1182,7 +1182,7 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 	tracing_start();
 
 	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
+		printk(KERN_CONT ".. yes entries found ..");
 		ret = -1;
 	}
 

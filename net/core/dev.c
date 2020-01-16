@@ -2,7 +2,7 @@
 /*
  *      NET3    Protocol independent device support routines.
  *
- *	Derived from the non IP parts of dev.c 1.0.19
+ *	Derived from the yesn IP parts of dev.c 1.0.19
  *              Authors:	Ross Biro
  *				Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *				Mark Evans, <evansmp@uhura.aston.ac.uk>
@@ -53,7 +53,7 @@
  *		Craig Metz	:	SIOCGIFCONF fix if space for under
  *					1 device.
  *	    Thomas Bogendoerfer :	Return ENODEV for dev_open, if there
- *					is no device open function.
+ *					is yes device open function.
  *		Andi Kleen	:	Fix error reporting for SIOCGIFCONF
  *	    Michael Chastain	:	Fix signed/unsigned for SIOCGIFCONF
  *		Cyrus Durgin	:	Cleaned for KMOD
@@ -83,7 +83,7 @@
 #include <linux/mm.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
@@ -158,9 +158,9 @@ struct list_head ptype_all __read_mostly;	/* Taps */
 static struct list_head offload_base __read_mostly;
 
 static int netif_rx_internal(struct sk_buff *skb);
-static int call_netdevice_notifiers_info(unsigned long val,
-					 struct netdev_notifier_info *info);
-static int call_netdevice_notifiers_extack(unsigned long val,
+static int call_netdevice_yestifiers_info(unsigned long val,
+					 struct netdev_yestifier_info *info);
+static int call_netdevice_yestifiers_extack(unsigned long val,
 					   struct net_device *dev,
 					   struct netlink_ext_ack *extack);
 static struct napi_struct *napi_by_id(unsigned int napi_id);
@@ -176,7 +176,7 @@ static struct napi_struct *napi_by_id(unsigned int napi_id);
  * actual updates.  This allows pure readers to access the list even
  * while a writer is preparing to update it.
  *
- * To put it another way, dev_base_lock is held for writing only to
+ * To put it ayesther way, dev_base_lock is held for writing only to
  * protect against pure readers; the rtnl semaphore provides the
  * protection against other writers.
  *
@@ -229,120 +229,120 @@ static inline void rps_unlock(struct softnet_data *sd)
 #endif
 }
 
-static struct netdev_name_node *netdev_name_node_alloc(struct net_device *dev,
+static struct netdev_name_yesde *netdev_name_yesde_alloc(struct net_device *dev,
 						       const char *name)
 {
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 
-	name_node = kmalloc(sizeof(*name_node), GFP_KERNEL);
-	if (!name_node)
+	name_yesde = kmalloc(sizeof(*name_yesde), GFP_KERNEL);
+	if (!name_yesde)
 		return NULL;
-	INIT_HLIST_NODE(&name_node->hlist);
-	name_node->dev = dev;
-	name_node->name = name;
-	return name_node;
+	INIT_HLIST_NODE(&name_yesde->hlist);
+	name_yesde->dev = dev;
+	name_yesde->name = name;
+	return name_yesde;
 }
 
-static struct netdev_name_node *
-netdev_name_node_head_alloc(struct net_device *dev)
+static struct netdev_name_yesde *
+netdev_name_yesde_head_alloc(struct net_device *dev)
 {
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 
-	name_node = netdev_name_node_alloc(dev, dev->name);
-	if (!name_node)
+	name_yesde = netdev_name_yesde_alloc(dev, dev->name);
+	if (!name_yesde)
 		return NULL;
-	INIT_LIST_HEAD(&name_node->list);
-	return name_node;
+	INIT_LIST_HEAD(&name_yesde->list);
+	return name_yesde;
 }
 
-static void netdev_name_node_free(struct netdev_name_node *name_node)
+static void netdev_name_yesde_free(struct netdev_name_yesde *name_yesde)
 {
-	kfree(name_node);
+	kfree(name_yesde);
 }
 
-static void netdev_name_node_add(struct net *net,
-				 struct netdev_name_node *name_node)
+static void netdev_name_yesde_add(struct net *net,
+				 struct netdev_name_yesde *name_yesde)
 {
-	hlist_add_head_rcu(&name_node->hlist,
-			   dev_name_hash(net, name_node->name));
+	hlist_add_head_rcu(&name_yesde->hlist,
+			   dev_name_hash(net, name_yesde->name));
 }
 
-static void netdev_name_node_del(struct netdev_name_node *name_node)
+static void netdev_name_yesde_del(struct netdev_name_yesde *name_yesde)
 {
-	hlist_del_rcu(&name_node->hlist);
+	hlist_del_rcu(&name_yesde->hlist);
 }
 
-static struct netdev_name_node *netdev_name_node_lookup(struct net *net,
+static struct netdev_name_yesde *netdev_name_yesde_lookup(struct net *net,
 							const char *name)
 {
 	struct hlist_head *head = dev_name_hash(net, name);
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 
-	hlist_for_each_entry(name_node, head, hlist)
-		if (!strcmp(name_node->name, name))
-			return name_node;
+	hlist_for_each_entry(name_yesde, head, hlist)
+		if (!strcmp(name_yesde->name, name))
+			return name_yesde;
 	return NULL;
 }
 
-static struct netdev_name_node *netdev_name_node_lookup_rcu(struct net *net,
+static struct netdev_name_yesde *netdev_name_yesde_lookup_rcu(struct net *net,
 							    const char *name)
 {
 	struct hlist_head *head = dev_name_hash(net, name);
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 
-	hlist_for_each_entry_rcu(name_node, head, hlist)
-		if (!strcmp(name_node->name, name))
-			return name_node;
+	hlist_for_each_entry_rcu(name_yesde, head, hlist)
+		if (!strcmp(name_yesde->name, name))
+			return name_yesde;
 	return NULL;
 }
 
-int netdev_name_node_alt_create(struct net_device *dev, const char *name)
+int netdev_name_yesde_alt_create(struct net_device *dev, const char *name)
 {
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 	struct net *net = dev_net(dev);
 
-	name_node = netdev_name_node_lookup(net, name);
-	if (name_node)
+	name_yesde = netdev_name_yesde_lookup(net, name);
+	if (name_yesde)
 		return -EEXIST;
-	name_node = netdev_name_node_alloc(dev, name);
-	if (!name_node)
+	name_yesde = netdev_name_yesde_alloc(dev, name);
+	if (!name_yesde)
 		return -ENOMEM;
-	netdev_name_node_add(net, name_node);
-	/* The node that holds dev->name acts as a head of per-device list. */
-	list_add_tail(&name_node->list, &dev->name_node->list);
+	netdev_name_yesde_add(net, name_yesde);
+	/* The yesde that holds dev->name acts as a head of per-device list. */
+	list_add_tail(&name_yesde->list, &dev->name_yesde->list);
 
 	return 0;
 }
-EXPORT_SYMBOL(netdev_name_node_alt_create);
+EXPORT_SYMBOL(netdev_name_yesde_alt_create);
 
-static void __netdev_name_node_alt_destroy(struct netdev_name_node *name_node)
+static void __netdev_name_yesde_alt_destroy(struct netdev_name_yesde *name_yesde)
 {
-	list_del(&name_node->list);
-	netdev_name_node_del(name_node);
-	kfree(name_node->name);
-	netdev_name_node_free(name_node);
+	list_del(&name_yesde->list);
+	netdev_name_yesde_del(name_yesde);
+	kfree(name_yesde->name);
+	netdev_name_yesde_free(name_yesde);
 }
 
-int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
+int netdev_name_yesde_alt_destroy(struct net_device *dev, const char *name)
 {
-	struct netdev_name_node *name_node;
+	struct netdev_name_yesde *name_yesde;
 	struct net *net = dev_net(dev);
 
-	name_node = netdev_name_node_lookup(net, name);
-	if (!name_node)
+	name_yesde = netdev_name_yesde_lookup(net, name);
+	if (!name_yesde)
 		return -ENOENT;
-	__netdev_name_node_alt_destroy(name_node);
+	__netdev_name_yesde_alt_destroy(name_yesde);
 
 	return 0;
 }
-EXPORT_SYMBOL(netdev_name_node_alt_destroy);
+EXPORT_SYMBOL(netdev_name_yesde_alt_destroy);
 
-static void netdev_name_node_alt_flush(struct net_device *dev)
+static void netdev_name_yesde_alt_flush(struct net_device *dev)
 {
-	struct netdev_name_node *name_node, *tmp;
+	struct netdev_name_yesde *name_yesde, *tmp;
 
-	list_for_each_entry_safe(name_node, tmp, &dev->name_node->list, list)
-		__netdev_name_node_alt_destroy(name_node);
+	list_for_each_entry_safe(name_yesde, tmp, &dev->name_yesde->list, list)
+		__netdev_name_yesde_alt_destroy(name_yesde);
 }
 
 /* Device list insertion */
@@ -354,7 +354,7 @@ static void list_netdevice(struct net_device *dev)
 
 	write_lock_bh(&dev_base_lock);
 	list_add_tail_rcu(&dev->dev_list, &net->dev_base_head);
-	netdev_name_node_add(net, dev->name_node);
+	netdev_name_yesde_add(net, dev->name_yesde);
 	hlist_add_head_rcu(&dev->index_hlist,
 			   dev_index_hash(net, dev->ifindex));
 	write_unlock_bh(&dev_base_lock);
@@ -372,7 +372,7 @@ static void unlist_netdevice(struct net_device *dev)
 	/* Unlink dev from the device chain */
 	write_lock_bh(&dev_base_lock);
 	list_del_rcu(&dev->dev_list);
-	netdev_name_node_del(dev->name_node);
+	netdev_name_yesde_del(dev->name_yesde);
 	hlist_del_rcu(&dev->index_hlist);
 	write_unlock_bh(&dev_base_lock);
 
@@ -380,7 +380,7 @@ static void unlist_netdevice(struct net_device *dev)
 }
 
 /*
- *	Our notifier list
+ *	Our yestifier list
  */
 
 static RAW_NOTIFIER_HEAD(netdev_chain);
@@ -408,9 +408,9 @@ EXPORT_PER_CPU_SYMBOL(softnet_data);
  *	BEWARE!!! Protocol handlers, mangling input packets,
  *	MUST BE last in hash buckets and checking protocol handlers
  *	MUST start from promiscuous ptype_all chain in net_bh.
- *	It is true now, do not change it.
+ *	It is true yesw, do yest change it.
  *	Explanation follows: if protocol handler, mangling packet, will
- *	be the first on list, it is not able to sense, that packet
+ *	be the first on list, it is yest able to sense, that packet
  *	is cloned and should be copied-on-write, so that it will
  *	change it and subsequent readers will get broken packet.
  *							--ANK (980803)
@@ -430,10 +430,10 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
  *	@pt: packet type declaration
  *
  *	Add a protocol handler to the networking stack. The passed &packet_type
- *	is linked into kernel lists and may not be freed until it has been
+ *	is linked into kernel lists and may yest be freed until it has been
  *	removed from the kernel lists.
  *
- *	This call does not sleep therefore it can not
+ *	This call does yest sleep therefore it can yest
  *	guarantee all CPU's that are in middle of receiving packets
  *	will see the new packet type (until the next received packet).
  */
@@ -458,7 +458,7 @@ EXPORT_SYMBOL(dev_add_pack);
  *	returns.
  *
  *      The packet type might still be in use by receivers
- *	and must not be freed until after all the CPU's have gone
+ *	and must yest be freed until after all the CPU's have gone
  *	through a quiescent state.
  */
 void __dev_remove_pack(struct packet_type *pt)
@@ -475,7 +475,7 @@ void __dev_remove_pack(struct packet_type *pt)
 		}
 	}
 
-	pr_warn("dev_remove_pack: %p not found\n", pt);
+	pr_warn("dev_remove_pack: %p yest found\n", pt);
 out:
 	spin_unlock(&ptype_lock);
 }
@@ -490,7 +490,7 @@ EXPORT_SYMBOL(__dev_remove_pack);
  *	from the kernel lists and can be freed or reused once this function
  *	returns.
  *
- *	This call sleeps to guarantee that no CPU is looking at the packet
+ *	This call sleeps to guarantee that yes CPU is looking at the packet
  *	type after return.
  */
 void dev_remove_pack(struct packet_type *pt)
@@ -507,10 +507,10 @@ EXPORT_SYMBOL(dev_remove_pack);
  *	@po: protocol offload declaration
  *
  *	Add protocol offload handlers to the networking stack. The passed
- *	&proto_offload is linked into kernel lists and may not be freed until
+ *	&proto_offload is linked into kernel lists and may yest be freed until
  *	it has been removed from the kernel lists.
  *
- *	This call does not sleep therefore it can not
+ *	This call does yest sleep therefore it can yest
  *	guarantee all CPU's that are in middle of receiving packets
  *	will see the new offload handlers (until the next received packet).
  */
@@ -538,7 +538,7 @@ EXPORT_SYMBOL(dev_add_offload);
  *	function returns.
  *
  *      The packet type might still be in use by receivers
- *	and must not be freed until after all the CPU's have gone
+ *	and must yest be freed until after all the CPU's have gone
  *	through a quiescent state.
  */
 static void __dev_remove_offload(struct packet_offload *po)
@@ -555,7 +555,7 @@ static void __dev_remove_offload(struct packet_offload *po)
 		}
 	}
 
-	pr_warn("dev_remove_offload: %p not found\n", po);
+	pr_warn("dev_remove_offload: %p yest found\n", po);
 out:
 	spin_unlock(&offload_lock);
 }
@@ -569,7 +569,7 @@ out:
  *	removed from the kernel lists and can be freed or reused once this
  *	function returns.
  *
- *	This call sleeps to guarantee that no CPU is looking at the packet
+ *	This call sleeps to guarantee that yes CPU is looking at the packet
  *	type after return.
  */
 void dev_remove_offload(struct packet_offload *po)
@@ -623,7 +623,7 @@ static int netdev_boot_setup_add(char *name, struct ifmap *map)
  * Check boot time settings for the device.
  * The found settings are set for the device to be used
  * later in the device probing.
- * Returns 0 if no settings found, 1 if they are.
+ * Returns 0 if yes settings found, 1 if they are.
  */
 int netdev_boot_setup_check(struct net_device *dev)
 {
@@ -653,7 +653,7 @@ EXPORT_SYMBOL(netdev_boot_setup_check);
  * Check boot time settings for the base address of device.
  * The found settings are set for the device to be used
  * later in the device probing.
- * Returns 0 if no settings found.
+ * Returns 0 if yes settings found.
  */
 unsigned long netdev_boot_base(const char *prefix, int unit)
 {
@@ -665,7 +665,7 @@ unsigned long netdev_boot_base(const char *prefix, int unit)
 
 	/*
 	 * If device already registered then return base of 1
-	 * to indicate not to probe for this interface
+	 * to indicate yest to probe for this interface
 	 */
 	if (__dev_get_by_name(&init_net, name))
 		return 1;
@@ -761,17 +761,17 @@ EXPORT_SYMBOL_GPL(dev_fill_metadata_dst);
  *
  *	Find an interface by name. Must be called under RTNL semaphore
  *	or @dev_base_lock. If the name is found a pointer to the device
- *	is returned. If the name is not found then %NULL is returned. The
- *	reference counters are not incremented so the caller must be
+ *	is returned. If the name is yest found then %NULL is returned. The
+ *	reference counters are yest incremented so the caller must be
  *	careful with locks.
  */
 
 struct net_device *__dev_get_by_name(struct net *net, const char *name)
 {
-	struct netdev_name_node *node_name;
+	struct netdev_name_yesde *yesde_name;
 
-	node_name = netdev_name_node_lookup(net, name);
-	return node_name ? node_name->dev : NULL;
+	yesde_name = netdev_name_yesde_lookup(net, name);
+	return yesde_name ? yesde_name->dev : NULL;
 }
 EXPORT_SYMBOL(__dev_get_by_name);
 
@@ -782,17 +782,17 @@ EXPORT_SYMBOL(__dev_get_by_name);
  *
  * Find an interface by name.
  * If the name is found a pointer to the device is returned.
- * If the name is not found then %NULL is returned.
- * The reference counters are not incremented so the caller must be
+ * If the name is yest found then %NULL is returned.
+ * The reference counters are yest incremented so the caller must be
  * careful with locks. The caller must hold RCU lock.
  */
 
 struct net_device *dev_get_by_name_rcu(struct net *net, const char *name)
 {
-	struct netdev_name_node *node_name;
+	struct netdev_name_yesde *yesde_name;
 
-	node_name = netdev_name_node_lookup_rcu(net, name);
-	return node_name ? node_name->dev : NULL;
+	yesde_name = netdev_name_yesde_lookup_rcu(net, name);
+	return yesde_name ? yesde_name->dev : NULL;
 }
 EXPORT_SYMBOL(dev_get_by_name_rcu);
 
@@ -804,7 +804,7 @@ EXPORT_SYMBOL(dev_get_by_name_rcu);
  *	Find an interface by name. This can be called from any
  *	context and does its own locking. The returned handle has
  *	the usage count incremented and the caller must use dev_put() to
- *	release it when it is no longer needed. %NULL is returned if no
+ *	release it when it is yes longer needed. %NULL is returned if yes
  *	matching device is found.
  */
 
@@ -827,7 +827,7 @@ EXPORT_SYMBOL(dev_get_by_name);
  *	@ifindex: index of device
  *
  *	Search for an interface by index. Returns %NULL if the device
- *	is not found or a pointer to the device. The device has not
+ *	is yest found or a pointer to the device. The device has yest
  *	had its reference counter increased so the caller must be careful
  *	about locking. The caller must hold either the RTNL semaphore
  *	or @dev_base_lock.
@@ -852,7 +852,7 @@ EXPORT_SYMBOL(__dev_get_by_index);
  *	@ifindex: index of device
  *
  *	Search for an interface by index. Returns %NULL if the device
- *	is not found or a pointer to the device. The device has not
+ *	is yest found or a pointer to the device. The device has yest
  *	had its reference counter increased so the caller must be careful
  *	about locking. The caller must hold RCU lock.
  */
@@ -877,7 +877,7 @@ EXPORT_SYMBOL(dev_get_by_index_rcu);
  *	@ifindex: index of device
  *
  *	Search for an interface by index. Returns NULL if the device
- *	is not found or a pointer to the device. The device returned has
+ *	is yest found or a pointer to the device. The device returned has
  *	had a reference added and the pointer is safe until the user calls
  *	dev_put to indicate they have finished with it.
  */
@@ -900,7 +900,7 @@ EXPORT_SYMBOL(dev_get_by_index);
  *	@napi_id: ID of the NAPI struct
  *
  *	Search for an interface by NAPI ID. Returns %NULL if the device
- *	is not found or a pointer to the device. The device has not had
+ *	is yest found or a pointer to the device. The device has yest had
  *	its reference counter increased so the caller must be careful
  *	about locking. The caller must hold RCU lock.
  */
@@ -921,14 +921,14 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
 EXPORT_SYMBOL(dev_get_by_napi_id);
 
 /**
- *	netdev_get_name - get a netdevice name, knowing its ifindex.
+ *	netdev_get_name - get a netdevice name, kyeswing its ifindex.
  *	@net: network namespace
  *	@name: a pointer to the buffer where the name will be stored.
  *	@ifindex: the ifindex of the interface to get the name from.
  *
  *	The use of raw_seqcount_begin() and cond_resched() before
  *	retrying is required as we want to give the writers a chance
- *	to complete when CONFIG_PREEMPT is not set.
+ *	to complete when CONFIG_PREEMPT is yest set.
  */
 int netdev_get_name(struct net *net, char *name, int ifindex)
 {
@@ -961,9 +961,9 @@ retry:
  *	@ha: hardware address
  *
  *	Search for an interface by MAC address. Returns NULL if the device
- *	is not found or a pointer to the device.
+ *	is yest found or a pointer to the device.
  *	The caller must hold RCU or RTNL.
- *	The returned device has not had its ref count increased
+ *	The returned device has yest had its ref count increased
  *	and the caller must therefore be careful about locking
  *
  */
@@ -1018,7 +1018,7 @@ EXPORT_SYMBOL(dev_getfirstbyhwtype);
  *	@mask: bitmask of bits in if_flags to check
  *
  *	Search for any interface with the given flags. Returns NULL if a device
- *	is not found or a pointer to the device. Must be called inside
+ *	is yest found or a pointer to the device. Must be called inside
  *	rtnl_lock(), and result refcount is unchanged.
  */
 
@@ -1078,7 +1078,7 @@ EXPORT_SYMBOL(dev_valid_name);
  *	while allocating the name and adding the device in order to avoid
  *	duplicates.
  *	Limited to bits_per_byte * page size devices (ie 32K on most platforms).
- *	Returns the number of the unit assigned or a negative errno code.
+ *	Returns the number of the unit assigned or a negative erryes code.
  */
 
 static int __dev_alloc_name(struct net *net, const char *name, char *buf)
@@ -1096,7 +1096,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	if (p) {
 		/*
 		 * Verify the string as this thing may have come from
-		 * the user.  There must be either one "%d" and no other "%"
+		 * the user.  There must be either one "%d" and yes other "%"
 		 * characters.
 		 */
 		if (p[1] != 'd' || strchr(p + 2, '%'))
@@ -1113,7 +1113,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 			if (i < 0 || i >= max_netdevices)
 				continue;
 
-			/*  avoid cases where sscanf is not exact inverse of printf */
+			/*  avoid cases where sscanf is yest exact inverse of printf */
 			snprintf(buf, IFNAMSIZ, name, i);
 			if (!strncmp(buf, d->name, IFNAMSIZ))
 				set_bit(i, inuse);
@@ -1128,7 +1128,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 		return i;
 
 	/* It is possible to run out of possible slots
-	 * when the name is long and there isn't enough space left
+	 * when the name is long and there isn't eyesugh space left
 	 * for the digits, or if all bits are used.
 	 */
 	return -ENFILE;
@@ -1159,7 +1159,7 @@ static int dev_alloc_name_ns(struct net *net,
  *	while allocating the name and adding the device in order to avoid
  *	duplicates.
  *	Limited to bits_per_byte * page size devices (ie 32K on most platforms).
- *	Returns the number of the unit assigned or a negative errno code.
+ *	Returns the number of the unit assigned or a negative erryes code.
  */
 
 int dev_alloc_name(struct net_device *dev, const char *name)
@@ -1258,20 +1258,20 @@ rollback:
 	netdev_adjacent_rename_links(dev, oldname);
 
 	write_lock_bh(&dev_base_lock);
-	netdev_name_node_del(dev->name_node);
+	netdev_name_yesde_del(dev->name_yesde);
 	write_unlock_bh(&dev_base_lock);
 
 	synchronize_rcu();
 
 	write_lock_bh(&dev_base_lock);
-	netdev_name_node_add(net, dev->name_node);
+	netdev_name_yesde_add(net, dev->name_yesde);
 	write_unlock_bh(&dev_base_lock);
 
-	ret = call_netdevice_notifiers(NETDEV_CHANGENAME, dev);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_yestifiers(NETDEV_CHANGENAME, dev);
+	ret = yestifier_to_erryes(ret);
 
 	if (ret) {
-		/* err >= 0 after dev_alloc_name() or stores the first errno */
+		/* err >= 0 after dev_alloc_name() or stores the first erryes */
 		if (err >= 0) {
 			err = ret;
 			write_seqcount_begin(&devnet_rename_seq);
@@ -1331,7 +1331,7 @@ EXPORT_SYMBOL(dev_set_alias);
  *	@name: buffer to store name of ifalias
  *	@len: size of buffer
  *
- *	get ifalias for a device.  Caller must make sure dev cannot go
+ *	get ifalias for a device.  Caller must make sure dev canyest go
  *	away,  e.g. rcu read lock or own a reference count to device.
  */
 int dev_get_alias(const struct net_device *dev, char *name, size_t len)
@@ -1350,32 +1350,32 @@ int dev_get_alias(const struct net_device *dev, char *name, size_t len)
 
 /**
  *	netdev_features_change - device changes features
- *	@dev: device to cause notification
+ *	@dev: device to cause yestification
  *
  *	Called to indicate a device has changed features.
  */
 void netdev_features_change(struct net_device *dev)
 {
-	call_netdevice_notifiers(NETDEV_FEAT_CHANGE, dev);
+	call_netdevice_yestifiers(NETDEV_FEAT_CHANGE, dev);
 }
 EXPORT_SYMBOL(netdev_features_change);
 
 /**
  *	netdev_state_change - device changes state
- *	@dev: device to cause notification
+ *	@dev: device to cause yestification
  *
  *	Called to indicate a device has changed state. This function calls
- *	the notifier chains for netdev_chain and sends a NEWLINK message
+ *	the yestifier chains for netdev_chain and sends a NEWLINK message
  *	to the routing socket.
  */
 void netdev_state_change(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		struct netdev_notifier_change_info change_info = {
+		struct netdev_yestifier_change_info change_info = {
 			.info.dev = dev,
 		};
 
-		call_netdevice_notifiers_info(NETDEV_CHANGE,
+		call_netdevice_yestifiers_info(NETDEV_CHANGE,
 					      &change_info.info);
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0, GFP_KERNEL);
 	}
@@ -1383,7 +1383,7 @@ void netdev_state_change(struct net_device *dev)
 EXPORT_SYMBOL(netdev_state_change);
 
 /**
- * netdev_notify_peers - notify network peers about existence of @dev
+ * netdev_yestify_peers - yestify network peers about existence of @dev
  * @dev: network device
  *
  * Generate traffic such that interested network peers are aware of
@@ -1392,14 +1392,14 @@ EXPORT_SYMBOL(netdev_state_change);
  * reconfiguration such as a failover event or virtual machine
  * migration.
  */
-void netdev_notify_peers(struct net_device *dev)
+void netdev_yestify_peers(struct net_device *dev)
 {
 	rtnl_lock();
-	call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, dev);
-	call_netdevice_notifiers(NETDEV_RESEND_IGMP, dev);
+	call_netdevice_yestifiers(NETDEV_NOTIFY_PEERS, dev);
+	call_netdevice_yestifiers(NETDEV_RESEND_IGMP, dev);
 	rtnl_unlock();
 }
-EXPORT_SYMBOL(netdev_notify_peers);
+EXPORT_SYMBOL(netdev_yestify_peers);
 
 static int __dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 {
@@ -1417,8 +1417,8 @@ static int __dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 	 */
 	netpoll_poll_disable(dev);
 
-	ret = call_netdevice_notifiers_extack(NETDEV_PRE_UP, dev, extack);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_yestifiers_extack(NETDEV_PRE_UP, dev, extack);
+	ret = yestifier_to_erryes(ret);
 	if (ret)
 		return ret;
 
@@ -1452,10 +1452,10 @@ static int __dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
  *	Takes a device from down to up state. The device's private open
  *	function is invoked and then the multicast lists are loaded. Finally
  *	the device is moved into the up state and a %NETDEV_UP message is
- *	sent to the netdev notifier chain.
+ *	sent to the netdev yestifier chain.
  *
- *	Calling this function on an active interface is a nop. On a failure
- *	a negative errno code is returned.
+ *	Calling this function on an active interface is a yesp. On a failure
+ *	a negative erryes code is returned.
  */
 int dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 {
@@ -1469,7 +1469,7 @@ int dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 		return ret;
 
 	rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING, GFP_KERNEL);
-	call_netdevice_notifiers(NETDEV_UP, dev);
+	call_netdevice_yestifiers(NETDEV_UP, dev);
 
 	return ret;
 }
@@ -1486,11 +1486,11 @@ static void __dev_close_many(struct list_head *head)
 		/* Temporarily disable netpoll until the interface is down */
 		netpoll_poll_disable(dev);
 
-		call_netdevice_notifiers(NETDEV_GOING_DOWN, dev);
+		call_netdevice_yestifiers(NETDEV_GOING_DOWN, dev);
 
 		clear_bit(__LINK_STATE_START, &dev->state);
 
-		/* Synchronize to scheduled poll. We cannot touch poll list, it
+		/* Synchronize to scheduled poll. We canyest touch poll list, it
 		 * can be even on different cpu. So just clear netif_running().
 		 *
 		 * dev->stop() will invoke napi_disable() on all of it's
@@ -1505,7 +1505,7 @@ static void __dev_close_many(struct list_head *head)
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		/*
-		 *	Call the device specific close. This cannot fail.
+		 *	Call the device specific close. This canyest fail.
 		 *	Only if device is UP
 		 *
 		 *	We allow it to be called even after a DETACH hot-plug
@@ -1541,7 +1541,7 @@ void dev_close_many(struct list_head *head, bool unlink)
 
 	list_for_each_entry_safe(dev, tmp, head, close_list) {
 		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING, GFP_KERNEL);
-		call_netdevice_notifiers(NETDEV_DOWN, dev);
+		call_netdevice_yestifiers(NETDEV_DOWN, dev);
 		if (unlink)
 			list_del_init(&dev->close_list);
 	}
@@ -1553,8 +1553,8 @@ EXPORT_SYMBOL(dev_close_many);
  *	@dev: device to shutdown
  *
  *	This function moves an active device into down state. A
- *	%NETDEV_GOING_DOWN is sent to the netdev notifier chain. The device
- *	is then deactivated and finally a %NETDEV_DOWN is sent to the notifier
+ *	%NETDEV_GOING_DOWN is sent to the netdev yestifier chain. The device
+ *	is then deactivated and finally a %NETDEV_DOWN is sent to the yestifier
  *	chain.
  */
 void dev_close(struct net_device *dev)
@@ -1576,7 +1576,7 @@ EXPORT_SYMBOL(dev_close);
  *
  *	Disable Large Receive Offload (LRO) on a net device.  Must be
  *	called under RTNL.  This is needed if received packets may be
- *	forwarded to another interface.
+ *	forwarded to ayesther interface.
  */
 void dev_disable_lro(struct net_device *dev)
 {
@@ -1633,52 +1633,52 @@ const char *netdev_cmd_to_name(enum netdev_cmd cmd)
 }
 EXPORT_SYMBOL_GPL(netdev_cmd_to_name);
 
-static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
+static int call_netdevice_yestifier(struct yestifier_block *nb, unsigned long val,
 				   struct net_device *dev)
 {
-	struct netdev_notifier_info info = {
+	struct netdev_yestifier_info info = {
 		.dev = dev,
 	};
 
-	return nb->notifier_call(nb, val, &info);
+	return nb->yestifier_call(nb, val, &info);
 }
 
-static int call_netdevice_register_notifiers(struct notifier_block *nb,
+static int call_netdevice_register_yestifiers(struct yestifier_block *nb,
 					     struct net_device *dev)
 {
 	int err;
 
-	err = call_netdevice_notifier(nb, NETDEV_REGISTER, dev);
-	err = notifier_to_errno(err);
+	err = call_netdevice_yestifier(nb, NETDEV_REGISTER, dev);
+	err = yestifier_to_erryes(err);
 	if (err)
 		return err;
 
 	if (!(dev->flags & IFF_UP))
 		return 0;
 
-	call_netdevice_notifier(nb, NETDEV_UP, dev);
+	call_netdevice_yestifier(nb, NETDEV_UP, dev);
 	return 0;
 }
 
-static void call_netdevice_unregister_notifiers(struct notifier_block *nb,
+static void call_netdevice_unregister_yestifiers(struct yestifier_block *nb,
 						struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
+		call_netdevice_yestifier(nb, NETDEV_GOING_DOWN,
 					dev);
-		call_netdevice_notifier(nb, NETDEV_DOWN, dev);
+		call_netdevice_yestifier(nb, NETDEV_DOWN, dev);
 	}
-	call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
+	call_netdevice_yestifier(nb, NETDEV_UNREGISTER, dev);
 }
 
-static int call_netdevice_register_net_notifiers(struct notifier_block *nb,
+static int call_netdevice_register_net_yestifiers(struct yestifier_block *nb,
 						 struct net *net)
 {
 	struct net_device *dev;
 	int err;
 
 	for_each_netdev(net, dev) {
-		err = call_netdevice_register_notifiers(nb, dev);
+		err = call_netdevice_register_yestifiers(nb, dev);
 		if (err)
 			goto rollback;
 	}
@@ -1686,36 +1686,36 @@ static int call_netdevice_register_net_notifiers(struct notifier_block *nb,
 
 rollback:
 	for_each_netdev_continue_reverse(net, dev)
-		call_netdevice_unregister_notifiers(nb, dev);
+		call_netdevice_unregister_yestifiers(nb, dev);
 	return err;
 }
 
-static void call_netdevice_unregister_net_notifiers(struct notifier_block *nb,
+static void call_netdevice_unregister_net_yestifiers(struct yestifier_block *nb,
 						    struct net *net)
 {
 	struct net_device *dev;
 
 	for_each_netdev(net, dev)
-		call_netdevice_unregister_notifiers(nb, dev);
+		call_netdevice_unregister_yestifiers(nb, dev);
 }
 
 static int dev_boot_phase = 1;
 
 /**
- * register_netdevice_notifier - register a network notifier block
- * @nb: notifier
+ * register_netdevice_yestifier - register a network yestifier block
+ * @nb: yestifier
  *
- * Register a notifier to be called when network device events occur.
- * The notifier passed is linked into the kernel structures and must
- * not be reused until it has been unregistered. A negative errno code
+ * Register a yestifier to be called when network device events occur.
+ * The yestifier passed is linked into the kernel structures and must
+ * yest be reused until it has been unregistered. A negative erryes code
  * is returned on a failure.
  *
  * When registered all registration and up events are replayed
- * to the new notifier to allow device to have a race free
+ * to the new yestifier to allow device to have a race free
  * view of the network device list.
  */
 
-int register_netdevice_notifier(struct notifier_block *nb)
+int register_netdevice_yestifier(struct yestifier_block *nb)
 {
 	struct net *net;
 	int err;
@@ -1723,13 +1723,13 @@ int register_netdevice_notifier(struct notifier_block *nb)
 	/* Close race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock();
-	err = raw_notifier_chain_register(&netdev_chain, nb);
+	err = raw_yestifier_chain_register(&netdev_chain, nb);
 	if (err)
 		goto unlock;
 	if (dev_boot_phase)
 		goto unlock;
 	for_each_net(net) {
-		err = call_netdevice_register_net_notifiers(nb, net);
+		err = call_netdevice_register_net_yestifiers(nb, net);
 		if (err)
 			goto rollback;
 	}
@@ -1741,28 +1741,28 @@ unlock:
 
 rollback:
 	for_each_net_continue_reverse(net)
-		call_netdevice_unregister_net_notifiers(nb, net);
+		call_netdevice_unregister_net_yestifiers(nb, net);
 
-	raw_notifier_chain_unregister(&netdev_chain, nb);
+	raw_yestifier_chain_unregister(&netdev_chain, nb);
 	goto unlock;
 }
-EXPORT_SYMBOL(register_netdevice_notifier);
+EXPORT_SYMBOL(register_netdevice_yestifier);
 
 /**
- * unregister_netdevice_notifier - unregister a network notifier block
- * @nb: notifier
+ * unregister_netdevice_yestifier - unregister a network yestifier block
+ * @nb: yestifier
  *
- * Unregister a notifier previously registered by
- * register_netdevice_notifier(). The notifier is unlinked into the
- * kernel structures and may then be reused. A negative errno code
+ * Unregister a yestifier previously registered by
+ * register_netdevice_yestifier(). The yestifier is unlinked into the
+ * kernel structures and may then be reused. A negative erryes code
  * is returned on a failure.
  *
  * After unregistering unregister and down device events are synthesized
- * for all devices on the device list to the removed notifier to remove
+ * for all devices on the device list to the removed yestifier to remove
  * the need for special case cleanup code.
  */
 
-int unregister_netdevice_notifier(struct notifier_block *nb)
+int unregister_netdevice_yestifier(struct yestifier_block *nb)
 {
 	struct net_device *dev;
 	struct net *net;
@@ -1771,18 +1771,18 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	/* Close race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock();
-	err = raw_notifier_chain_unregister(&netdev_chain, nb);
+	err = raw_yestifier_chain_unregister(&netdev_chain, nb);
 	if (err)
 		goto unlock;
 
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
 			if (dev->flags & IFF_UP) {
-				call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
+				call_netdevice_yestifier(nb, NETDEV_GOING_DOWN,
 							dev);
-				call_netdevice_notifier(nb, NETDEV_DOWN, dev);
+				call_netdevice_yestifier(nb, NETDEV_DOWN, dev);
 			}
-			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
+			call_netdevice_yestifier(nb, NETDEV_UNREGISTER, dev);
 		}
 	}
 unlock:
@@ -1790,35 +1790,35 @@ unlock:
 	up_write(&pernet_ops_rwsem);
 	return err;
 }
-EXPORT_SYMBOL(unregister_netdevice_notifier);
+EXPORT_SYMBOL(unregister_netdevice_yestifier);
 
 /**
- * register_netdevice_notifier_net - register a per-netns network notifier block
+ * register_netdevice_yestifier_net - register a per-netns network yestifier block
  * @net: network namespace
- * @nb: notifier
+ * @nb: yestifier
  *
- * Register a notifier to be called when network device events occur.
- * The notifier passed is linked into the kernel structures and must
- * not be reused until it has been unregistered. A negative errno code
+ * Register a yestifier to be called when network device events occur.
+ * The yestifier passed is linked into the kernel structures and must
+ * yest be reused until it has been unregistered. A negative erryes code
  * is returned on a failure.
  *
  * When registered all registration and up events are replayed
- * to the new notifier to allow device to have a race free
+ * to the new yestifier to allow device to have a race free
  * view of the network device list.
  */
 
-int register_netdevice_notifier_net(struct net *net, struct notifier_block *nb)
+int register_netdevice_yestifier_net(struct net *net, struct yestifier_block *nb)
 {
 	int err;
 
 	rtnl_lock();
-	err = raw_notifier_chain_register(&net->netdev_chain, nb);
+	err = raw_yestifier_chain_register(&net->netdev_chain, nb);
 	if (err)
 		goto unlock;
 	if (dev_boot_phase)
 		goto unlock;
 
-	err = call_netdevice_register_net_notifiers(nb, net);
+	err = call_netdevice_register_net_yestifiers(nb, net);
 	if (err)
 		goto chain_unregister;
 
@@ -1827,119 +1827,119 @@ unlock:
 	return err;
 
 chain_unregister:
-	raw_notifier_chain_unregister(&netdev_chain, nb);
+	raw_yestifier_chain_unregister(&netdev_chain, nb);
 	goto unlock;
 }
-EXPORT_SYMBOL(register_netdevice_notifier_net);
+EXPORT_SYMBOL(register_netdevice_yestifier_net);
 
 /**
- * unregister_netdevice_notifier_net - unregister a per-netns
- *                                     network notifier block
+ * unregister_netdevice_yestifier_net - unregister a per-netns
+ *                                     network yestifier block
  * @net: network namespace
- * @nb: notifier
+ * @nb: yestifier
  *
- * Unregister a notifier previously registered by
- * register_netdevice_notifier(). The notifier is unlinked into the
- * kernel structures and may then be reused. A negative errno code
+ * Unregister a yestifier previously registered by
+ * register_netdevice_yestifier(). The yestifier is unlinked into the
+ * kernel structures and may then be reused. A negative erryes code
  * is returned on a failure.
  *
  * After unregistering unregister and down device events are synthesized
- * for all devices on the device list to the removed notifier to remove
+ * for all devices on the device list to the removed yestifier to remove
  * the need for special case cleanup code.
  */
 
-int unregister_netdevice_notifier_net(struct net *net,
-				      struct notifier_block *nb)
+int unregister_netdevice_yestifier_net(struct net *net,
+				      struct yestifier_block *nb)
 {
 	int err;
 
 	rtnl_lock();
-	err = raw_notifier_chain_unregister(&net->netdev_chain, nb);
+	err = raw_yestifier_chain_unregister(&net->netdev_chain, nb);
 	if (err)
 		goto unlock;
 
-	call_netdevice_unregister_net_notifiers(nb, net);
+	call_netdevice_unregister_net_yestifiers(nb, net);
 
 unlock:
 	rtnl_unlock();
 	return err;
 }
-EXPORT_SYMBOL(unregister_netdevice_notifier_net);
+EXPORT_SYMBOL(unregister_netdevice_yestifier_net);
 
 /**
- *	call_netdevice_notifiers_info - call all network notifier blocks
- *	@val: value passed unmodified to notifier function
- *	@info: notifier information data
+ *	call_netdevice_yestifiers_info - call all network yestifier blocks
+ *	@val: value passed unmodified to yestifier function
+ *	@info: yestifier information data
  *
- *	Call all network notifier blocks.  Parameters and return value
- *	are as for raw_notifier_call_chain().
+ *	Call all network yestifier blocks.  Parameters and return value
+ *	are as for raw_yestifier_call_chain().
  */
 
-static int call_netdevice_notifiers_info(unsigned long val,
-					 struct netdev_notifier_info *info)
+static int call_netdevice_yestifiers_info(unsigned long val,
+					 struct netdev_yestifier_info *info)
 {
 	struct net *net = dev_net(info->dev);
 	int ret;
 
 	ASSERT_RTNL();
 
-	/* Run per-netns notifier block chain first, then run the global one.
+	/* Run per-netns yestifier block chain first, then run the global one.
 	 * Hopefully, one day, the global one is going to be removed after
-	 * all notifier block registrators get converted to be per-netns.
+	 * all yestifier block registrators get converted to be per-netns.
 	 */
-	ret = raw_notifier_call_chain(&net->netdev_chain, val, info);
+	ret = raw_yestifier_call_chain(&net->netdev_chain, val, info);
 	if (ret & NOTIFY_STOP_MASK)
 		return ret;
-	return raw_notifier_call_chain(&netdev_chain, val, info);
+	return raw_yestifier_call_chain(&netdev_chain, val, info);
 }
 
-static int call_netdevice_notifiers_extack(unsigned long val,
+static int call_netdevice_yestifiers_extack(unsigned long val,
 					   struct net_device *dev,
 					   struct netlink_ext_ack *extack)
 {
-	struct netdev_notifier_info info = {
+	struct netdev_yestifier_info info = {
 		.dev = dev,
 		.extack = extack,
 	};
 
-	return call_netdevice_notifiers_info(val, &info);
+	return call_netdevice_yestifiers_info(val, &info);
 }
 
 /**
- *	call_netdevice_notifiers - call all network notifier blocks
- *      @val: value passed unmodified to notifier function
- *      @dev: net_device pointer passed unmodified to notifier function
+ *	call_netdevice_yestifiers - call all network yestifier blocks
+ *      @val: value passed unmodified to yestifier function
+ *      @dev: net_device pointer passed unmodified to yestifier function
  *
- *	Call all network notifier blocks.  Parameters and return value
- *	are as for raw_notifier_call_chain().
+ *	Call all network yestifier blocks.  Parameters and return value
+ *	are as for raw_yestifier_call_chain().
  */
 
-int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
+int call_netdevice_yestifiers(unsigned long val, struct net_device *dev)
 {
-	return call_netdevice_notifiers_extack(val, dev, NULL);
+	return call_netdevice_yestifiers_extack(val, dev, NULL);
 }
-EXPORT_SYMBOL(call_netdevice_notifiers);
+EXPORT_SYMBOL(call_netdevice_yestifiers);
 
 /**
- *	call_netdevice_notifiers_mtu - call all network notifier blocks
- *	@val: value passed unmodified to notifier function
- *	@dev: net_device pointer passed unmodified to notifier function
- *	@arg: additional u32 argument passed to the notifier function
+ *	call_netdevice_yestifiers_mtu - call all network yestifier blocks
+ *	@val: value passed unmodified to yestifier function
+ *	@dev: net_device pointer passed unmodified to yestifier function
+ *	@arg: additional u32 argument passed to the yestifier function
  *
- *	Call all network notifier blocks.  Parameters and return value
- *	are as for raw_notifier_call_chain().
+ *	Call all network yestifier blocks.  Parameters and return value
+ *	are as for raw_yestifier_call_chain().
  */
-static int call_netdevice_notifiers_mtu(unsigned long val,
+static int call_netdevice_yestifiers_mtu(unsigned long val,
 					struct net_device *dev, u32 arg)
 {
-	struct netdev_notifier_info_ext info = {
+	struct netdev_yestifier_info_ext info = {
 		.info.dev = dev,
 		.ext.mtu = arg,
 	};
 
-	BUILD_BUG_ON(offsetof(struct netdev_notifier_info_ext, info) != 0);
+	BUILD_BUG_ON(offsetof(struct netdev_yestifier_info_ext, info) != 0);
 
-	return call_netdevice_notifiers_info(val, &info.info);
+	return call_netdevice_yestifiers_info(val, &info.info);
 }
 
 #ifdef CONFIG_NET_INGRESS
@@ -2080,20 +2080,20 @@ int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(__dev_forward_skb);
 
 /**
- * dev_forward_skb - loopback an skb to another netif
+ * dev_forward_skb - loopback an skb to ayesther netif
  *
  * @dev: destination network device
  * @skb: buffer to forward
  *
  * return values:
- *	NET_RX_SUCCESS	(no congestion)
+ *	NET_RX_SUCCESS	(yes congestion)
  *	NET_RX_DROP     (packet was dropped, but freed)
  *
  * dev_forward_skb can be used for injecting an skb from the
  * start_xmit function of one device into the receive queue
- * of another device.
+ * of ayesther device.
  *
- * The receiving device may be in another namespace, so
+ * The receiving device may be in ayesther namespace, so
  * we have to clear all information in the skb that could
  * impact namespace isolation.
  */
@@ -2170,7 +2170,7 @@ void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 again:
 	list_for_each_entry_rcu(ptype, ptype_list, list) {
-		if (ptype->ignore_outgoing)
+		if (ptype->igyesre_outgoing)
 			continue;
 
 		/* Never send packets back to the socket
@@ -2231,11 +2231,11 @@ EXPORT_SYMBOL_GPL(dev_queue_xmit_nit);
  * @dev: Network device
  * @txq: number of queues available
  *
- * If real_num_tx_queues is changed the tc mappings may no longer be
+ * If real_num_tx_queues is changed the tc mappings may yes longer be
  * valid. To resolve this verify the tc mapping remains valid and if
- * not NULL the mapping. With no priorities mapping to this
- * offset/count pair it will no longer be used. In the worst case TC0
- * is invalid nothing can be done so disable priority mappings. If is
+ * yest NULL the mapping. With yes priorities mapping to this
+ * offset/count pair it will yes longer be used. In the worst case TC0
+ * is invalid yesthing can be done so disable priority mappings. If is
  * expected that drivers will fix this mapping if they can before
  * calling netif_set_real_num_tx_queues.
  */
@@ -2257,7 +2257,7 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 
 		tc = &dev->tc_to_txq[q];
 		if (tc->offset + tc->count > txq) {
-			pr_warn("Number of in use tx queues changed. Priority %i to tc mapping %i is no longer valid. Setting map to 0\n",
+			pr_warn("Number of in use tx queues changed. Priority %i to tc mapping %i is yes longer valid. Setting map to 0\n",
 				i, q);
 			netdev_set_prio_tc_map(dev, i, 0);
 		}
@@ -2276,7 +2276,7 @@ int netdev_txq_to_tc(struct net_device *dev, unsigned int txq)
 				return i;
 		}
 
-		/* didn't find it, just return -1 to indicate no match */
+		/* didn't find it, just return -1 to indicate yes match */
 		return -1;
 	}
 
@@ -2373,7 +2373,7 @@ static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
 
 	if (!is_rxqs_map) {
 		for (i = offset + (count - 1); count--; i--) {
-			netdev_queue_numa_node_write(
+			netdev_queue_numa_yesde_write(
 				netdev_get_tx_queue(dev, i),
 				NUMA_NO_NODE);
 		}
@@ -2404,7 +2404,7 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 
 	dev_maps = xmap_dereference(dev->xps_cpus_map);
 	if (!dev_maps)
-		goto out_no_maps;
+		goto out_yes_maps;
 
 	if (num_possible_cpus() > 1)
 		possible_mask = cpumask_bits(cpu_possible_mask);
@@ -2412,7 +2412,7 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 	clean_xps_maps(dev, possible_mask, dev_maps, nr_ids, offset, count,
 		       false);
 
-out_no_maps:
+out_yes_maps:
 	mutex_unlock(&xps_map_mutex);
 	cpus_read_unlock();
 }
@@ -2449,8 +2449,8 @@ static struct xps_map *expand_xps_map(struct xps_map *map, int attr_index,
 	if (is_rxqs_map)
 		new_map = kzalloc(XPS_MAP_SIZE(alloc_len), GFP_KERNEL);
 	else
-		new_map = kzalloc_node(XPS_MAP_SIZE(alloc_len), GFP_KERNEL,
-				       cpu_to_node(attr_index));
+		new_map = kzalloc_yesde(XPS_MAP_SIZE(alloc_len), GFP_KERNEL,
+				       cpu_to_yesde(attr_index));
 	if (!new_map)
 		return NULL;
 
@@ -2468,14 +2468,14 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 {
 	const unsigned long *online_mask = NULL, *possible_mask = NULL;
 	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
-	int i, j, tci, numa_node_id = -2;
+	int i, j, tci, numa_yesde_id = -2;
 	int maps_sz, num_tc = 1, tc = 0;
 	struct xps_map *map, *new_map;
 	bool active = false;
 	unsigned int nr_ids;
 
 	if (dev->num_tc) {
-		/* Do not allow XPS on subordinate device directly */
+		/* Do yest allow XPS on subordinate device directly */
 		num_tc = dev->num_tc;
 		if (num_tc < 0)
 			return -EINVAL;
@@ -2528,7 +2528,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	}
 
 	if (!new_dev_maps)
-		goto out_no_new_maps;
+		goto out_yes_new_maps;
 
 	if (!dev_maps) {
 		/* Increment static keys at most once per type */
@@ -2564,10 +2564,10 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 				map->queues[map->len++] = index;
 #ifdef CONFIG_NUMA
 			if (!is_rxqs_map) {
-				if (numa_node_id == -2)
-					numa_node_id = cpu_to_node(j);
-				else if (numa_node_id != cpu_to_node(j))
-					numa_node_id = -1;
+				if (numa_yesde_id == -2)
+					numa_yesde_id = cpu_to_yesde(j);
+				else if (numa_yesde_id != cpu_to_yesde(j))
+					numa_yesde_id = -1;
 			}
 #endif
 		} else if (dev_maps) {
@@ -2591,7 +2591,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 	/* Cleanup old maps */
 	if (!dev_maps)
-		goto out_no_old_maps;
+		goto out_yes_old_maps;
 
 	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
 	     j < nr_ids;) {
@@ -2605,20 +2605,20 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 	kfree_rcu(dev_maps, rcu);
 
-out_no_old_maps:
+out_yes_old_maps:
 	dev_maps = new_dev_maps;
 	active = true;
 
-out_no_new_maps:
+out_yes_new_maps:
 	if (!is_rxqs_map) {
-		/* update Tx queue numa node */
-		netdev_queue_numa_node_write(netdev_get_tx_queue(dev, index),
-					     (numa_node_id >= 0) ?
-					     numa_node_id : NUMA_NO_NODE);
+		/* update Tx queue numa yesde */
+		netdev_queue_numa_yesde_write(netdev_get_tx_queue(dev, index),
+					     (numa_yesde_id >= 0) ?
+					     numa_yesde_id : NUMA_NO_NODE);
 	}
 
 	if (!dev_maps)
-		goto out_no_maps;
+		goto out_yes_maps;
 
 	/* removes tx-queue from unused CPUs/rx-queues */
 	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
@@ -2632,11 +2632,11 @@ out_no_new_maps:
 			active |= remove_xps_queue(dev_maps, tci, index);
 	}
 
-	/* free map if not active */
+	/* free map if yest active */
 	if (!active)
 		reset_xps_maps(dev, dev_maps, is_rxqs_map);
 
-out_no_maps:
+out_yes_maps:
 	mutex_unlock(&xps_map_mutex);
 
 	return 0;
@@ -2755,7 +2755,7 @@ int netdev_bind_sb_channel_queue(struct net_device *dev,
 	if (sb_dev->num_tc >= 0 || tc >= dev->num_tc)
 		return -EINVAL;
 
-	/* We cannot hand out queues we don't have */
+	/* We canyest hand out queues we don't have */
 	if ((offset + count) > dev->real_num_tx_queues)
 		return -EINVAL;
 
@@ -2775,14 +2775,14 @@ EXPORT_SYMBOL(netdev_bind_sb_channel_queue);
 
 int netdev_set_sb_channel(struct net_device *dev, u16 channel)
 {
-	/* Do not use a multiqueue device to represent a subordinate channel */
+	/* Do yest use a multiqueue device to represent a subordinate channel */
 	if (netif_is_multiqueue(dev))
 		return -ENODEV;
 
 	/* We allow channels 1 - 32767 to be used for subordinate channels.
 	 * Channel 0 is meant to be "native" mode and used only to represent
 	 * the main root device. We allow writing 0 to reset the device back
-	 * to normal mode after being used as a subordinate channel.
+	 * to yesrmal mode after being used as a subordinate channel.
 	 */
 	if (channel > S16_MAX)
 		return -EINVAL;
@@ -2973,7 +2973,7 @@ EXPORT_SYMBOL(__dev_kfree_skb_any);
  * netif_device_detach - mark device as removed
  * @dev: network device
  *
- * Mark device as removed from system and therefore no longer available.
+ * Mark device as removed from system and therefore yes longer available.
  */
 void netif_device_detach(struct net_device *dev)
 {
@@ -3067,7 +3067,7 @@ int skb_checksum_help(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	/* Before computing a checksum, we should make sure no frag could
+	/* Before computing a checksum, we should make sure yes frag could
 	 * be modified by an external entity : checksum could be wrong.
 	 */
 	if (skb_has_shared_frag(skb)) {
@@ -3106,7 +3106,7 @@ int skb_crc32c_csum_help(struct sk_buff *skb)
 	if (unlikely(skb_is_gso(skb)))
 		goto out;
 
-	/* Before computing a checksum, we should make sure no frag could
+	/* Before computing a checksum, we should make sure yes frag could
 	 * be modified by an external entity : checksum could be wrong.
 	 */
 	if (unlikely(skb_has_shared_frag(skb))) {
@@ -3130,7 +3130,7 @@ int skb_crc32c_csum_help(struct sk_buff *skb)
 						  crc32c_csum_stub));
 	*(__le32 *)(skb->data + offset) = crc32c_csum;
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->csum_not_inet = 0;
+	skb->csum_yest_inet = 0;
 out:
 	return ret;
 }
@@ -3206,7 +3206,7 @@ static inline bool skb_needs_check(struct sk_buff *skb, bool tx_path)
  *
  *	This function segments the given skb and returns a list of segments.
  *
- *	It may return NULL if the skb requires no segmentation.  This is
+ *	It may return NULL if the skb requires yes segmentation.  This is
  *	only possible when GSO is used for verifying header integrity.
  *
  *	Segmentation preserves SKB_SGO_CB_OFFSET bytes of previous skb cb.
@@ -3261,7 +3261,7 @@ EXPORT_SYMBOL(__skb_gso_segment);
 void netdev_rx_csum_fault(struct net_device *dev, struct sk_buff *skb)
 {
 	if (net_ratelimit()) {
-		pr_err("%s: hw csum failure\n", dev ? dev->name : "<unknown>");
+		pr_err("%s: hw csum failure\n", dev ? dev->name : "<unkyeswn>");
 		skb_dump(KERN_ERR, skb, true);
 		dump_stack();
 	}
@@ -3354,7 +3354,7 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 
 	/* Support for GSO partial features requires software
 	 * intervention before we can actually process the packets
-	 * so we need to strip support for any partial features now
+	 * so we need to strip support for any partial features yesw
 	 * and we can pull them back in after we have partially
 	 * segmented the frame.
 	 */
@@ -3432,7 +3432,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 	while (skb) {
 		struct sk_buff *next = skb->next;
 
-		skb_mark_not_on_list(skb);
+		skb_mark_yest_on_list(skb);
 		rc = xmit_one(skb, dev, txq, next != NULL);
 		if (unlikely(!dev_xmit_complete(rc))) {
 			skb->next = next;
@@ -3463,7 +3463,7 @@ static struct sk_buff *validate_xmit_vlan(struct sk_buff *skb,
 int skb_csum_hwoffload_help(struct sk_buff *skb,
 			    const netdev_features_t features)
 {
-	if (unlikely(skb->csum_not_inet))
+	if (unlikely(skb->csum_yest_inet))
 		return !!(features & NETIF_F_SCTP_CRC) ? 0 :
 			skb_crc32c_csum_help(skb);
 
@@ -3499,7 +3499,7 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 		    __skb_linearize(skb))
 			goto out_kfree_skb;
 
-		/* If packet is not checksummed and device does not
+		/* If packet is yest checksummed and device does yest
 		 * support checksumming for this protocol, complete
 		 * checksumming here.
 		 */
@@ -3532,7 +3532,7 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 
 	for (; skb != NULL; skb = next) {
 		next = skb->next;
-		skb_mark_not_on_list(skb);
+		skb_mark_yest_on_list(skb);
 
 		/* in case skb wont be segmented, point to itself */
 		skb->prev = skb;
@@ -3546,7 +3546,7 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 		else
 			tail->next = skb;
 		/* If skb was segmented, skb->prev points to
-		 * the last segment. If not, it still contains skb.
+		 * the last segment. If yest, it still contains skb.
 		 */
 		tail = skb->prev;
 	}
@@ -3650,8 +3650,8 @@ end_run:
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
 		   qdisc_run_begin(q)) {
 		/*
-		 * This is a work-conserving queue; there are no old skbs
-		 * waiting to be sent out; and the qdisc is not running -
+		 * This is a work-conserving queue; there are yes old skbs
+		 * waiting to be sent out; and the qdisc is yest running -
 		 * xmit the skb directly.
 		 */
 
@@ -3918,12 +3918,12 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
  *	have set the device and priority and built the buffer before calling
  *	this function. The function can be called from an interrupt.
  *
- *	A negative errno code is returned on a failure. A success does not
+ *	A negative erryes code is returned on a failure. A success does yest
  *	guarantee the frame will be transmitted as it may be dropped due
  *	to congestion or traffic shaping.
  *
  * -----------------------------------------------------------------------------------
- *      I notice this method can also return errors from the queue disciplines,
+ *      I yestice this method can also return errors from the queue disciplines,
  *      including NET_XMIT_DROP, which is a positive value.  So, errors can also
  *      be positive.
  *
@@ -3932,7 +3932,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
  *      before sending to hold a reference for retry if you are careful.)
  *
  *      When calling this method, interrupts MUST be enabled.  This is because
- *      the BH enable code must have IRQs enabled so that it will not deadlock.
+ *      the BH enable code must have IRQs enabled so that it will yest deadlock.
  *          --BLG
  */
 static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
@@ -3966,7 +3966,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	}
 # endif
 #endif
-	/* If device/qdisc don't need skb->dst, release it right now while
+	/* If device/qdisc don't need skb->dst, release it right yesw while
 	 * its hot in this cpu cache.
 	 */
 	if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
@@ -3983,17 +3983,17 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		goto out;
 	}
 
-	/* The device has no queue. Common case for software devices:
+	/* The device has yes queue. Common case for software devices:
 	 * loopback, all the sorts of tunnels...
 
 	 * Really, it is unlikely that netif_tx_lock protection is necessary
-	 * here.  (f.e. loopback and IP tunnels are clean ignoring statistics
+	 * here.  (f.e. loopback and IP tunnels are clean igyesring statistics
 	 * counters.)
 	 * However, it is possible, that they rely on protection
 	 * made by us here.
 
-	 * Check this and shot the lock. It is not prone from deadlocks.
-	 *Either shot noqueue qdisc, it is even simpler 8)
+	 * Check this and shot the lock. It is yest prone from deadlocks.
+	 *Either shot yesqueue qdisc, it is even simpler 8)
 	 */
 	if (dev->flags & IFF_UP) {
 		int cpu = smp_processor_id(); /* ok because BHs are off */
@@ -4108,7 +4108,7 @@ int dev_weight_tx_bias __read_mostly = 1;  /* bias for output_queue quota */
 int dev_rx_weight __read_mostly = 64;
 int dev_tx_weight __read_mostly = 64;
 /* Maximum number of GRO_NORMAL skbs to batch up for list-RX */
-int gro_normal_batch __read_mostly = 8;
+int gro_yesrmal_batch __read_mostly = 8;
 
 /* Called with irq disabled */
 static inline void ____napi_schedule(struct softnet_data *sd,
@@ -4205,7 +4205,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		rxqueue += index;
 	}
 
-	/* Avoid computing hash if RFS/RPS is not active for this rxqueue */
+	/* Avoid computing hash if RFS/RPS is yest active for this rxqueue */
 
 	flow_table = rcu_dereference(rxqueue->rps_flow_table);
 	map = rcu_dereference(rxqueue->rps_map);
@@ -4230,7 +4230,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 		next_cpu = ident & rps_cpu_mask;
 
-		/* OK, now we know there is a match,
+		/* OK, yesw we kyesw there is a match,
 		 * we can look at the local (per receive queue) flow table
 		 */
 		rflow = &flow_table->flows[hash & flow_table->mask];
@@ -4328,9 +4328,9 @@ static void rps_trigger_softirq(void *data)
 #endif /* CONFIG_RPS */
 
 /*
- * Check if this softnet_data structure is another cpu one
- * If yes, queue it to our IPI list and return 1
- * If no, return 0
+ * Check if this softnet_data structure is ayesther cpu one
+ * If no, queue it to our IPI list and return 1
+ * If yes, return 0
  */
 static int rps_ipi_queued(struct softnet_data *sd)
 {
@@ -4418,7 +4418,7 @@ enqueue:
 		}
 
 		/* Schedule NAPI for backlog device
-		 * We can use non atomic operation since we own the queue lock
+		 * We can use yesn atomic operation since we own the queue lock
 		 */
 		if (!__test_and_set_bit(NAPI_STATE_SCHED, &sd->backlog.state)) {
 			if (!rps_ipi_queued(sd))
@@ -4475,7 +4475,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	u32 mac_len;
 
 	/* Reinjected packets coming from act_mirred or similar should
-	 * not get XDP generic processing.
+	 * yest get XDP generic processing.
 	 */
 	if (skb_cloned(skb) || skb_is_tc_redirected(skb))
 		return XDP_PASS;
@@ -4484,7 +4484,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	 * of XDP_PACKET_HEADROOM bytes. This is the guarantee that also
 	 * native XDP provides, thus we need to do it here as well.
 	 */
-	if (skb_is_nonlinear(skb) ||
+	if (skb_is_yesnlinear(skb) ||
 	    skb_headroom(skb) < XDP_PACKET_HEADROOM) {
 		int hroom = XDP_PACKET_HEADROOM - skb_headroom(skb);
 		int troom = skb->tail + skb->data_len - skb->end;
@@ -4678,7 +4678,7 @@ static int netif_rx_internal(struct sk_buff *skb)
  *	protocol layers.
  *
  *	return values:
- *	NET_RX_SUCCESS	(no congestion)
+ *	NET_RX_SUCCESS	(yes congestion)
  *	NET_RX_DROP     (packet was dropped)
  *
  */
@@ -4795,7 +4795,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 
 	/* If there's at least one ingress present somewhere (so
 	 * we get here via enabled static key), remaining devices
-	 * that are not configured with an ingress qdisc will bail
+	 * that are yest configured with an ingress qdisc will bail
 	 * out here.
 	 */
 	if (!miniq)
@@ -4827,7 +4827,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 	case TC_ACT_REDIRECT:
 		/* skb_mac_header check was done by cls/act_bpf, so
 		 * we can safely push the L2 header back before
-		 * redirecting to another netdev
+		 * redirecting to ayesther netdev
 		 */
 		__skb_push(skb, skb->mac_len);
 		skb_do_redirect(skb);
@@ -4864,7 +4864,7 @@ EXPORT_SYMBOL_GPL(netdev_is_rx_handler_busy);
  *	@rx_handler_data: data pointer that is used by rx handler
  *
  *	Register a receive handler for a device. This handler will then be
- *	called from __netif_receive_skb. A negative errno code is returned
+ *	called from __netif_receive_skb. A negative erryes code is returned
  *	on a failure.
  *
  *	The caller must hold the rtnl_mutex.
@@ -4902,8 +4902,8 @@ void netdev_rx_handler_unregister(struct net_device *dev)
 
 	ASSERT_RTNL();
 	RCU_INIT_POINTER(dev->rx_handler, NULL);
-	/* a reader seeing a non NULL rx_handler in a rcu_read_lock()
-	 * section has a guarantee to see a non NULL rx_handler_data
+	/* a reader seeing a yesn NULL rx_handler in a rcu_read_lock()
+	 * section has a guarantee to see a yesn NULL rx_handler_data
 	 * as well.
 	 */
 	synchronize_net();
@@ -4973,7 +4973,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc,
 
 	pt_prev = NULL;
 
-another_round:
+ayesther_round:
 	skb->skb_iif = skb->dev->ifindex;
 
 	__this_cpu_inc(softnet_data.processed);
@@ -5037,7 +5037,7 @@ skip_classify:
 			pt_prev = NULL;
 		}
 		if (vlan_do_receive(&skb))
-			goto another_round;
+			goto ayesther_round;
 		else if (unlikely(!skb))
 			goto out;
 	}
@@ -5053,7 +5053,7 @@ skip_classify:
 			ret = NET_RX_SUCCESS;
 			goto out;
 		case RX_HANDLER_ANOTHER:
-			goto another_round;
+			goto ayesther_round;
 		case RX_HANDLER_EXACT:
 			deliver_exact = true;
 		case RX_HANDLER_PASS:
@@ -5066,7 +5066,7 @@ skip_classify:
 	if (unlikely(skb_vlan_tag_present(skb))) {
 check_vlan_id:
 		if (skb_vlan_tag_get_id(skb)) {
-			/* Vlan id is non 0 and vlan_do_receive() above couldn't
+			/* Vlan id is yesn 0 and vlan_do_receive() above couldn't
 			 * find vlan device.
 			 */
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -5074,7 +5074,7 @@ check_vlan_id:
 			   skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
 			/* Outer header is 802.1P with vlan 0, inner header is
 			 * 802.1Q or 802.1AD and vlan_do_receive() above could
-			 * not find vlan dev for vlan id 0.
+			 * yest find vlan dev for vlan id 0.
 			 */
 			__vlan_hwaccel_clear_tag(skb);
 			skb = skb_vlan_untag(skb);
@@ -5084,19 +5084,19 @@ check_vlan_id:
 				/* After stripping off 802.1P header with vlan 0
 				 * vlan dev is found for inner header.
 				 */
-				goto another_round;
+				goto ayesther_round;
 			else if (unlikely(!skb))
 				goto out;
 			else
 				/* We have stripped outer 802.1P vlan 0 header.
-				 * But could not find vlan dev.
+				 * But could yest find vlan dev.
 				 * check again for vlan id to set OTHERHOST.
 				 */
 				goto check_vlan_id;
 		}
 		/* Note: we might in the future use prio bits
 		 * and set skb->priority like in vlan_do_receive()
-		 * For the time being, just ignore Priority Code Point
+		 * For the time being, just igyesre Priority Code Point
 		 */
 		__vlan_hwaccel_clear_tag(skb);
 	}
@@ -5127,9 +5127,9 @@ drop:
 		if (!deliver_exact)
 			atomic_long_inc(&skb->dev->rx_dropped);
 		else
-			atomic_long_inc(&skb->dev->rx_nohandler);
+			atomic_long_inc(&skb->dev->rx_yeshandler);
 		kfree_skb(skb);
-		/* Jamal, now you will not able to escape explaining
+		/* Jamal, yesw you will yest able to escape explaining
 		 * me how you were going to use this. :-)
 		 */
 		ret = NET_RX_DROP;
@@ -5163,8 +5163,8 @@ static int __netif_receive_skb_one_core(struct sk_buff *skb, bool pfmemalloc)
  *	This function may only be called from softirq context and interrupts
  *	should be enabled.
  *
- *	Return values (usually ignored):
- *	NET_RX_SUCCESS: no congestion
+ *	Return values (usually igyesred):
+ *	NET_RX_SUCCESS: yes congestion
  *	NET_RX_DROP: packet was dropped
  */
 int netif_receive_skb_core(struct sk_buff *skb)
@@ -5202,7 +5202,7 @@ static inline void __netif_receive_skb_list_ptype(struct list_head *head,
 static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemalloc)
 {
 	/* Fast-path assumptions:
-	 * - There is no RX handler.
+	 * - There is yes RX handler.
 	 * - Only one packet_type matches.
 	 * If either of these fails, we will end up doing some per-packet
 	 * processing in-line, then handling the 'last ptype' for the whole
@@ -5246,7 +5246,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	int ret;
 
 	if (sk_memalloc_socks() && skb_pfmemalloc(skb)) {
-		unsigned int noreclaim_flag;
+		unsigned int yesreclaim_flag;
 
 		/*
 		 * PFMEMALLOC skbs are special, they should
@@ -5257,9 +5257,9 @@ static int __netif_receive_skb(struct sk_buff *skb)
 		 * Use PF_MEMALLOC as this saves us from propagating the allocation
 		 * context down to all allocation sites.
 		 */
-		noreclaim_flag = memalloc_noreclaim_save();
+		yesreclaim_flag = memalloc_yesreclaim_save();
 		ret = __netif_receive_skb_one_core(skb, true);
-		memalloc_noreclaim_restore(noreclaim_flag);
+		memalloc_yesreclaim_restore(yesreclaim_flag);
 	} else
 		ret = __netif_receive_skb_one_core(skb, false);
 
@@ -5268,7 +5268,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 
 static void __netif_receive_skb_list(struct list_head *head)
 {
-	unsigned long noreclaim_flag = 0;
+	unsigned long yesreclaim_flag = 0;
 	struct sk_buff *skb, *next;
 	bool pfmemalloc = false; /* Is current sublist PF_MEMALLOC? */
 
@@ -5283,9 +5283,9 @@ static void __netif_receive_skb_list(struct list_head *head)
 			pfmemalloc = !pfmemalloc;
 			/* See comments in __netif_receive_skb */
 			if (pfmemalloc)
-				noreclaim_flag = memalloc_noreclaim_save();
+				yesreclaim_flag = memalloc_yesreclaim_save();
 			else
-				memalloc_noreclaim_restore(noreclaim_flag);
+				memalloc_yesreclaim_restore(yesreclaim_flag);
 		}
 	}
 	/* Handle the remaining sublist */
@@ -5293,7 +5293,7 @@ static void __netif_receive_skb_list(struct list_head *head)
 		__netif_receive_skb_list_core(head, pfmemalloc);
 	/* Restore pflags */
 	if (pfmemalloc)
-		memalloc_noreclaim_restore(noreclaim_flag);
+		memalloc_yesreclaim_restore(yesreclaim_flag);
 }
 
 static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
@@ -5400,8 +5400,8 @@ static void netif_receive_skb_list_internal(struct list_head *head)
  *	This function may only be called from softirq context and interrupts
  *	should be enabled.
  *
- *	Return values (usually ignored):
- *	NET_RX_SUCCESS: no congestion
+ *	Return values (usually igyesred):
+ *	NET_RX_SUCCESS: yes congestion
  *	NET_RX_DROP: packet was dropped
  */
 int netif_receive_skb(struct sk_buff *skb)
@@ -5421,7 +5421,7 @@ EXPORT_SYMBOL(netif_receive_skb);
  *	netif_receive_skb_list - process many receive buffers from network
  *	@head: list of skbs to process.
  *
- *	Since return value of netif_receive_skb() is normally ignored, and
+ *	Since return value of netif_receive_skb() is yesrmally igyesred, and
  *	wouldn't be meaningful for a list, this function returns void.
  *
  *	This function may only be called from softirq context and interrupts
@@ -5653,7 +5653,7 @@ static void gro_flush_oldest(struct list_head *head)
 	if (WARN_ON_ONCE(!oldest))
 		return;
 
-	/* Do not adjust napi->gro_hash[].count, caller is adding a new
+	/* Do yest adjust napi->gro_hash[].count, caller is adding a new
 	 * SKB to the chain.
 	 */
 	skb_list_del_init(oldest);
@@ -5677,7 +5677,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	int grow;
 
 	if (netif_elide_gro(skb->dev))
-		goto normal;
+		goto yesrmal;
 
 	gro_head = gro_list_prepare(napi, skb);
 
@@ -5721,7 +5721,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	rcu_read_unlock();
 
 	if (&ptype->list == head)
-		goto normal;
+		goto yesrmal;
 
 	if (IS_ERR(pp) && PTR_ERR(pp) == -EINPROGRESS) {
 		ret = GRO_CONSUMED;
@@ -5741,7 +5741,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		goto ok;
 
 	if (NAPI_GRO_CB(skb)->flush)
-		goto normal;
+		goto yesrmal;
 
 	if (unlikely(napi->gro_hash[hash].count >= MAX_GRO_SKBS)) {
 		gro_flush_oldest(gro_head);
@@ -5769,7 +5769,7 @@ ok:
 
 	return ret;
 
-normal:
+yesrmal:
 	ret = GRO_NORMAL;
 	goto pull;
 }
@@ -5803,7 +5803,7 @@ struct packet_offload *gro_find_complete_by_type(__be16 type)
 EXPORT_SYMBOL(gro_find_complete_by_type);
 
 /* Pass the currently batched GRO_NORMAL SKBs up to the stack. */
-static void gro_normal_list(struct napi_struct *napi)
+static void gro_yesrmal_list(struct napi_struct *napi)
 {
 	if (!napi->rx_count)
 		return;
@@ -5815,11 +5815,11 @@ static void gro_normal_list(struct napi_struct *napi)
 /* Queue one GRO_NORMAL SKB up for list processing. If batch size exceeded,
  * pass the whole batch up to the stack.
  */
-static void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb)
+static void gro_yesrmal_one(struct napi_struct *napi, struct sk_buff *skb)
 {
 	list_add_tail(&skb->list, &napi->rx_list);
-	if (++napi->rx_count >= gro_normal_batch)
-		gro_normal_list(napi);
+	if (++napi->rx_count >= gro_yesrmal_batch)
+		gro_yesrmal_list(napi);
 }
 
 static void napi_skb_free_stolen_head(struct sk_buff *skb)
@@ -5835,7 +5835,7 @@ static gro_result_t napi_skb_finish(struct napi_struct *napi,
 {
 	switch (ret) {
 	case GRO_NORMAL:
-		gro_normal_one(napi, skb);
+		gro_yesrmal_one(napi, skb);
 		break;
 
 	case GRO_DROP:
@@ -5923,7 +5923,7 @@ static gro_result_t napi_frags_finish(struct napi_struct *napi,
 		__skb_push(skb, ETH_HLEN);
 		skb->protocol = eth_type_trans(skb, skb->dev);
 		if (ret == GRO_NORMAL)
-			gro_normal_one(napi, skb);
+			gro_yesrmal_one(napi, skb);
 		break;
 
 	case GRO_DROP:
@@ -6078,8 +6078,8 @@ static int process_backlog(struct napi_struct *napi, int quota)
 	bool again = true;
 	int work = 0;
 
-	/* Check if we have pending ipi, its better to send them now,
-	 * not waiting net_rx_action() end.
+	/* Check if we have pending ipi, its better to send them yesw,
+	 * yest waiting net_rx_action() end.
 	 */
 	if (sd_has_rps_ipi_waiting(sd)) {
 		local_irq_disable();
@@ -6145,10 +6145,10 @@ EXPORT_SYMBOL(__napi_schedule);
  *	napi_schedule_prep - check if napi can be scheduled
  *	@n: napi context
  *
- * Test if NAPI routine is already running, and if not mark
+ * Test if NAPI routine is already running, and if yest mark
  * it as running.  This is used as a condition variable
  * insure only one NAPI poll instance runs.  We also make
- * sure there is no pending NAPI disable.
+ * sure there is yes pending NAPI disable.
  */
 bool napi_schedule_prep(struct napi_struct *n)
 {
@@ -6193,14 +6193,14 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 	/*
 	 * 1) Don't let napi dequeue from the cpu poll list
 	 *    just in case its running on a different cpu.
-	 * 2) If we are busy polling, do nothing here, we have
+	 * 2) If we are busy polling, do yesthing here, we have
 	 *    the guarantee we will be called later.
 	 */
 	if (unlikely(n->state & (NAPIF_STATE_NPSVC |
 				 NAPIF_STATE_IN_BUSY_POLL)))
 		return false;
 
-	gro_normal_list(n);
+	gro_yesrmal_list(n);
 
 	if (n->gro_bitmask) {
 		unsigned long timeout = 0;
@@ -6218,7 +6218,7 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 				      HRTIMER_MODE_REL_PINNED);
 	}
 	if (unlikely(!list_empty(&n->poll_list))) {
-		/* If n->poll_list is not empty, we need to mask irqs */
+		/* If n->poll_list is yest empty, we need to mask irqs */
 		local_irq_save(flags);
 		list_del_init(&n->poll_list);
 		local_irq_restore(flags);
@@ -6254,7 +6254,7 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 	unsigned int hash = napi_id % HASH_SIZE(napi_hash);
 	struct napi_struct *napi;
 
-	hlist_for_each_entry_rcu(napi, &napi_hash[hash], napi_hash_node)
+	hlist_for_each_entry_rcu(napi, &napi_hash[hash], napi_hash_yesde)
 		if (napi->napi_id == napi_id)
 			return napi;
 
@@ -6270,7 +6270,7 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 	int rc;
 
 	/* Busy polling means there is a high chance device driver hard irq
-	 * could not grab NAPI_STATE_SCHED, and that NAPI_STATE_MISSED was
+	 * could yest grab NAPI_STATE_SCHED, and that NAPI_STATE_MISSED was
 	 * set in napi_schedule_prep().
 	 * Since we are about to call napi->poll() once more, we can safely
 	 * clear NAPI_STATE_MISSED.
@@ -6284,12 +6284,12 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 	local_bh_disable();
 
 	/* All we really want here is to re-enable device interrupts.
-	 * Ideally, a new ndo_busy_poll_stop() could avoid another round.
+	 * Ideally, a new ndo_busy_poll_stop() could avoid ayesther round.
 	 */
 	rc = napi->poll(napi, BUSY_POLL_BUDGET);
-	/* We can't gro_normal_list() here, because napi->poll() might have
+	/* We can't gro_yesrmal_list() here, because napi->poll() might have
 	 * rearmed the napi (napi_complete_done()) in which case it could
-	 * already be running on another CPU.
+	 * already be running on ayesther CPU.
 	 */
 	trace_napi_poll(napi, rc, BUSY_POLL_BUDGET);
 	netpoll_poll_unlock(have_poll_lock);
@@ -6297,7 +6297,7 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 		/* As the whole budget was spent, we still own the napi so can
 		 * safely handle the rx_list.
 		 */
-		gro_normal_list(napi);
+		gro_yesrmal_list(napi);
 		__napi_schedule(napi);
 	}
 	local_bh_enable();
@@ -6344,7 +6344,7 @@ restart:
 		}
 		work = napi_poll(napi, BUSY_POLL_BUDGET);
 		trace_napi_poll(napi, work, BUSY_POLL_BUDGET);
-		gro_normal_list(napi);
+		gro_yesrmal_list(napi);
 count:
 		if (work > 0)
 			__NET_ADD_STATS(dev_net(napi->dev),
@@ -6391,7 +6391,7 @@ static void napi_hash_add(struct napi_struct *napi)
 	} while (napi_by_id(napi_gen_id));
 	napi->napi_id = napi_gen_id;
 
-	hlist_add_head_rcu(&napi->napi_hash_node,
+	hlist_add_head_rcu(&napi->napi_hash_yesde,
 			   &napi_hash[napi->napi_id % HASH_SIZE(napi_hash)]);
 
 	spin_unlock(&napi_hash_lock);
@@ -6408,7 +6408,7 @@ bool napi_hash_del(struct napi_struct *napi)
 
 	if (test_and_clear_bit(NAPI_STATE_HASHED, &napi->state)) {
 		rcu_sync_needed = true;
-		hlist_del_rcu(&napi->napi_hash_node);
+		hlist_del_rcu(&napi->napi_hash_yesde);
 	}
 	spin_unlock(&napi_hash_lock);
 	return rcu_sync_needed;
@@ -6421,8 +6421,8 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 
 	napi = container_of(timer, struct napi_struct, timer);
 
-	/* Note : we use a relaxed variant of napi_schedule_prep() not setting
-	 * NAPI_STATE_MISSED, since we do not react to a device IRQ.
+	/* Note : we use a relaxed variant of napi_schedule_prep() yest setting
+	 * NAPI_STATE_MISSED, since we do yest react to a device IRQ.
 	 */
 	if (napi->gro_bitmask && !napi_disable_pending(napi) &&
 	    !test_and_set_bit(NAPI_STATE_SCHED, &napi->state))
@@ -6525,7 +6525,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 	 * with netpoll's poll_napi().  Only the entity which
 	 * obtains the lock and sees NAPI_STATE_SCHED set will
 	 * actually make the ->poll() call.  Therefore we avoid
-	 * accidentally calling ->poll() when NAPI is not scheduled.
+	 * accidentally calling ->poll() when NAPI is yest scheduled.
 	 */
 	work = 0;
 	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
@@ -6538,7 +6538,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 	if (likely(work < weight))
 		goto out_unlock;
 
-	/* Drivers must not modify the NAPI state if they
+	/* Drivers must yest modify the NAPI state if they
 	 * consume the entire weight.  In such cases this code
 	 * still "owns" the NAPI instance and therefore can
 	 * move the instance around on the list at-will.
@@ -6548,7 +6548,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 		goto out_unlock;
 	}
 
-	gro_normal_list(n);
+	gro_yesrmal_list(n);
 
 	if (n->gro_bitmask) {
 		/* flush too old packets
@@ -6629,8 +6629,8 @@ struct netdev_adjacent {
 	/* upper master flag, there can only be one master device per list */
 	bool master;
 
-	/* lookup ignore flag */
-	bool ignore;
+	/* lookup igyesre flag */
+	bool igyesre;
 
 	/* counter for the number of times this device was added to us */
 	u16 ref_nr;
@@ -6668,7 +6668,7 @@ static int ____netdev_has_upper_dev(struct net_device *upper_dev, void *data)
  *
  * Find out if a device is linked to specified upper device and return true
  * in case it is. Note that this checks only immediate upper device,
- * not through a complete stack of devices. The caller must hold the RTNL lock.
+ * yest through a complete stack of devices. The caller must hold the RTNL lock.
  */
 bool netdev_has_upper_dev(struct net_device *dev,
 			  struct net_device *upper_dev)
@@ -6718,7 +6718,7 @@ EXPORT_SYMBOL(netdev_has_any_upper_dev);
  * @dev: device
  *
  * Find a master upper device and return pointer to it or NULL in case
- * it's not there. The caller must hold the RTNL lock.
+ * it's yest there. The caller must hold the RTNL lock.
  */
 struct net_device *netdev_master_upper_dev_get(struct net_device *dev)
 {
@@ -6748,7 +6748,7 @@ static struct net_device *__netdev_master_upper_dev_get(struct net_device *dev)
 
 	upper = list_first_entry(&dev->adj_list.upper,
 				 struct netdev_adjacent, list);
-	if (likely(upper->master) && !upper->ignore)
+	if (likely(upper->master) && !upper->igyesre)
 		return upper->dev;
 	return NULL;
 }
@@ -6805,7 +6805,7 @@ EXPORT_SYMBOL(netdev_upper_get_next_dev_rcu);
 
 static struct net_device *__netdev_next_upper_dev(struct net_device *dev,
 						  struct list_head **iter,
-						  bool *ignore)
+						  bool *igyesre)
 {
 	struct netdev_adjacent *upper;
 
@@ -6815,7 +6815,7 @@ static struct net_device *__netdev_next_upper_dev(struct net_device *dev,
 		return NULL;
 
 	*iter = &upper->list;
-	*ignore = upper->ignore;
+	*igyesre = upper->igyesre;
 
 	return upper->dev;
 }
@@ -6842,32 +6842,32 @@ static int __netdev_walk_all_upper_dev(struct net_device *dev,
 						 void *data),
 				       void *data)
 {
-	struct net_device *udev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct net_device *udev, *next, *yesw, *dev_stack[MAX_NEST_DEV + 1];
 	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
 	int ret, cur = 0;
-	bool ignore;
+	bool igyesre;
 
-	now = dev;
+	yesw = dev;
 	iter = &dev->adj_list.upper;
 
 	while (1) {
-		if (now != dev) {
-			ret = fn(now, data);
+		if (yesw != dev) {
+			ret = fn(yesw, data);
 			if (ret)
 				return ret;
 		}
 
 		next = NULL;
 		while (1) {
-			udev = __netdev_next_upper_dev(now, &iter, &ignore);
+			udev = __netdev_next_upper_dev(yesw, &iter, &igyesre);
 			if (!udev)
 				break;
-			if (ignore)
+			if (igyesre)
 				continue;
 
 			next = udev;
 			niter = &udev->adj_list.upper;
-			dev_stack[cur] = now;
+			dev_stack[cur] = yesw;
 			iter_stack[cur++] = iter;
 			break;
 		}
@@ -6879,7 +6879,7 @@ static int __netdev_walk_all_upper_dev(struct net_device *dev,
 			niter = iter_stack[cur];
 		}
 
-		now = next;
+		yesw = next;
 		iter = niter;
 	}
 
@@ -6891,29 +6891,29 @@ int netdev_walk_all_upper_dev_rcu(struct net_device *dev,
 					    void *data),
 				  void *data)
 {
-	struct net_device *udev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct net_device *udev, *next, *yesw, *dev_stack[MAX_NEST_DEV + 1];
 	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
 	int ret, cur = 0;
 
-	now = dev;
+	yesw = dev;
 	iter = &dev->adj_list.upper;
 
 	while (1) {
-		if (now != dev) {
-			ret = fn(now, data);
+		if (yesw != dev) {
+			ret = fn(yesw, data);
 			if (ret)
 				return ret;
 		}
 
 		next = NULL;
 		while (1) {
-			udev = netdev_next_upper_dev_rcu(now, &iter);
+			udev = netdev_next_upper_dev_rcu(yesw, &iter);
 			if (!udev)
 				break;
 
 			next = udev;
 			niter = &udev->adj_list.upper;
-			dev_stack[cur] = now;
+			dev_stack[cur] = yesw;
 			iter_stack[cur++] = iter;
 			break;
 		}
@@ -6925,7 +6925,7 @@ int netdev_walk_all_upper_dev_rcu(struct net_device *dev,
 			niter = iter_stack[cur];
 		}
 
-		now = next;
+		yesw = next;
 		iter = niter;
 	}
 
@@ -7040,7 +7040,7 @@ static struct net_device *netdev_next_lower_dev(struct net_device *dev,
 
 static struct net_device *__netdev_next_lower_dev(struct net_device *dev,
 						  struct list_head **iter,
-						  bool *ignore)
+						  bool *igyesre)
 {
 	struct netdev_adjacent *lower;
 
@@ -7050,7 +7050,7 @@ static struct net_device *__netdev_next_lower_dev(struct net_device *dev,
 		return NULL;
 
 	*iter = &lower->list;
-	*ignore = lower->ignore;
+	*igyesre = lower->igyesre;
 
 	return lower->dev;
 }
@@ -7060,29 +7060,29 @@ int netdev_walk_all_lower_dev(struct net_device *dev,
 					void *data),
 			      void *data)
 {
-	struct net_device *ldev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct net_device *ldev, *next, *yesw, *dev_stack[MAX_NEST_DEV + 1];
 	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
 	int ret, cur = 0;
 
-	now = dev;
+	yesw = dev;
 	iter = &dev->adj_list.lower;
 
 	while (1) {
-		if (now != dev) {
-			ret = fn(now, data);
+		if (yesw != dev) {
+			ret = fn(yesw, data);
 			if (ret)
 				return ret;
 		}
 
 		next = NULL;
 		while (1) {
-			ldev = netdev_next_lower_dev(now, &iter);
+			ldev = netdev_next_lower_dev(yesw, &iter);
 			if (!ldev)
 				break;
 
 			next = ldev;
 			niter = &ldev->adj_list.lower;
-			dev_stack[cur] = now;
+			dev_stack[cur] = yesw;
 			iter_stack[cur++] = iter;
 			break;
 		}
@@ -7094,7 +7094,7 @@ int netdev_walk_all_lower_dev(struct net_device *dev,
 			niter = iter_stack[cur];
 		}
 
-		now = next;
+		yesw = next;
 		iter = niter;
 	}
 
@@ -7107,32 +7107,32 @@ static int __netdev_walk_all_lower_dev(struct net_device *dev,
 						 void *data),
 				       void *data)
 {
-	struct net_device *ldev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct net_device *ldev, *next, *yesw, *dev_stack[MAX_NEST_DEV + 1];
 	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
 	int ret, cur = 0;
-	bool ignore;
+	bool igyesre;
 
-	now = dev;
+	yesw = dev;
 	iter = &dev->adj_list.lower;
 
 	while (1) {
-		if (now != dev) {
-			ret = fn(now, data);
+		if (yesw != dev) {
+			ret = fn(yesw, data);
 			if (ret)
 				return ret;
 		}
 
 		next = NULL;
 		while (1) {
-			ldev = __netdev_next_lower_dev(now, &iter, &ignore);
+			ldev = __netdev_next_lower_dev(yesw, &iter, &igyesre);
 			if (!ldev)
 				break;
-			if (ignore)
+			if (igyesre)
 				continue;
 
 			next = ldev;
 			niter = &ldev->adj_list.lower;
-			dev_stack[cur] = now;
+			dev_stack[cur] = yesw;
 			iter_stack[cur++] = iter;
 			break;
 		}
@@ -7144,7 +7144,7 @@ static int __netdev_walk_all_lower_dev(struct net_device *dev,
 			niter = iter_stack[cur];
 		}
 
-		now = next;
+		yesw = next;
 		iter = niter;
 	}
 
@@ -7170,13 +7170,13 @@ static u8 __netdev_upper_depth(struct net_device *dev)
 	struct net_device *udev;
 	struct list_head *iter;
 	u8 max_depth = 0;
-	bool ignore;
+	bool igyesre;
 
 	for (iter = &dev->adj_list.upper,
-	     udev = __netdev_next_upper_dev(dev, &iter, &ignore);
+	     udev = __netdev_next_upper_dev(dev, &iter, &igyesre);
 	     udev;
-	     udev = __netdev_next_upper_dev(dev, &iter, &ignore)) {
-		if (ignore)
+	     udev = __netdev_next_upper_dev(dev, &iter, &igyesre)) {
+		if (igyesre)
 			continue;
 		if (max_depth < udev->upper_level)
 			max_depth = udev->upper_level;
@@ -7190,13 +7190,13 @@ static u8 __netdev_lower_depth(struct net_device *dev)
 	struct net_device *ldev;
 	struct list_head *iter;
 	u8 max_depth = 0;
-	bool ignore;
+	bool igyesre;
 
 	for (iter = &dev->adj_list.lower,
-	     ldev = __netdev_next_lower_dev(dev, &iter, &ignore);
+	     ldev = __netdev_next_lower_dev(dev, &iter, &igyesre);
 	     ldev;
-	     ldev = __netdev_next_lower_dev(dev, &iter, &ignore)) {
-		if (ignore)
+	     ldev = __netdev_next_lower_dev(dev, &iter, &igyesre)) {
+		if (igyesre)
 			continue;
 		if (max_depth < ldev->lower_level)
 			max_depth = ldev->lower_level;
@@ -7222,29 +7222,29 @@ int netdev_walk_all_lower_dev_rcu(struct net_device *dev,
 					    void *data),
 				  void *data)
 {
-	struct net_device *ldev, *next, *now, *dev_stack[MAX_NEST_DEV + 1];
+	struct net_device *ldev, *next, *yesw, *dev_stack[MAX_NEST_DEV + 1];
 	struct list_head *niter, *iter, *iter_stack[MAX_NEST_DEV + 1];
 	int ret, cur = 0;
 
-	now = dev;
+	yesw = dev;
 	iter = &dev->adj_list.lower;
 
 	while (1) {
-		if (now != dev) {
-			ret = fn(now, data);
+		if (yesw != dev) {
+			ret = fn(yesw, data);
 			if (ret)
 				return ret;
 		}
 
 		next = NULL;
 		while (1) {
-			ldev = netdev_next_lower_dev_rcu(now, &iter);
+			ldev = netdev_next_lower_dev_rcu(yesw, &iter);
 			if (!ldev)
 				break;
 
 			next = ldev;
 			niter = &ldev->adj_list.lower;
-			dev_stack[cur] = now;
+			dev_stack[cur] = yesw;
 			iter_stack[cur++] = iter;
 			break;
 		}
@@ -7256,7 +7256,7 @@ int netdev_walk_all_lower_dev_rcu(struct net_device *dev,
 			niter = iter_stack[cur];
 		}
 
-		now = next;
+		yesw = next;
 		iter = niter;
 	}
 
@@ -7290,7 +7290,7 @@ EXPORT_SYMBOL(netdev_lower_get_first_private_rcu);
  * @dev: device
  *
  * Find a master upper device and return pointer to it or NULL in case
- * it's not there. The caller must hold the RCU read lock.
+ * it's yest there. The caller must hold the RCU read lock.
  */
 struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev)
 {
@@ -7361,7 +7361,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj->master = master;
 	adj->ref_nr = 1;
 	adj->private = private;
-	adj->ignore = false;
+	adj->igyesre = false;
 	dev_hold(adj_dev);
 
 	pr_debug("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d; dev_hold on %s\n",
@@ -7410,7 +7410,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (!adj) {
-		pr_err("Adjacency does not exist for device %s from %s\n",
+		pr_err("Adjacency does yest exist for device %s from %s\n",
 		       dev->name, adj_dev->name);
 		WARN_ON(1);
 		return;
@@ -7493,7 +7493,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 				   void *upper_priv, void *upper_info,
 				   struct netlink_ext_ack *extack)
 {
-	struct netdev_notifier_changeupper_info changeupper_info = {
+	struct netdev_yestifier_changeupper_info changeupper_info = {
 		.info = {
 			.dev = dev,
 			.extack = extack,
@@ -7511,7 +7511,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (dev == upper_dev)
 		return -EBUSY;
 
-	/* To prevent loops, check if dev is not upper device to upper_dev. */
+	/* To prevent loops, check if dev is yest upper device to upper_dev. */
 	if (__netdev_has_upper_dev(upper_dev, dev))
 		return -EBUSY;
 
@@ -7527,9 +7527,9 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 			return master_dev == upper_dev ? -EEXIST : -EBUSY;
 	}
 
-	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER,
+	ret = call_netdevice_yestifiers_info(NETDEV_PRECHANGEUPPER,
 					    &changeupper_info.info);
-	ret = notifier_to_errno(ret);
+	ret = yestifier_to_erryes(ret);
 	if (ret)
 		return ret;
 
@@ -7538,9 +7538,9 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	ret = call_netdevice_notifiers_info(NETDEV_CHANGEUPPER,
+	ret = call_netdevice_yestifiers_info(NETDEV_CHANGEUPPER,
 					    &changeupper_info.info);
-	ret = notifier_to_errno(ret);
+	ret = yestifier_to_erryes(ret);
 	if (ret)
 		goto rollback;
 
@@ -7566,7 +7566,7 @@ rollback:
  * @extack: netlink extended ack
  *
  * Adds a link to device which is upper to this one. The caller must hold
- * the RTNL lock. On a failure a negative errno code is returned.
+ * the RTNL lock. On a failure a negative erryes code is returned.
  * On success the reference counts are adjusted and the function
  * returns zero.
  */
@@ -7584,13 +7584,13 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * @dev: device
  * @upper_dev: new upper device
  * @upper_priv: upper device private
- * @upper_info: upper info to be passed down via notifier
+ * @upper_info: upper info to be passed down via yestifier
  * @extack: netlink extended ack
  *
  * Adds a link to device which is upper to this one. In this case, only
- * one master upper device can be linked, although other non-master devices
+ * one master upper device can be linked, although other yesn-master devices
  * might be linked as well. The caller must hold the RTNL lock.
- * On a failure a negative errno code is returned. On success the reference
+ * On a failure a negative erryes code is returned. On success the reference
  * counts are adjusted and the function returns zero.
  */
 int netdev_master_upper_dev_link(struct net_device *dev,
@@ -7614,7 +7614,7 @@ EXPORT_SYMBOL(netdev_master_upper_dev_link);
 void netdev_upper_dev_unlink(struct net_device *dev,
 			     struct net_device *upper_dev)
 {
-	struct netdev_notifier_changeupper_info changeupper_info = {
+	struct netdev_yestifier_changeupper_info changeupper_info = {
 		.info = {
 			.dev = dev,
 		},
@@ -7626,12 +7626,12 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 
 	changeupper_info.master = netdev_master_upper_dev_get(dev) == upper_dev;
 
-	call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER,
+	call_netdevice_yestifiers_info(NETDEV_PRECHANGEUPPER,
 				      &changeupper_info.info);
 
 	__netdev_adjacent_dev_unlink_neighbour(dev, upper_dev);
 
-	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER,
+	call_netdevice_yestifiers_info(NETDEV_CHANGEUPPER,
 				      &changeupper_info.info);
 
 	__netdev_update_upper_level(dev, NULL);
@@ -7651,11 +7651,11 @@ static void __netdev_adjacent_dev_set(struct net_device *upper_dev,
 
 	adj = __netdev_find_adj(lower_dev, &upper_dev->adj_list.lower);
 	if (adj)
-		adj->ignore = val;
+		adj->igyesre = val;
 
 	adj = __netdev_find_adj(upper_dev, &lower_dev->adj_list.upper);
 	if (adj)
-		adj->ignore = val;
+		adj->igyesre = val;
 }
 
 static void netdev_adjacent_dev_disable(struct net_device *upper_dev,
@@ -7728,19 +7728,19 @@ EXPORT_SYMBOL(netdev_adjacent_change_abort);
  * @dev: device
  * @bonding_info: info to dispatch
  *
- * Send NETDEV_BONDING_INFO to netdev notifiers with info.
+ * Send NETDEV_BONDING_INFO to netdev yestifiers with info.
  * The caller must hold the RTNL lock.
  */
 void netdev_bonding_info_change(struct net_device *dev,
 				struct netdev_bonding_info *bonding_info)
 {
-	struct netdev_notifier_bonding_info info = {
+	struct netdev_yestifier_bonding_info info = {
 		.info.dev = dev,
 	};
 
 	memcpy(&info.bonding_info, bonding_info,
 	       sizeof(struct netdev_bonding_info));
-	call_netdevice_notifiers_info(NETDEV_BONDING_INFO,
+	call_netdevice_yestifiers_info(NETDEV_BONDING_INFO,
 				      &info.info);
 }
 EXPORT_SYMBOL(netdev_bonding_info_change);
@@ -7841,19 +7841,19 @@ EXPORT_SYMBOL(netdev_lower_dev_get_private);
  * @lower_dev: device
  * @lower_state_info: state to dispatch
  *
- * Send NETDEV_CHANGELOWERSTATE to netdev notifiers with info.
+ * Send NETDEV_CHANGELOWERSTATE to netdev yestifiers with info.
  * The caller must hold the RTNL lock.
  */
 void netdev_lower_state_changed(struct net_device *lower_dev,
 				void *lower_state_info)
 {
-	struct netdev_notifier_changelowerstate_info changelowerstate_info = {
+	struct netdev_yestifier_changelowerstate_info changelowerstate_info = {
 		.info.dev = lower_dev,
 	};
 
 	ASSERT_RTNL();
 	changelowerstate_info.lower_state_info = lower_state_info;
-	call_netdevice_notifiers_info(NETDEV_CHANGELOWERSTATE,
+	call_netdevice_yestifiers_info(NETDEV_CHANGELOWERSTATE,
 				      &changelowerstate_info.info);
 }
 EXPORT_SYMBOL(netdev_lower_state_changed);
@@ -7866,7 +7866,7 @@ static void dev_change_rx_flags(struct net_device *dev, int flags)
 		ops->ndo_change_rx_flags(dev, flags);
 }
 
-static int __dev_set_promiscuity(struct net_device *dev, int inc, bool notify)
+static int __dev_set_promiscuity(struct net_device *dev, int inc, bool yestify)
 {
 	unsigned int old_flags = dev->flags;
 	kuid_t uid;
@@ -7909,8 +7909,8 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc, bool notify)
 
 		dev_change_rx_flags(dev, IFF_PROMISC);
 	}
-	if (notify)
-		__dev_notify_flags(dev, old_flags, IFF_PROMISC);
+	if (yestify)
+		__dev_yestify_flags(dev, old_flags, IFF_PROMISC);
 	return 0;
 }
 
@@ -7921,9 +7921,9 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc, bool notify)
  *
  *	Add or remove promiscuity from a device. While the count in the device
  *	remains above zero the interface remains promiscuous. Once it hits zero
- *	the device reverts back to normal filtering operation. A negative inc
+ *	the device reverts back to yesrmal filtering operation. A negative inc
  *	value is used to drop promiscuity on the device.
- *	Return 0 if successful or a negative errno code on error.
+ *	Return 0 if successful or a negative erryes code on error.
  */
 int dev_set_promiscuity(struct net_device *dev, int inc)
 {
@@ -7939,7 +7939,7 @@ int dev_set_promiscuity(struct net_device *dev, int inc)
 }
 EXPORT_SYMBOL(dev_set_promiscuity);
 
-static int __dev_set_allmulti(struct net_device *dev, int inc, bool notify)
+static int __dev_set_allmulti(struct net_device *dev, int inc, bool yestify)
 {
 	unsigned int old_flags = dev->flags, old_gflags = dev->gflags;
 
@@ -7964,8 +7964,8 @@ static int __dev_set_allmulti(struct net_device *dev, int inc, bool notify)
 	if (dev->flags ^ old_flags) {
 		dev_change_rx_flags(dev, IFF_ALLMULTI);
 		dev_set_rx_mode(dev);
-		if (notify)
-			__dev_notify_flags(dev, old_flags,
+		if (yestify)
+			__dev_yestify_flags(dev, old_flags,
 					   dev->gflags ^ old_gflags);
 	}
 	return 0;
@@ -7978,10 +7978,10 @@ static int __dev_set_allmulti(struct net_device *dev, int inc, bool notify)
  *
  *	Add or remove reception of all multicast frames to a device. While the
  *	count in the device remains above zero the interface remains listening
- *	to all interfaces. Once it hits zero the device reverts back to normal
+ *	to all interfaces. Once it hits zero the device reverts back to yesrmal
  *	filtering operation. A negative @inc value is used to drop the counter
  *	when releasing a resource needing all multicasts.
- *	Return 0 if successful or a negative errno code on error.
+ *	Return 0 if successful or a negative erryes code on error.
  */
 
 int dev_set_allmulti(struct net_device *dev, int inc)
@@ -8081,7 +8081,7 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags,
 				    IFF_ALLMULTI));
 
 	/*
-	 *	Load in the correct multicast list now the flags have changed.
+	 *	Load in the correct multicast list yesw the flags have changed.
 	 */
 
 	if ((old_flags ^ flags) & IFF_MULTICAST)
@@ -8116,7 +8116,7 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags,
 
 	/* NOTE: order of synchronization of IFF_PROMISC and IFF_ALLMULTI
 	 * is important. Some (broken) drivers set IFF_PROMISC, when
-	 * IFF_ALLMULTI is requested not asking us and not reporting.
+	 * IFF_ALLMULTI is requested yest asking us and yest reporting.
 	 */
 	if ((flags ^ dev->gflags) & IFF_ALLMULTI) {
 		int inc = (flags & IFF_ALLMULTI) ? 1 : -1;
@@ -8128,7 +8128,7 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags,
 	return ret;
 }
 
-void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
+void __dev_yestify_flags(struct net_device *dev, unsigned int old_flags,
 			unsigned int gchanges)
 {
 	unsigned int changes = dev->flags ^ old_flags;
@@ -8138,21 +8138,21 @@ void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
 
 	if (changes & IFF_UP) {
 		if (dev->flags & IFF_UP)
-			call_netdevice_notifiers(NETDEV_UP, dev);
+			call_netdevice_yestifiers(NETDEV_UP, dev);
 		else
-			call_netdevice_notifiers(NETDEV_DOWN, dev);
+			call_netdevice_yestifiers(NETDEV_DOWN, dev);
 	}
 
 	if (dev->flags & IFF_UP &&
 	    (changes & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI | IFF_VOLATILE))) {
-		struct netdev_notifier_change_info change_info = {
+		struct netdev_yestifier_change_info change_info = {
 			.info = {
 				.dev = dev,
 			},
 			.flags_changed = changes,
 		};
 
-		call_netdevice_notifiers_info(NETDEV_CHANGE, &change_info.info);
+		call_netdevice_yestifiers_info(NETDEV_CHANGE, &change_info.info);
 	}
 }
 
@@ -8176,7 +8176,7 @@ int dev_change_flags(struct net_device *dev, unsigned int flags,
 		return ret;
 
 	changes = (old_flags ^ dev->flags) | (old_gflags ^ dev->gflags);
-	__dev_notify_flags(dev, old_flags, changes);
+	__dev_yestify_flags(dev, old_flags, changes);
 	return ret;
 }
 EXPORT_SYMBOL(dev_change_flags);
@@ -8224,8 +8224,8 @@ int dev_set_mtu_ext(struct net_device *dev, int new_mtu,
 	if (!netif_device_present(dev))
 		return -ENODEV;
 
-	err = call_netdevice_notifiers(NETDEV_PRECHANGEMTU, dev);
-	err = notifier_to_errno(err);
+	err = call_netdevice_yestifiers(NETDEV_PRECHANGEMTU, dev);
+	err = yestifier_to_erryes(err);
 	if (err)
 		return err;
 
@@ -8233,15 +8233,15 @@ int dev_set_mtu_ext(struct net_device *dev, int new_mtu,
 	err = __dev_set_mtu(dev, new_mtu);
 
 	if (!err) {
-		err = call_netdevice_notifiers_mtu(NETDEV_CHANGEMTU, dev,
+		err = call_netdevice_yestifiers_mtu(NETDEV_CHANGEMTU, dev,
 						   orig_mtu);
-		err = notifier_to_errno(err);
+		err = yestifier_to_erryes(err);
 		if (err) {
-			/* setting mtu back and notifying everyone again,
+			/* setting mtu back and yestifying everyone again,
 			 * so that they have a chance to revert changes.
 			 */
 			__dev_set_mtu(dev, orig_mtu);
-			call_netdevice_notifiers_mtu(NETDEV_CHANGEMTU, dev,
+			call_netdevice_yestifiers_mtu(NETDEV_CHANGEMTU, dev,
 						     new_mtu);
 		}
 	}
@@ -8276,8 +8276,8 @@ int dev_change_tx_queue_len(struct net_device *dev, unsigned long new_len)
 
 	if (new_len != orig_len) {
 		dev->tx_queue_len = new_len;
-		res = call_netdevice_notifiers(NETDEV_CHANGE_TX_QUEUE_LEN, dev);
-		res = notifier_to_errno(res);
+		res = call_netdevice_yestifiers(NETDEV_CHANGE_TX_QUEUE_LEN, dev);
+		res = yestifier_to_erryes(res);
 		if (res)
 			goto err_rollback;
 		res = dev_qdisc_change_tx_queue_len(dev);
@@ -8305,25 +8305,25 @@ void dev_set_group(struct net_device *dev, int new_group)
 EXPORT_SYMBOL(dev_set_group);
 
 /**
- *	dev_pre_changeaddr_notify - Call NETDEV_PRE_CHANGEADDR.
+ *	dev_pre_changeaddr_yestify - Call NETDEV_PRE_CHANGEADDR.
  *	@dev: device
  *	@addr: new address
  *	@extack: netlink extended ack
  */
-int dev_pre_changeaddr_notify(struct net_device *dev, const char *addr,
+int dev_pre_changeaddr_yestify(struct net_device *dev, const char *addr,
 			      struct netlink_ext_ack *extack)
 {
-	struct netdev_notifier_pre_changeaddr_info info = {
+	struct netdev_yestifier_pre_changeaddr_info info = {
 		.info.dev = dev,
 		.info.extack = extack,
 		.dev_addr = addr,
 	};
 	int rc;
 
-	rc = call_netdevice_notifiers_info(NETDEV_PRE_CHANGEADDR, &info.info);
-	return notifier_to_errno(rc);
+	rc = call_netdevice_yestifiers_info(NETDEV_PRE_CHANGEADDR, &info.info);
+	return yestifier_to_erryes(rc);
 }
-EXPORT_SYMBOL(dev_pre_changeaddr_notify);
+EXPORT_SYMBOL(dev_pre_changeaddr_yestify);
 
 /**
  *	dev_set_mac_address - Change Media Access Control Address
@@ -8345,14 +8345,14 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 		return -EINVAL;
 	if (!netif_device_present(dev))
 		return -ENODEV;
-	err = dev_pre_changeaddr_notify(dev, sa->sa_data, extack);
+	err = dev_pre_changeaddr_yestify(dev, sa->sa_data, extack);
 	if (err)
 		return err;
 	err = ops->ndo_set_mac_address(dev, sa);
 	if (err)
 		return err;
 	dev->addr_assign_type = NET_ADDR_SET;
-	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	call_netdevice_yestifiers(NETDEV_CHANGEADDR, dev);
 	add_device_randomness(dev->dev_addr, dev->addr_len);
 	return 0;
 }
@@ -8610,7 +8610,7 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 
 	bpf_op = bpf_chk = ops->ndo_bpf;
 	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE))) {
-		NL_SET_ERR_MSG(extack, "underlying driver does not support XDP in native mode");
+		NL_SET_ERR_MSG(extack, "underlying driver does yest support XDP in native mode");
 		return -EOPNOTSUPP;
 	}
 	if (!bpf_op || (flags & XDP_FLAGS_SKB_MODE))
@@ -8638,7 +8638,7 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 			return PTR_ERR(prog);
 
 		if (!offload && bpf_prog_is_dev_bound(prog->aux)) {
-			NL_SET_ERR_MSG(extack, "using device-bound program without HW_MODE flag is not supported");
+			NL_SET_ERR_MSG(extack, "using device-bound program without HW_MODE flag is yest supported");
 			bpf_prog_put(prog);
 			return -EINVAL;
 		}
@@ -8741,7 +8741,7 @@ static void rollback_registered_many(struct list_head *head)
 		/* Notify protocols, that we are about to destroy
 		 * this device. They should clean all the things.
 		 */
-		call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+		call_netdevice_yestifiers(NETDEV_UNREGISTER, dev);
 
 		if (!dev->rtnl_link_ops ||
 		    dev->rtnl_link_state == RTNL_LINK_INITIALIZED)
@@ -8754,8 +8754,8 @@ static void rollback_registered_many(struct list_head *head)
 		dev_uc_flush(dev);
 		dev_mc_flush(dev);
 
-		netdev_name_node_alt_flush(dev);
-		netdev_name_node_free(dev->name_node);
+		netdev_name_yesde_alt_flush(dev);
+		netdev_name_yesde_free(dev->name_yesde);
 
 		if (dev->netdev_ops->ndo_uninit)
 			dev->netdev_ops->ndo_uninit(dev);
@@ -8844,20 +8844,20 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 
 	/* TSO requires that SG is present as well. */
 	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
-		netdev_dbg(dev, "Dropping TSO features since no SG feature.\n");
+		netdev_dbg(dev, "Dropping TSO features since yes SG feature.\n");
 		features &= ~NETIF_F_ALL_TSO;
 	}
 
 	if ((features & NETIF_F_TSO) && !(features & NETIF_F_HW_CSUM) &&
 					!(features & NETIF_F_IP_CSUM)) {
-		netdev_dbg(dev, "Dropping TSO features since no CSUM feature.\n");
+		netdev_dbg(dev, "Dropping TSO features since yes CSUM feature.\n");
 		features &= ~NETIF_F_TSO;
 		features &= ~NETIF_F_TSO_ECN;
 	}
 
 	if ((features & NETIF_F_TSO6) && !(features & NETIF_F_HW_CSUM) &&
 					 !(features & NETIF_F_IPV6_CSUM)) {
-		netdev_dbg(dev, "Dropping TSO6 features since no CSUM feature.\n");
+		netdev_dbg(dev, "Dropping TSO6 features since yes CSUM feature.\n");
 		features &= ~NETIF_F_TSO6;
 	}
 
@@ -8871,7 +8871,7 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 
 	/* Software GSO depends on SG. */
 	if ((features & NETIF_F_GSO) && !(features & NETIF_F_SG)) {
-		netdev_dbg(dev, "Dropping NETIF_F_GSO since no SG feature.\n");
+		netdev_dbg(dev, "Dropping NETIF_F_GSO since yes SG feature.\n");
 		features &= ~NETIF_F_GSO;
 	}
 
@@ -8879,23 +8879,23 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 	if ((features & dev->gso_partial_features) &&
 	    !(features & NETIF_F_GSO_PARTIAL)) {
 		netdev_dbg(dev,
-			   "Dropping partially supported GSO features since no GSO partial.\n");
+			   "Dropping partially supported GSO features since yes GSO partial.\n");
 		features &= ~dev->gso_partial_features;
 	}
 
 	if (!(features & NETIF_F_RXCSUM)) {
 		/* NETIF_F_GRO_HW implies doing RXCSUM since every packet
 		 * successfully merged by hardware must also have the
-		 * checksum verified by hardware.  If the user does not
+		 * checksum verified by hardware.  If the user does yest
 		 * want to enable RXCSUM, logically, we should disable GRO_HW.
 		 */
 		if (features & NETIF_F_GRO_HW) {
-			netdev_dbg(dev, "Dropping NETIF_F_GRO_HW since no RXCSUM feature.\n");
+			netdev_dbg(dev, "Dropping NETIF_F_GRO_HW since yes RXCSUM feature.\n");
 			features &= ~NETIF_F_GRO_HW;
 		}
 	}
 
-	/* LRO/HW-GRO features cannot be combined with RX-FCS */
+	/* LRO/HW-GRO features canyest be combined with RX-FCS */
 	if (features & NETIF_F_RXFCS) {
 		if (features & NETIF_F_LRO) {
 			netdev_dbg(dev, "Dropping LRO feature since RX-FCS is requested.\n");
@@ -8947,8 +8947,8 @@ int __netdev_update_features(struct net_device *dev)
 		netdev_err(dev,
 			"set_features() failed (%d); wanted %pNF, left %pNF\n",
 			err, &features, &dev->features);
-		/* return non-0 since some features might have changed and
-		 * it's better to fire a spurious notification than miss it
+		/* return yesn-0 since some features might have changed and
+		 * it's better to fire a spurious yestification than miss it
 		 */
 		return -1;
 	}
@@ -9007,7 +9007,7 @@ sync_lower:
  *	netdev_update_features - recalculate device features
  *	@dev: the device to check
  *
- *	Recalculate dev->features set and send notifications if it
+ *	Recalculate dev->features set and send yestifications if it
  *	has changed. Should be called after driver or hardware dependent
  *	conditions might have changed that influence the features.
  */
@@ -9022,8 +9022,8 @@ EXPORT_SYMBOL(netdev_update_features);
  *	netdev_change_features - recalculate device features
  *	@dev: the device to check
  *
- *	Recalculate dev->features set and send notifications even
- *	if they have not changed. Should be called instead of
+ *	Recalculate dev->features set and send yestifications even
+ *	if they have yest changed. Should be called instead of
  *	netdev_update_features() if also dev->vlan_features might
  *	have changed to allow the changes to be propagated to stacked
  *	VLAN devices.
@@ -9040,7 +9040,7 @@ EXPORT_SYMBOL(netdev_change_features);
  *	@rootdev: the root or lower level device to transfer state from
  *	@dev: the device to transfer operstate to
  *
- *	Transfer operational state from root to device. This is normally
+ *	Transfer operational state from root to device. This is yesrmally
  *	called when a stacking relationship exists between the root
  *	device and the device(a leaf device).
  */
@@ -9114,7 +9114,7 @@ static void netdev_init_one_queue(struct net_device *dev,
 	spin_lock_init(&queue->_xmit_lock);
 	lockdep_set_class(&queue->_xmit_lock, &dev->qdisc_xmit_lock_key);
 	queue->xmit_lock_owner = -1;
-	netdev_queue_numa_node_write(queue, NUMA_NO_NODE);
+	netdev_queue_numa_yesde_write(queue, NUMA_NO_NODE);
 	queue->dev = dev;
 #ifdef CONFIG_BQL
 	dql_init(&queue->dql, HZ);
@@ -9201,8 +9201,8 @@ EXPORT_SYMBOL(netdev_update_lockdep_key);
  *	@dev: device to register
  *
  *	Take a completed network device structure and add it to the kernel
- *	interfaces. A %NETDEV_REGISTER message is sent to the netdev notifier
- *	chain. 0 is returned on success. A negative errno code is returned
+ *	interfaces. A %NETDEV_REGISTER message is sent to the netdev yestifier
+ *	chain. 0 is returned on success. A negative erryes code is returned
  *	on a failure to set up the device, or if the name is a duplicate.
  *
  *	Callers must hold the rtnl semaphore. You may want
@@ -9210,7 +9210,7 @@ EXPORT_SYMBOL(netdev_update_lockdep_key);
  *
  *	BUGS:
  *	The locking appears insufficient to guarantee two parallel registers
- *	will not get the same name.
+ *	will yest get the same name.
  */
 
 int register_netdevice(struct net_device *dev)
@@ -9237,8 +9237,8 @@ int register_netdevice(struct net_device *dev)
 		goto out;
 
 	ret = -ENOMEM;
-	dev->name_node = netdev_name_node_head_alloc(dev);
-	if (!dev->name_node)
+	dev->name_yesde = netdev_name_yesde_head_alloc(dev);
+	if (!dev->name_yesde)
 		goto out;
 
 	/* Init, if this function is available */
@@ -9284,7 +9284,7 @@ int register_netdevice(struct net_device *dev)
 
 	/* If IPv4 TCP segmentation offload is supported we should also
 	 * allow the device to enable segmenting the frame with the option
-	 * of ignoring a static IP ID value.  This doesn't enable the
+	 * of igyesring a static IP ID value.  This doesn't enable the
 	 * feature itself but allows the user to enable it later.
 	 */
 	if (dev->hw_features & NETIF_F_TSO)
@@ -9308,8 +9308,8 @@ int register_netdevice(struct net_device *dev)
 	 */
 	dev->mpls_features |= NETIF_F_SG;
 
-	ret = call_netdevice_notifiers(NETDEV_POST_INIT, dev);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_yestifiers(NETDEV_POST_INIT, dev);
+	ret = yestifier_to_erryes(ret);
 	if (ret)
 		goto err_uninit;
 
@@ -9342,8 +9342,8 @@ int register_netdevice(struct net_device *dev)
 		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* Notify protocols, that a new device appeared. */
-	ret = call_netdevice_notifiers(NETDEV_REGISTER, dev);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_yestifiers(NETDEV_REGISTER, dev);
+	ret = yestifier_to_erryes(ret);
 	if (ret) {
 		rollback_registered(dev);
 		rcu_barrier();
@@ -9352,7 +9352,7 @@ int register_netdevice(struct net_device *dev)
 	}
 	/*
 	 *	Prevent userspace races by waiting until the network
-	 *	device is fully setup before sending notifications.
+	 *	device is fully setup before sending yestifications.
 	 */
 	if (!dev->rtnl_link_ops ||
 	    dev->rtnl_link_state == RTNL_LINK_INITIALIZED)
@@ -9367,7 +9367,7 @@ err_uninit:
 	if (dev->priv_destructor)
 		dev->priv_destructor(dev);
 err_free_name:
-	netdev_name_node_free(dev->name_node);
+	netdev_name_yesde_free(dev->name_yesde);
 	goto out;
 }
 EXPORT_SYMBOL(register_netdevice);
@@ -9421,8 +9421,8 @@ EXPORT_SYMBOL_GPL(init_dummy_netdev);
  *	@dev: device to register
  *
  *	Take a completed network device structure and add it to the kernel
- *	interfaces. A %NETDEV_REGISTER message is sent to the netdev notifier
- *	chain. 0 is returned on success. A negative errno code is returned
+ *	interfaces. A %NETDEV_REGISTER message is sent to the netdev yestifier
+ *	chain. 0 is returned on success. A negative erryes code is returned
  *	on a failure to set up the device, or if the name is a duplicate.
  *
  *	This is a wrapper around register_netdevice that takes the rtnl semaphore
@@ -9458,7 +9458,7 @@ EXPORT_SYMBOL(netdev_refcnt_read);
  * This is called when unregistering network devices.
  *
  * Any protocol or device that holds a reference should register
- * for netdevice notification, and cleanup and put back the
+ * for netdevice yestification, and cleanup and put back the
  * reference if they receive an UNREGISTER event.
  * We can get stuck here if buggy protocols don't correctly
  * call dev_put.
@@ -9477,8 +9477,8 @@ static void netdev_wait_allrefs(struct net_device *dev)
 		if (time_after(jiffies, rebroadcast_time + 1 * HZ)) {
 			rtnl_lock();
 
-			/* Rebroadcast unregister notification */
-			call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+			/* Rebroadcast unregister yestification */
+			call_netdevice_yestifiers(NETDEV_UNREGISTER, dev);
 
 			__rtnl_unlock();
 			rcu_barrier();
@@ -9486,10 +9486,10 @@ static void netdev_wait_allrefs(struct net_device *dev)
 
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
 				     &dev->state)) {
-				/* We must not have linkwatch events
+				/* We must yest have linkwatch events
 				 * pending on unregister. If this
 				 * happens, we simply run the queue
-				 * unscheduled, resulting in a noop
+				 * unscheduled, resulting in a yesop
 				 * for this device.
 				 */
 				linkwatch_run_queue();
@@ -9530,10 +9530,10 @@ static void netdev_wait_allrefs(struct net_device *dev)
  * This allows us to deal with problems:
  * 1) We can delete sysfs objects which invoke hotplug
  *    without deadlocking with linkwatch via keventd.
- * 2) Since we run with the RTNL semaphore not held, we can sleep
+ * 2) Since we run with the RTNL semaphore yest held, we can sleep
  *    safely in order to wait for the netdev refcnt to drop to zero.
  *
- * We must not return until all unregister events added during
+ * We must yest return until all unregister events added during
  * the interval the lock was held have been completed.
  */
 void netdev_run_todo(void)
@@ -9566,7 +9566,7 @@ void netdev_run_todo(void)
 
 		netdev_wait_allrefs(dev);
 
-		/* paranoia */
+		/* parayesia */
 		BUG_ON(netdev_refcnt_read(dev));
 		BUG_ON(!list_empty(&dev->ptype_all));
 		BUG_ON(!list_empty(&dev->ptype_specific));
@@ -9645,7 +9645,7 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 	}
 	storage->rx_dropped += (unsigned long)atomic_long_read(&dev->rx_dropped);
 	storage->tx_dropped += (unsigned long)atomic_long_read(&dev->tx_dropped);
-	storage->rx_nohandler += (unsigned long)atomic_long_read(&dev->rx_nohandler);
+	storage->rx_yeshandler += (unsigned long)atomic_long_read(&dev->rx_yeshandler);
 	return storage;
 }
 EXPORT_SYMBOL(dev_get_stats);
@@ -9661,8 +9661,8 @@ struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 	if (!queue)
 		return NULL;
 	netdev_init_one_queue(dev, queue, NULL);
-	RCU_INIT_POINTER(queue->qdisc, &noop_qdisc);
-	queue->qdisc_sleeping = &noop_qdisc;
+	RCU_INIT_POINTER(queue->qdisc, &yesop_qdisc);
+	queue->qdisc_sleeping = &yesop_qdisc;
 	rcu_assign_pointer(dev->ingress_queue, queue);
 #endif
 	return queue;
@@ -9853,7 +9853,7 @@ EXPORT_SYMBOL(free_netdev);
  *	synchronize_net -  Synchronize with packet receive processing
  *
  *	Wait for packets currently being received to be done.
- *	Does not block later packets from starting.
+ *	Does yest block later packets from starting.
  */
 void synchronize_net(void)
 {
@@ -9872,7 +9872,7 @@ EXPORT_SYMBOL(synchronize_net);
  *
  *	This function shuts down a device interface and removes it
  *	from the kernel tables.
- *	If head not NULL, device is queued to be unregistered later.
+ *	If head yest NULL, device is queued to be unregistered later.
  *
  *	Callers must hold the rtnl semaphore.  You may want
  *	unregister_netdev() instead of this.
@@ -9920,7 +9920,7 @@ EXPORT_SYMBOL(unregister_netdevice_many);
  *	from the kernel tables.
  *
  *	This is just a wrapper for unregister_netdevice that takes
- *	the rtnl semaphore.  In general you want to use this and not
+ *	the rtnl semaphore.  In general you want to use this and yest
  *	unregister_netdevice.
  */
 void unregister_netdev(struct net_device *dev)
@@ -9935,12 +9935,12 @@ EXPORT_SYMBOL(unregister_netdev);
  *	dev_change_net_namespace - move device to different nethost namespace
  *	@dev: device
  *	@net: network namespace
- *	@pat: If not NULL name pattern to try if the current device name
+ *	@pat: If yest NULL name pattern to try if the current device name
  *	      is already taken in the destination network namespace.
  *
  *	This function shuts down a device interface and moves it
  *	to a new network namespace. On success 0 is returned, on
- *	a failure a netagive errno code is returned.
+ *	a failure a netagive erryes code is returned.
  *
  *	Callers must hold the rtnl semaphore.
  */
@@ -9960,7 +9960,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	if (dev->reg_state != NETREG_REGISTERED)
 		goto out;
 
-	/* Get out if there is nothing todo */
+	/* Get out if there is yesthing todo */
 	err = 0;
 	if (net_eq(dev_net(dev), net))
 		goto out;
@@ -9979,7 +9979,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	}
 
 	/*
-	 * And now a mini version of register_netdevice unregister_netdevice.
+	 * And yesw a mini version of register_netdevice unregister_netdevice.
 	 */
 
 	/* If device is running close it first. */
@@ -9997,10 +9997,10 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	 * this device. They should clean all the things.
 	 *
 	 * Note that dev->reg_state stays at NETREG_REGISTERED.
-	 * This is wanted because this way 8021q and macvlan know
+	 * This is wanted because this way 8021q and macvlan kyesw
 	 * the device is just moving and can keep their slaves up.
 	 */
-	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+	call_netdevice_yestifiers(NETDEV_UNREGISTER, dev);
 	rcu_barrier();
 
 	new_nsid = peernet2id_alloc(dev_net(dev), net, GFP_KERNEL);
@@ -10039,11 +10039,11 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	list_netdevice(dev);
 
 	/* Notify protocols, that a new device appeared. */
-	call_netdevice_notifiers(NETDEV_REGISTER, dev);
+	call_netdevice_yestifiers(NETDEV_REGISTER, dev);
 
 	/*
 	 *	Prevent userspace races by waiting until the network
-	 *	device is fully setup before sending notifications.
+	 *	device is fully setup before sending yestifications.
 	 */
 	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U, GFP_KERNEL);
 
@@ -10127,7 +10127,7 @@ static int dev_cpu_dead(unsigned int oldcpu)
  *	@mask: mask feature set
  *
  *	Computes a new feature set after adding a device with feature set
- *	@one to the master device with current feature set @all.  Will not
+ *	@one to the master device with current feature set @all.  Will yest
  *	enable anything that is off in @mask. Returns the new feature set.
  */
 netdev_features_t netdev_increment_features(netdev_features_t all,
@@ -10268,7 +10268,7 @@ define_netdev_printk_level(netdev_alert, KERN_ALERT);
 define_netdev_printk_level(netdev_crit, KERN_CRIT);
 define_netdev_printk_level(netdev_err, KERN_ERR);
 define_netdev_printk_level(netdev_warn, KERN_WARNING);
-define_netdev_printk_level(netdev_notice, KERN_NOTICE);
+define_netdev_printk_level(netdev_yestice, KERN_NOTICE);
 define_netdev_printk_level(netdev_info, KERN_INFO);
 
 static void __net_exit netdev_exit(struct net *net)
@@ -10296,7 +10296,7 @@ static void __net_exit default_device_exit(struct net *net)
 		int err;
 		char fb_name[IFNAMSIZ];
 
-		/* Ignore unmoveable devices (i.e. loopback) */
+		/* Igyesre unmoveable devices (i.e. loopback) */
 		if (dev->features & NETIF_F_NETNS_LOCAL)
 			continue;
 
@@ -10320,7 +10320,7 @@ static void __net_exit default_device_exit(struct net *net)
 
 static void __net_exit rtnl_lock_unregistering(struct list_head *net_list)
 {
-	/* Return with the rtnl_lock held when there are no network
+	/* Return with the rtnl_lock held when there are yes network
 	 * devices unregistering in any network namespace in net_list.
 	 */
 	struct net *net;
@@ -10388,13 +10388,13 @@ static struct pernet_operations __net_initdata default_device_ops = {
 
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
- *	unhooks any devices that fail to initialise (normally hardware not
+ *	unhooks any devices that fail to initialise (yesrmally hardware yest
  *	present) and leaves us with a valid list of present and active devices.
  *
  */
 
 /*
- *       This is called single threaded during boot, so no need
+ *       This is called single threaded during boot, so yes need
  *       to take the rtnl semaphore.
  */
 static int __init net_dev_init(void)
@@ -10450,7 +10450,7 @@ static int __init net_dev_init(void)
 
 	/* The loopback device is special if any other network devices
 	 * is present in a network namespace the loopback device must
-	 * be present. Since we now dynamically allocate and free the
+	 * be present. Since we yesw dynamically allocate and free the
 	 * loopback device ensure this invariant is maintained by
 	 * keeping the loopback device as the first device on the
 	 * list of network devices.  Ensuring the loopback devices
@@ -10466,7 +10466,7 @@ static int __init net_dev_init(void)
 	open_softirq(NET_TX_SOFTIRQ, net_tx_action);
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);
 
-	rc = cpuhp_setup_state_nocalls(CPUHP_NET_DEV_DEAD, "net/dev:dead",
+	rc = cpuhp_setup_state_yescalls(CPUHP_NET_DEV_DEAD, "net/dev:dead",
 				       NULL, dev_cpu_dead);
 	WARN_ON(rc < 0);
 	rc = 0;

@@ -45,10 +45,10 @@ typedef struct { pteval_t pgprot; } pgprot_t;
 
 #if CONFIG_PGTABLE_LEVELS == 2
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #elif CONFIG_PGTABLE_LEVELS == 3
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #elif CONFIG_PGTABLE_LEVELS == 4
 #include <asm-generic/5level-fixup.h>
 #endif

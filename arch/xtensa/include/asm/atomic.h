@@ -33,10 +33,10 @@
  *    rsync
  *
  * Note that a15 is used here because the register allocation
- * done by the compiler is not guaranteed and a window overflow
- * may not occur between the rsil and wsr instructions. By using
+ * done by the compiler is yest guaranteed and a window overflow
+ * may yest occur between the rsil and wsr instructions. By using
  * a15 in the rsil, the machine is guaranteed to be in a state
- * where no register reference will cause an overflow.
+ * where yes register reference will cause an overflow.
  */
 
 /**

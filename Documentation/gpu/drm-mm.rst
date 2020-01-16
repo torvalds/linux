@@ -22,7 +22,7 @@ complexity. Its design philosophy is completely different: instead of
 providing a solution to every graphics memory-related problems, GEM
 identified common code between drivers and created a support library to
 share it. GEM has simpler initialization and execution requirements than
-TTM, but has no video RAM management capabilities and is thus limited to
+TTM, but has yes video RAM management capabilities and is thus limited to
 UMA devices.
 
 The Translation Table Manager (TTM)
@@ -96,8 +96,8 @@ principles. Buffer allocation and read and write operations, described
 as part of the common GEM API, are currently implemented using
 driver-specific ioctls.
 
-GEM is data-agnostic. It manages abstract buffer objects without knowing
-what individual buffers contain. APIs that require knowledge of buffer
+GEM is data-agyesstic. It manages abstract buffer objects without kyeswing
+what individual buffers contain. APIs that require kyeswledge of buffer
 contents or purpose, such as buffer allocation or synchronization
 primitives, are thus outside of the scope of GEM and must be implemented
 using driver-specific ioctls.
@@ -131,7 +131,7 @@ command ring buffer following core GEM initialization if required by the
 hardware. UMA devices usually have what is called a "stolen" memory
 region, which provides space for the initial framebuffer and large,
 contiguous memory regions required by the device. This space is
-typically not managed by GEM, and must be initialized separately into
+typically yest managed by GEM, and must be initialized separately into
 its own DRM MM object.
 
 GEM Objects Creation
@@ -153,7 +153,7 @@ to :c:func:`drm_gem_object_init()`. The function takes a pointer
 to the DRM device, a pointer to the GEM object and the buffer object
 size in bytes.
 
-GEM uses shmem to allocate anonymous pageable memory.
+GEM uses shmem to allocate ayesnymous pageable memory.
 :c:func:`drm_gem_object_init()` will create an shmfs file of the
 requested size and store it into the struct :c:type:`struct
 drm_gem_object <drm_gem_object>` filp field. The memory is
@@ -167,10 +167,10 @@ object, or to delay allocation until the memory is needed (for instance
 when a page fault occurs as a result of a userspace memory access or
 when the driver needs to start a DMA transfer involving the memory).
 
-Anonymous pageable memory allocation is not always desired, for instance
+Ayesnymous pageable memory allocation is yest always desired, for instance
 when the hardware requires physically contiguous system memory as is
 often the case in embedded devices. Drivers can create GEM objects with
-no shmfs backing (called private GEM objects) by initializing them with
+yes shmfs backing (called private GEM objects) by initializing them with
 a call to :c:func:`drm_gem_private_object_init()` instead of
 :c:func:`drm_gem_object_init()`. Storage for private GEM objects
 must be managed by drivers.
@@ -213,7 +213,7 @@ associated GEM objects.
 To create a handle for a GEM object drivers call
 :c:func:`drm_gem_handle_create()`. The function takes a pointer
 to the DRM file and the GEM object and returns a locally unique handle.
-When the handle is no longer needed drivers delete it with a call to
+When the handle is yes longer needed drivers delete it with a call to
 :c:func:`drm_gem_handle_delete()`. Finally the GEM object
 associated with a handle can be retrieved by a call to
 :c:func:`drm_gem_object_lookup()`.
@@ -228,7 +228,7 @@ handle creation in the implementation of the dumb_create operation,
 drivers must drop the initial reference to the GEM object before
 returning the handle.
 
-GEM names are similar in purpose to handles but are not local to DRM
+GEM names are similar in purpose to handles but are yest local to DRM
 files. They can be passed between processes to reference a GEM object
 globally. Names can't be used directly to refer to objects in the DRM
 API, applications must convert handles to names and names to handles
@@ -260,7 +260,7 @@ co-exist to map GEM objects to userspace. The first method uses a
 driver-specific ioctl to perform the mapping operation, calling
 :c:func:`do_mmap()` under the hood. This is often considered
 dubious, seems to be discouraged for new GEM-enabled drivers, and will
-thus not be described here.
+thus yest be described here.
 
 The second method uses the mmap system call on the DRM file handle. void
 \*mmap(void \*addr, size_t length, int prot, int flags, int fd, off_t
@@ -320,7 +320,7 @@ struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
 field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
 
 More detailed information about get_unmapped_area can be found in
-Documentation/nommu-mmap.txt
+Documentation/yesmmu-mmap.txt
 
 Memory Coherency
 ----------------
@@ -333,7 +333,7 @@ coherent with the CPU's view of memory, usually involving GPU cache
 flushing of various kinds. This core CPU<->GPU coherency management is
 provided by a device-specific ioctl, which evaluates an object's current
 domain and performs any necessary flushing or synchronization to put the
-object into the desired coherency domain (note that the object may be
+object into the desired coherency domain (yeste that the object may be
 busy, i.e. an active render target; in that case, setting the domain
 blocks the client and waits for rendering to complete before performing
 any necessary flushing operations).
@@ -349,12 +349,12 @@ bind all the objects into the GTT, execute the buffer, and provide
 necessary synchronization between clients accessing the same buffers.
 This often involves evicting some objects from the GTT and re-binding
 others (a fairly expensive operation), and providing relocation support
-which hides fixed GTT offsets from clients. Clients must take care not
+which hides fixed GTT offsets from clients. Clients must take care yest
 to submit command buffers that reference more objects than can fit in
-the GTT; otherwise, GEM will reject them and no rendering will occur.
+the GTT; otherwise, GEM will reject them and yes rendering will occur.
 Similarly, if several objects in the buffer require fence registers to
 be allocated for correct rendering (e.g. 2D blits on pre-965 chips),
-care must be taken not to require more fence registers than are
+care must be taken yest to require more fence registers than are
 available to the client. Such resource management should be abstracted
 from the client in libdrm.
 

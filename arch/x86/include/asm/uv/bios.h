@@ -66,7 +66,7 @@ struct uv_gam_range_entry {
 	char	unused1;
 	u16	nasid;		/* HNasid */
 	u16	sockid;		/* Socket ID, high bits of APIC ID */
-	u16	pnode;		/* Index to MMR and GRU spaces */
+	u16	pyesde;		/* Index to MMR and GRU spaces */
 	u32	unused2;
 	u32	limit;		/* PA bits 56:26 (UV_GAM_RANGE_SHFT) */
 };

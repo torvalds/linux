@@ -5,9 +5,9 @@
  *	(c) Copyright 2000 Oleg Drokin <green@crimea.edu>
  *	    Based on SoftDog driver by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
- *	Neither Oleg Drokin nor iXcelerator.com admit liability nor provide
+ *	Neither Oleg Drokin yesr iXcelerator.com admit liability yesr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at yes charge.
  *
  *	(c) Copyright 2000           Oleg Drokin <green@crimea.edu>
  *
@@ -45,7 +45,7 @@ static int boot_status;
 /*
  *	Allow only one person to hold it open
  */
-static int sa1100dog_open(struct inode *inode, struct file *file)
+static int sa1100dog_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(1, &sa1100wdt_users))
 		return -EBUSY;
@@ -55,19 +55,19 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 	writel_relaxed(OSSR_M3, OSSR);
 	writel_relaxed(OWER_WME, OWER);
 	writel_relaxed(readl_relaxed(OIER) | OIER_E3, OIER);
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /*
- * The watchdog cannot be disabled.
+ * The watchdog canyest be disabled.
  *
  * Previous comments suggested that turning off the interrupt by
  * clearing OIER[E3] would prevent the watchdog timing out but this
- * does not appear to be true (at least on the PXA255).
+ * does yest appear to be true (at least on the PXA255).
  */
-static int sa1100dog_release(struct inode *inode, struct file *file)
+static int sa1100dog_release(struct iyesde *iyesde, struct file *file)
 {
-	pr_crit("Device closed - timer will not stop\n");
+	pr_crit("Device closed - timer will yest stop\n");
 	clear_bit(1, &sa1100wdt_users);
 	return 0;
 }
@@ -138,7 +138,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations sa1100dog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= sa1100dog_write,
 	.unlocked_ioctl	= sa1100dog_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -147,7 +147,7 @@ static const struct file_operations sa1100dog_fops = {
 };
 
 static struct miscdevice sa1100dog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &sa1100dog_fops,
 };
@@ -161,7 +161,7 @@ static int __init sa1100dog_init(void)
 
 	clk = clk_get(NULL, "OSTIMER0");
 	if (IS_ERR(clk)) {
-		pr_err("SA1100/PXA2xx Watchdog Timer: clock not found: %d\n",
+		pr_err("SA1100/PXA2xx Watchdog Timer: clock yest found: %d\n",
 		       (int) PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}

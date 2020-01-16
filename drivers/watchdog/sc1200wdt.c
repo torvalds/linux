@@ -5,12 +5,12 @@
  *			All Rights Reserved.
  *	Based on wdt.c and wdt977.c by Alan Cox and Woody Suwalski respectively.
  *
- *	The author(s) of this software shall not be held liable for damages
+ *	The author(s) of this software shall yest be held liable for damages
  *	of any nature resulting due to the use of this software. This
- *	software is provided AS-IS with no warranties.
+ *	software is provided AS-IS with yes warranties.
  *
  *	Changelog:
- *	20020220 Zwane Mwaikambo	Code based on datasheet, no hardware.
+ *	20020220 Zwane Mwaikambo	Code based on datasheet, yes hardware.
  *	20020221 Zwane Mwaikambo	Cleanups as suggested by Jeff Garzik
  *					and Alan Cox.
  *	20020222 Zwane Mwaikambo	Added probing.
@@ -21,7 +21,7 @@
  *					Add WDIOC_GETBOOTSTATUS and
  *					WDIOC_SETOPTIONS ioctls
  *					Fix CONFIG_WATCHDOG_NOWAYOUT
- *	20020530 Joel Becker		Add Matt Domsch's nowayout module
+ *	20020530 Joel Becker		Add Matt Domsch's yeswayout module
  *					option
  *	20030116 Adam Belay		Updated to the latest pnp code
  */
@@ -34,7 +34,7 @@
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pnp.h>
@@ -69,7 +69,7 @@
 
 static int timeout = 1;
 static int io = -1;
-static int io_len = 2;		/* for non plug and play */
+static int io_len = 2;		/* for yesn plug and play */
 static unsigned long open_flag;
 static char expect_close;
 static DEFINE_SPINLOCK(sc1200wdt_lock);	/* io port access serialisation */
@@ -88,10 +88,10 @@ MODULE_PARM_DESC(io, "io port");
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 0-255 minutes, default is 1");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 
@@ -155,13 +155,13 @@ static inline int sc1200wdt_status(void)
 
 	sc1200wdt_read_data(WDST, &ret);
 	/* If the bit is inactive, the watchdog is enabled, so return
-	 * KEEPALIVEPING which is a bit of a kludge because there's nothing
+	 * KEEPALIVEPING which is a bit of a kludge because there's yesthing
 	 * else for enabled/disabled status
 	 */
 	return (ret & 0x01) ? 0 : WDIOF_KEEPALIVEPING;
 }
 
-static int sc1200wdt_open(struct inode *inode, struct file *file)
+static int sc1200wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	/* allow one at a time */
 	if (test_and_set_bit(0, &open_flag))
@@ -173,7 +173,7 @@ static int sc1200wdt_open(struct inode *inode, struct file *file)
 	sc1200wdt_start();
 	pr_info("Watchdog enabled, timeout = %d min(s)", timeout);
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 
@@ -245,7 +245,7 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 }
 
 
-static int sc1200wdt_release(struct inode *inode, struct file *file)
+static int sc1200wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42) {
 		sc1200wdt_stop();
@@ -265,7 +265,7 @@ static ssize_t sc1200wdt_write(struct file *file, const char __user *data,
 						size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			expect_close = 0;
@@ -288,7 +288,7 @@ static ssize_t sc1200wdt_write(struct file *file, const char __user *data,
 }
 
 
-static int sc1200wdt_notify_sys(struct notifier_block *this,
+static int sc1200wdt_yestify_sys(struct yestifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -298,13 +298,13 @@ static int sc1200wdt_notify_sys(struct notifier_block *this,
 }
 
 
-static struct notifier_block sc1200wdt_notifier = {
-	.notifier_call =	sc1200wdt_notify_sys,
+static struct yestifier_block sc1200wdt_yestifier = {
+	.yestifier_call =	sc1200wdt_yestify_sys,
 };
 
 static const struct file_operations sc1200wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= sc1200wdt_write,
 	.unlocked_ioctl = sc1200wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -313,7 +313,7 @@ static const struct file_operations sc1200wdt_fops = {
 };
 
 static struct miscdevice sc1200wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &sc1200wdt_fops,
 };
@@ -403,7 +403,7 @@ static int __init sc1200wdt_init(void)
 	}
 
 #if defined CONFIG_PNP
-	/* now that the user has specified an IO port and we haven't detected
+	/* yesw that the user has specified an IO port and we haven't detected
 	 * any devices, disable pnp support */
 	if (isapnp)
 		pnp_unregister_driver(&scl200wdt_pnp_driver);
@@ -420,15 +420,15 @@ static int __init sc1200wdt_init(void)
 	if (ret)
 		goto out_io;
 
-	ret = register_reboot_notifier(&sc1200wdt_notifier);
+	ret = register_reboot_yestifier(&sc1200wdt_yestifier);
 	if (ret) {
-		pr_err("Unable to register reboot notifier err = %d\n", ret);
+		pr_err("Unable to register reboot yestifier err = %d\n", ret);
 		goto out_io;
 	}
 
 	ret = misc_register(&sc1200wdt_miscdev);
 	if (ret) {
-		pr_err("Unable to register miscdev on minor %d\n",
+		pr_err("Unable to register miscdev on miyesr %d\n",
 		       WATCHDOG_MINOR);
 		goto out_rbt;
 	}
@@ -439,7 +439,7 @@ out_clean:
 	return ret;
 
 out_rbt:
-	unregister_reboot_notifier(&sc1200wdt_notifier);
+	unregister_reboot_yestifier(&sc1200wdt_yestifier);
 
 out_io:
 	release_region(io, io_len);
@@ -456,7 +456,7 @@ out_pnp:
 static void __exit sc1200wdt_exit(void)
 {
 	misc_deregister(&sc1200wdt_miscdev);
-	unregister_reboot_notifier(&sc1200wdt_notifier);
+	unregister_reboot_yestifier(&sc1200wdt_yestifier);
 
 #if defined CONFIG_PNP
 	if (isapnp)

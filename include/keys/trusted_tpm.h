@@ -19,7 +19,7 @@
 struct osapsess {
 	uint32_t handle;
 	unsigned char secret[SHA1_DIGEST_SIZE];
-	unsigned char enonce[TPM_NONCE_SIZE];
+	unsigned char eyesnce[TPM_NONCE_SIZE];
 };
 
 /* discrete values, but have to store in uint16_t for TPM use */
@@ -33,12 +33,12 @@ int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 			unsigned char *h2, unsigned int h3, ...);
 int TSS_checkhmac1(unsigned char *buffer,
 			  const uint32_t command,
-			  const unsigned char *ononce,
+			  const unsigned char *oyesnce,
 			  const unsigned char *key,
 			  unsigned int keylen, ...);
 
 int trusted_tpm_send(unsigned char *cmd, size_t buflen);
-int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce);
+int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *yesnce);
 
 int tpm2_seal_trusted(struct tpm_chip *chip,
 		      struct trusted_key_payload *payload,
@@ -78,9 +78,9 @@ static inline void dump_sess(struct osapsess *s)
 	pr_info("trusted-key: secret:\n");
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE,
 		       16, 1, &s->secret, SHA1_DIGEST_SIZE, 0);
-	pr_info("trusted-key: enonce:\n");
+	pr_info("trusted-key: eyesnce:\n");
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE,
-		       16, 1, &s->enonce, SHA1_DIGEST_SIZE, 0);
+		       16, 1, &s->eyesnce, SHA1_DIGEST_SIZE, 0);
 }
 
 static inline void dump_tpm_buf(unsigned char *buf)

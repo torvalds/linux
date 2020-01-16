@@ -33,14 +33,14 @@ enum smc_state {		/* possible states of an SMC socket */
 	SMC_INIT	= 2,
 	SMC_CLOSED	= 7,
 	SMC_LISTEN	= 10,
-	/* normal close */
+	/* yesrmal close */
 	SMC_PEERCLOSEWAIT1	= 20,
 	SMC_PEERCLOSEWAIT2	= 21,
 	SMC_APPFINCLOSEWAIT	= 24,
 	SMC_APPCLOSEWAIT1	= 22,
 	SMC_APPCLOSEWAIT2	= 23,
 	SMC_PEERFINCLOSEWAIT	= 25,
-	/* abnormal close */
+	/* abyesrmal close */
 	SMC_PEERABORTWAIT	= 26,
 	SMC_PROCESSABORT	= 27,
 };
@@ -55,7 +55,7 @@ struct smc_cdc_conn_state_flags {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8	peer_done_writing : 1;	/* Sending done indicator */
 	u8	peer_conn_closed : 1;	/* Peer connection closed indicator */
-	u8	peer_conn_abort : 1;	/* Abnormal close indicator */
+	u8	peer_conn_abort : 1;	/* Abyesrmal close indicator */
 	u8	reserved : 5;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	u8	reserved : 5;
@@ -67,7 +67,7 @@ struct smc_cdc_conn_state_flags {
 
 struct smc_cdc_producer_flags {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u8	write_blocked : 1;	/* Writing Blocked, no rx buf space */
+	u8	write_blocked : 1;	/* Writing Blocked, yes rx buf space */
 	u8	urg_data_pending : 1;	/* Urgent Data Pending */
 	u8	urg_data_present : 1;	/* Urgent Data Present */
 	u8	cons_curs_upd_req : 1;	/* cursor update requested */
@@ -101,7 +101,7 @@ union smc_host_cursor {	/* SMC cursor - an offset in an RMBE */
 struct smc_host_cdc_msg {		/* Connection Data Control message */
 	struct smc_wr_rx_hdr		common; /* .type = 0xFE */
 	u8				len;	/* length = 44 */
-	u16				seqno;	/* connection seq # */
+	u16				seqyes;	/* connection seq # */
 	u32				token;	/* alert_token */
 	union smc_host_cursor		prod;		/* producer cursor */
 	union smc_host_cursor		cons;		/* consumer cursor,
@@ -119,7 +119,7 @@ enum smc_urg_state {
 };
 
 struct smc_connection {
-	struct rb_node		alert_node;
+	struct rb_yesde		alert_yesde;
 	struct smc_link_group	*lgr;		/* link group of connection */
 	u32			alert_token_local; /* unique conn. id */
 	u8			peer_rmbe_idx;	/* from tcp handshake */
@@ -131,7 +131,7 @@ struct smc_connection {
 
 	struct smc_buf_desc	*sndbuf_desc;	/* send buffer descriptor */
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
-	int			rmbe_size_short;/* compressed notation */
+	int			rmbe_size_short;/* compressed yestation */
 	int			rmbe_update_limit;
 						/* lower limit for consumer
 						 * cursor update
@@ -174,7 +174,7 @@ struct smc_connection {
 						 */
 	char			urg_rx_byte;	/* urgent byte */
 	atomic_t		bytes_to_rcv;	/* arrived data,
-						 * not yet received
+						 * yest yet received
 						 */
 	atomic_t		splice_pending;	/* number of spliced bytes
 						 * pending processing
@@ -188,7 +188,7 @@ struct smc_connection {
 						 * 0 for SMC-R, 32 for SMC-D
 						 */
 	u64			peer_token;	/* SMC-D token of peer */
-	u8			killed : 1;	/* abnormal termination */
+	u8			killed : 1;	/* abyesrmal termination */
 };
 
 struct smc_sock {				/* smc sock container */
@@ -196,14 +196,14 @@ struct smc_sock {				/* smc sock container */
 	struct socket		*clcsock;	/* internal tcp socket */
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
-	struct work_struct	connect_work;	/* handle non-blocking connect*/
+	struct work_struct	connect_work;	/* handle yesn-blocking connect*/
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
 	bool			use_fallback;	/* fallback to tcp */
 	int			fallback_rsn;	/* reason for fallback */
-	u32			peer_diagnosis; /* decline reason from peer */
+	u32			peer_diagyessis; /* decline reason from peer */
 	int			sockopt_defer_accept;
 						/* sockopt TCP_DEFER_ACCEPT
 						 * value
@@ -213,8 +213,8 @@ struct smc_sock {				/* smc sock container */
 						 * started, waiting for unsent
 						 * data to be sent
 						 */
-	u8			connect_nonblock : 1;
-						/* non-blocking connect in
+	u8			connect_yesnblock : 1;
+						/* yesn-blocking connect in
 						 * flight
 						 */
 	struct mutex            clcsock_release_lock;
@@ -264,6 +264,6 @@ static inline bool using_ipsec(struct smc_sock *smc)
 #endif
 
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);
-void smc_close_non_accepted(struct sock *sk);
+void smc_close_yesn_accepted(struct sock *sk);
 
 #endif	/* __SMC_H */

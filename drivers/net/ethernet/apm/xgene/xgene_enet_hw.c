@@ -419,7 +419,7 @@ static void xgene_enet_configure_clock(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		struct clk *parent = clk_get_parent(pdata->clk);
 
 		switch (pdata->phy_speed) {
@@ -572,7 +572,7 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	MGMT_CLOCK_SEL_SET(&value, 7);
 	xgene_enet_wr_mac(pdata, MII_MGMT_CONFIG_ADDR, value);
 
-	/* Enable drop if bufpool not available */
+	/* Enable drop if bufpool yest available */
 	xgene_enet_rd_csr(pdata, RSIF_CONFIG_REG_ADDR, &value);
 	value |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
 	xgene_enet_wr_csr(pdata, RSIF_CONFIG_REG_ADDR, value);
@@ -611,7 +611,7 @@ static void xgene_gmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
 	xgene_enet_rd_mcx_csr(pdata, ICM_ECM_DROP_COUNT_REG0_ADDR, &count);
 	*rx = ICM_DROP_COUNT(count);
 	*tx = ECM_DROP_COUNT(count);
-	/* Errata: 10GE_4 - Fix ICM_ECM_DROP_COUNT not clear-on-read */
+	/* Errata: 10GE_4 - Fix ICM_ECM_DROP_COUNT yest clear-on-read */
 	xgene_enet_rd_mcx_csr(pdata, ECM_CONFIG0_REG_0_ADDR, &count);
 }
 
@@ -703,7 +703,7 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 		return 0;
 	}
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		clk_prepare_enable(pdata->clk);
 		udelay(5);
 		clk_disable_unprepare(pdata->clk);
@@ -749,7 +749,7 @@ static void xgene_gport_shutdown(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		if (!IS_ERR(pdata->clk))
 			clk_disable_unprepare(pdata->clk);
 	}
@@ -824,43 +824,43 @@ static void xgene_enet_adjust_link(struct net_device *ndev)
 #ifdef CONFIG_ACPI
 static struct acpi_device *acpi_phy_find_device(struct device *dev)
 {
-	struct fwnode_reference_args args;
-	struct fwnode_handle *fw_node;
+	struct fwyesde_reference_args args;
+	struct fwyesde_handle *fw_yesde;
 	int status;
 
-	fw_node = acpi_fwnode_handle(ACPI_COMPANION(dev));
-	status = acpi_node_get_property_reference(fw_node, "phy-handle", 0,
+	fw_yesde = acpi_fwyesde_handle(ACPI_COMPANION(dev));
+	status = acpi_yesde_get_property_reference(fw_yesde, "phy-handle", 0,
 						  &args);
-	if (ACPI_FAILURE(status) || !is_acpi_device_node(args.fwnode)) {
+	if (ACPI_FAILURE(status) || !is_acpi_device_yesde(args.fwyesde)) {
 		dev_dbg(dev, "No matching phy in ACPI table\n");
 		return NULL;
 	}
 
-	return to_acpi_device_node(args.fwnode);
+	return to_acpi_device_yesde(args.fwyesde);
 }
 #endif
 
 int xgene_enet_phy_connect(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct device_node *np;
+	struct device_yesde *np;
 	struct phy_device *phy_dev;
 	struct device *dev = &pdata->pdev->dev;
 	int i;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		for (i = 0 ; i < 2; i++) {
-			np = of_parse_phandle(dev->of_node, "phy-handle", i);
+			np = of_parse_phandle(dev->of_yesde, "phy-handle", i);
 			phy_dev = of_phy_connect(ndev, np,
 						 &xgene_enet_adjust_link,
 						 0, pdata->phy_mode);
-			of_node_put(np);
+			of_yesde_put(np);
 			if (phy_dev)
 				break;
 		}
 
 		if (!phy_dev) {
-			netdev_err(ndev, "Could not connect to PHY\n");
+			netdev_err(ndev, "Could yest connect to PHY\n");
 			return -ENODEV;
 		}
 	} else {
@@ -874,7 +874,7 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 		if (!phy_dev ||
 		    phy_connect_direct(ndev, phy_dev, &xgene_enet_adjust_link,
 				       pdata->phy_mode)) {
-			netdev_err(ndev, "Could not connect to PHY\n");
+			netdev_err(ndev, "Could yest connect to PHY\n");
 			return  -ENODEV;
 		}
 #else
@@ -897,13 +897,13 @@ static int xgene_mdiobus_register(struct xgene_enet_pdata *pdata,
 	struct device *dev = &pdata->pdev->dev;
 	struct net_device *ndev = pdata->ndev;
 	struct phy_device *phy;
-	struct device_node *child_np;
-	struct device_node *mdio_np = NULL;
+	struct device_yesde *child_np;
+	struct device_yesde *mdio_np = NULL;
 	u32 phy_addr;
 	int ret;
 
-	if (dev->of_node) {
-		for_each_child_of_node(dev->of_node, child_np) {
+	if (dev->of_yesde) {
+		for_each_child_of_yesde(dev->of_yesde, child_np) {
 			if (of_device_is_compatible(child_np,
 						    "apm,xgene-mdio")) {
 				mdio_np = child_np;
@@ -912,7 +912,7 @@ static int xgene_mdiobus_register(struct xgene_enet_pdata *pdata,
 		}
 
 		if (!mdio_np) {
-			netdev_dbg(ndev, "No mdio node in the dts\n");
+			netdev_dbg(ndev, "No mdio yesde in the dts\n");
 			return -ENXIO;
 		}
 

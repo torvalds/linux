@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -26,7 +26,7 @@
 #include "base.h"
 #include "reg.h"
 
-/* Known PCI ids */
+/* Kyeswn PCI ids */
 static const struct pci_device_id ath5k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0207) }, /* 5210 early */
 	{ PCI_VDEVICE(ATHEROS, 0x0007) }, /* 5210 */
@@ -62,8 +62,8 @@ static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 
 	/*
 	 * This check was put in to avoid "unpleasant" consequences if
-	 * the bootrom has not fully initialized all PCI devices.
-	 * Sometimes the cache line size register is not set
+	 * the bootrom has yest fully initialized all PCI devices.
+	 * Sometimes the cache line size register is yest set
 	 */
 
 	if (*csz == 0)
@@ -170,13 +170,13 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	 * For distributions shipping with CONFIG_PCIEASPM (this will be enabled
 	 * by default in the future in 2.6.36) this will also mean both L1 and
 	 * L0s will be disabled when a pre 1.1 PCIe device is detected. We do
-	 * know L1 works correctly even for all ath5k pre 1.1 PCIe devices
-	 * though but cannot currently undue the effect of a blacklist, for
+	 * kyesw L1 works correctly even for all ath5k pre 1.1 PCIe devices
+	 * though but canyest currently undue the effect of a blacklist, for
 	 * details you can read pcie_aspm_sanity_check() and see how it adjusts
 	 * the device link capability.
 	 *
 	 * It may be possible in the future to implement some PCI API to allow
-	 * drivers to override blacklists for pre 1.1 PCIe but for now it is
+	 * drivers to override blacklists for pre 1.1 PCIe but for yesw it is
 	 * best to accept that both L0s and L1 will be disabled completely for
 	 * distributions shipping with CONFIG_PCIEASPM rather than having this
 	 * issue present. Motivation for adding this new API will be to help
@@ -193,7 +193,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	/* XXX 32-bit addressing only */
 	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pdev->dev, "32-bit DMA not available\n");
+		dev_err(&pdev->dev, "32-bit DMA yest available\n");
 		goto err_dis;
 	}
 
@@ -231,13 +231,13 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_request_region(pdev, 0, "ath5k");
 	if (ret) {
-		dev_err(&pdev->dev, "cannot reserve PCI memory region\n");
+		dev_err(&pdev->dev, "canyest reserve PCI memory region\n");
 		goto err_dis;
 	}
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "cannot remap PCI memory region\n");
+		dev_err(&pdev->dev, "canyest remap PCI memory region\n");
 		ret = -EIO;
 		goto err_reg;
 	}
@@ -248,7 +248,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	 */
 	hw = ieee80211_alloc_hw(sizeof(*ah), &ath5k_hw_ops);
 	if (hw == NULL) {
-		dev_err(&pdev->dev, "cannot allocate ieee80211_hw\n");
+		dev_err(&pdev->dev, "canyest allocate ieee80211_hw\n");
 		ret = -ENOMEM;
 		goto err_map;
 	}

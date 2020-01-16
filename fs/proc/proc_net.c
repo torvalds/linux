@@ -11,7 +11,7 @@
 
 #include <linux/uaccess.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -34,9 +34,9 @@ static inline struct net *PDE_NET(struct proc_dir_entry *pde)
 	return pde->parent->data;
 }
 
-static struct net *get_proc_net(const struct inode *inode)
+static struct net *get_proc_net(const struct iyesde *iyesde)
 {
-	return maybe_get_net(PDE_NET(PDE(inode)));
+	return maybe_get_net(PDE_NET(PDE(iyesde)));
 }
 
 static int proc_net_d_revalidate(struct dentry *dentry, unsigned int flags)
@@ -55,22 +55,22 @@ static void pde_force_lookup(struct proc_dir_entry *pde)
 	pde->proc_dops = &proc_net_dentry_ops;
 }
 
-static int seq_open_net(struct inode *inode, struct file *file)
+static int seq_open_net(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int state_size = PDE(inode)->state_size;
+	unsigned int state_size = PDE(iyesde)->state_size;
 	struct seq_net_private *p;
 	struct net *net;
 
 	WARN_ON_ONCE(state_size < sizeof(*p));
 
-	if (file->f_mode & FMODE_WRITE && !PDE(inode)->write)
+	if (file->f_mode & FMODE_WRITE && !PDE(iyesde)->write)
 		return -EACCES;
 
-	net = get_proc_net(inode);
+	net = get_proc_net(iyesde);
 	if (!net)
 		return -ENXIO;
 
-	p = __seq_open_private(file, PDE(inode)->seq_ops, state_size);
+	p = __seq_open_private(file, PDE(iyesde)->seq_ops, state_size);
 	if (!p) {
 		put_net(net);
 		return -ENOMEM;
@@ -81,12 +81,12 @@ static int seq_open_net(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int seq_release_net(struct inode *ino, struct file *f)
+static int seq_release_net(struct iyesde *iyes, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 
 	put_net(seq_file_net(seq));
-	seq_release_private(ino, f);
+	seq_release_private(iyes, f);
 	return 0;
 }
 
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * PDE_DATA() on the file iyesde.  The network namespace must be accessed by
  * calling seq_file_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode,
@@ -160,13 +160,13 @@ struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode
 }
 EXPORT_SYMBOL_GPL(proc_create_net_data_write);
 
-static int single_open_net(struct inode *inode, struct file *file)
+static int single_open_net(struct iyesde *iyesde, struct file *file)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(iyesde);
 	struct net *net;
 	int err;
 
-	net = get_proc_net(inode);
+	net = get_proc_net(iyesde);
 	if (!net)
 		return -ENXIO;
 
@@ -176,11 +176,11 @@ static int single_open_net(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int single_release_net(struct inode *ino, struct file *f)
+static int single_release_net(struct iyesde *iyes, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 	put_net(seq->private);
-	return single_release(ino, f);
+	return single_release(iyes, f);
 }
 
 static const struct file_operations proc_net_single_fops = {
@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_single);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * PDE_DATA() on the file iyesde.  The network namespace must be accessed by
  * calling seq_file_single_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mode,
@@ -251,7 +251,7 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 }
 EXPORT_SYMBOL_GPL(proc_create_net_single_write);
 
-static struct net *get_proc_task_net(struct inode *dir)
+static struct net *get_proc_task_net(struct iyesde *dir)
 {
 	struct task_struct *task;
 	struct nsproxy *ns;
@@ -271,7 +271,7 @@ static struct net *get_proc_task_net(struct inode *dir)
 	return net;
 }
 
-static struct dentry *proc_tgid_net_lookup(struct inode *dir,
+static struct dentry *proc_tgid_net_lookup(struct iyesde *dir,
 		struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *de;
@@ -289,12 +289,12 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 static int proc_tgid_net_getattr(const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
+	struct iyesde *iyesde = d_iyesde(path->dentry);
 	struct net *net;
 
-	net = get_proc_task_net(inode);
+	net = get_proc_task_net(iyesde);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(iyesde, stat);
 
 	if (net != NULL) {
 		stat->nlink = net->proc_net->nlink;
@@ -304,7 +304,7 @@ static int proc_tgid_net_getattr(const struct path *path, struct kstat *stat,
 	return 0;
 }
 
-const struct inode_operations proc_net_inode_operations = {
+const struct iyesde_operations proc_net_iyesde_operations = {
 	.lookup		= proc_tgid_net_lookup,
 	.getattr	= proc_tgid_net_getattr,
 };
@@ -315,7 +315,7 @@ static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(file_inode(file));
+	net = get_proc_task_net(file_iyesde(file));
 	if (net != NULL) {
 		ret = proc_readdir_de(file, ctx, net->proc_net);
 		put_net(net);

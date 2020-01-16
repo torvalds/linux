@@ -80,7 +80,7 @@ static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 		/* 4 bytes to accommodate UTF-8 code points + null byte */
 		key = kzalloc((key_len - sizeof(key_len)) * 4 + 1, GFP_KERNEL);
 		if (!key) {
-			dev_err(dev, "cannot allocate property name\n");
+			dev_err(dev, "canyest allocate property name\n");
 			break;
 		}
 		ucs2_as_utf8(key, ptr + sizeof(key_len),
@@ -144,7 +144,7 @@ static int __init unmarshal_devices(struct properties_header *properties)
 		entry = kcalloc(dev_header->prop_count + 1, sizeof(*entry),
 				GFP_KERNEL);
 		if (!entry) {
-			dev_err(dev, "cannot allocate properties\n");
+			dev_err(dev, "canyest allocate properties\n");
 			goto skip_device;
 		}
 
@@ -183,7 +183,7 @@ static int __init map_properties(void)
 	while (pa_data) {
 		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data) {
-			pr_err("cannot map setup_data header\n");
+			pr_err("canyest map setup_data header\n");
 			return -ENOMEM;
 		}
 
@@ -198,7 +198,7 @@ static int __init map_properties(void)
 
 		data = memremap(pa_data, sizeof(*data) + data_len, MEMREMAP_WB);
 		if (!data) {
-			pr_err("cannot map setup_data payload\n");
+			pr_err("canyest map setup_data payload\n");
 			return -ENOMEM;
 		}
 
@@ -217,7 +217,7 @@ static int __init map_properties(void)
 			ret = unmarshal_devices(properties);
 
 		/*
-		 * Can only free the setup_data payload but not its header
+		 * Can only free the setup_data payload but yest its header
 		 * to avoid breaking the chain of ->next pointers.
 		 */
 		data->len = 0;

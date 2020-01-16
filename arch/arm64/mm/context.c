@@ -48,7 +48,7 @@ static u32 get_cpu_asid_bits(void)
 
 	switch (fld) {
 	default:
-		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
+		pr_warn("CPU%d: Unkyeswn ASID size (%d); assuming 8-bit\n",
 					smp_processor_id(),  fld);
 		/* Fallthrough */
 	case 0:
@@ -68,7 +68,7 @@ void verify_cpu_asid_bits(void)
 
 	if (asid < asid_bits) {
 		/*
-		 * We cannot decrease the ASID size at runtime, so panic if we support
+		 * We canyest decrease the ASID size at runtime, so panic if we support
 		 * fewer ASID bits than the boot CPU.
 		 */
 		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
@@ -89,7 +89,7 @@ static void flush_context(void)
 		asid = atomic64_xchg_relaxed(&per_cpu(active_asids, i), 0);
 		/*
 		 * If this CPU has already been through a
-		 * rollover, but hasn't run another task in
+		 * rollover, but hasn't run ayesther task in
 		 * the meantime, we must preserve its reserved
 		 * ASID, as this is the only trace we have of
 		 * the process it is still running.
@@ -156,7 +156,7 @@ static u64 new_context(struct mm_struct *mm)
 	}
 
 	/*
-	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * Allocate a free ASID. If we can't find one, take a yeste of the
 	 * currently active ASIDs and mark the TLBs as requiring flushes.  We
 	 * always count from ASID #2 (index 1), as we use ASID #0 when setting
 	 * a reserved TTBR0 for the init_mm and we allocate ASIDs in even/odd
@@ -192,7 +192,7 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 
 	/*
 	 * The memory ordering here is subtle.
-	 * If our active_asids is non-zero and the ASID matches the current
+	 * If our active_asids is yesn-zero and the ASID matches the current
 	 * generation, then we update the active_asids entry with a relaxed
 	 * cmpxchg. Racing with a concurrent rollover means that either:
 	 *
@@ -240,7 +240,7 @@ switch_mm_fastpath:
 /* Errata workaround post TTBRx_EL1 update. */
 asmlinkage void post_ttbr_update_workaround(void)
 {
-	asm(ALTERNATIVE("nop; nop; nop",
+	asm(ALTERNATIVE("yesp; yesp; yesp",
 			"ic iallu; dsb nsh; isb",
 			ARM64_WORKAROUND_CAVIUM_27456,
 			CONFIG_CAVIUM_ERRATUM_27456));

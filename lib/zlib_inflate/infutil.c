@@ -1,5 +1,5 @@
 #include <linux/zutil.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -16,10 +16,10 @@ int zlib_inflate_blob(void *gunzip_buf, unsigned int sz,
 	rc = -ENOMEM;
 	strm = kmalloc(sizeof(*strm), GFP_KERNEL);
 	if (strm == NULL)
-		goto gunzip_nomem1;
+		goto gunzip_yesmem1;
 	strm->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
 	if (strm->workspace == NULL)
-		goto gunzip_nomem2;
+		goto gunzip_yesmem2;
 
 	/* gzip header (1f,8b,08... 10 bytes total + possible asciz filename)
 	 * expected to be stripped from input
@@ -42,8 +42,8 @@ int zlib_inflate_blob(void *gunzip_buf, unsigned int sz,
 		rc = -EINVAL;
 
 	kfree(strm->workspace);
-gunzip_nomem2:
+gunzip_yesmem2:
 	kfree(strm);
-gunzip_nomem1:
+gunzip_yesmem1:
 	return rc; /* returns Z_OK (0) if successful */
 }

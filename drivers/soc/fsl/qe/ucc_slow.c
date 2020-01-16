@@ -9,7 +9,7 @@
  * QE UCC Slow API Set - UCC Slow specific routines implementations.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
@@ -139,18 +139,18 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/*
 	 * Set mrblr
 	 * Check that 'max_rx_buf_length' is properly aligned (4), unless
-	 * rfw is 1, meaning that QE accepts one byte at a time, unlike normal
+	 * rfw is 1, meaning that QE accepts one byte at a time, unlike yesrmal
 	 * case when QE accepts 32 bits at a time.
 	 */
 	if ((!us_info->rfw) &&
 		(us_info->max_rx_buf_length & (UCC_SLOW_MRBLR_ALIGNMENT - 1))) {
-		printk(KERN_ERR "max_rx_buf_length not aligned.\n");
+		printk(KERN_ERR "max_rx_buf_length yest aligned.\n");
 		return -EINVAL;
 	}
 
 	uccs = kzalloc(sizeof(struct ucc_slow_private), GFP_KERNEL);
 	if (!uccs) {
-		printk(KERN_ERR "%s: Cannot allocate private data\n",
+		printk(KERN_ERR "%s: Canyest allocate private data\n",
 			__func__);
 		return -ENOMEM;
 	}
@@ -160,7 +160,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/* Set the PHY base address */
 	uccs->us_regs = ioremap(us_info->regs, sizeof(struct ucc_slow));
 	if (uccs->us_regs == NULL) {
-		printk(KERN_ERR "%s: Cannot map UCC registers\n", __func__);
+		printk(KERN_ERR "%s: Canyest map UCC registers\n", __func__);
 		kfree(uccs);
 		return -ENOMEM;
 	}
@@ -180,7 +180,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_pram_offset =
 		qe_muram_alloc(UCC_SLOW_PRAM_SIZE, ALIGNMENT_OF_UCC_SLOW_PRAM);
 	if (IS_ERR_VALUE(uccs->us_pram_offset)) {
-		printk(KERN_ERR "%s: cannot allocate MURAM for PRAM", __func__);
+		printk(KERN_ERR "%s: canyest allocate MURAM for PRAM", __func__);
 		ucc_slow_free(uccs);
 		return -ENOMEM;
 	}
@@ -193,7 +193,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/* Set UCC to slow type */
 	ret = ucc_set_type(us_info->ucc_num, UCC_SPEED_TYPE_SLOW);
 	if (ret) {
-		printk(KERN_ERR "%s: cannot set UCC type", __func__);
+		printk(KERN_ERR "%s: canyest set UCC type", __func__);
 		ucc_slow_free(uccs);
 		return ret;
 	}
@@ -207,7 +207,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		qe_muram_alloc(us_info->rx_bd_ring_len * sizeof(struct qe_bd),
 				QE_ALIGNMENT_OF_BD);
 	if (IS_ERR_VALUE(uccs->rx_base_offset)) {
-		printk(KERN_ERR "%s: cannot allocate %u RX BDs\n", __func__,
+		printk(KERN_ERR "%s: canyest allocate %u RX BDs\n", __func__,
 			us_info->rx_bd_ring_len);
 		uccs->rx_base_offset = 0;
 		ucc_slow_free(uccs);
@@ -218,7 +218,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		qe_muram_alloc(us_info->tx_bd_ring_len * sizeof(struct qe_bd),
 			QE_ALIGNMENT_OF_BD);
 	if (IS_ERR_VALUE(uccs->tx_base_offset)) {
-		printk(KERN_ERR "%s: cannot allocate TX BDs", __func__);
+		printk(KERN_ERR "%s: canyest allocate TX BDs", __func__);
 		uccs->tx_base_offset = 0;
 		ucc_slow_free(uccs);
 		return -ENOMEM;
@@ -302,7 +302,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	ucc_set_qe_mux_bkpt(us_info->ucc_num, us_info->brkpt_support);
 	/* Set Tsa or NMSI mode. */
 	ucc_set_qe_mux_tsa(us_info->ucc_num, us_info->tsa);
-	/* If NMSI (not Tsa), set Tx and Rx clock. */
+	/* If NMSI (yest Tsa), set Tx and Rx clock. */
 	if (!us_info->tsa) {
 		/* Rx clock routing */
 		if (ucc_set_qe_mux_rxtx(us_info->ucc_num, us_info->rx_clock,
@@ -338,7 +338,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	else if (us_info->init_tx)
 		command = QE_INIT_TX;
 	else
-		command = QE_INIT_RX;	/* We know at least one is TRUE */
+		command = QE_INIT_RX;	/* We kyesw at least one is TRUE */
 
 	qe_issue_cmd(command, id, us_info->protocol, 0);
 

@@ -388,7 +388,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 
 /*
  * Describe a pinmux configuration with GPIO function where the pinmux function
- * has no representation in a Peripheral Function Select Register (IPSR), but
+ * has yes representation in a Peripheral Function Select Register (IPSR), but
  * instead solely depends on a group selection.
  *   - gpsr: GPSR field
  *   - fn: Function name, also referring to the GPSR field
@@ -412,7 +412,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 /*
  * Describe a pinmux configuration similar to PINMUX_IPSR_MSEL, but with
  * an additional select register that controls physical multiplexing
- * with another pin.
+ * with ayesther pin.
  *   - ipsr: IPSR field
  *   - fn: Function name, also referring to the IPSR field
  *   - psel: Physical multiplexing selector
@@ -705,7 +705,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
 /*
- * Pins not associated with a GPIO port
+ * Pins yest associated with a GPIO port
  */
 
 #define PIN_NOGP_CFG(pin, name, fn, cfg)	fn(pin, name, cfg)
@@ -736,7 +736,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 			0, 0, 0, 0,					\
 			/* IE and OE */					\
 			0, PORT##nr##_OUT, PORT##nr##_IN, 0,		\
-			/* SEC, not supported */			\
+			/* SEC, yest supported */			\
 			0, 0,						\
 			/* PTMD[2:0] */					\
 			PORT##nr##_FN0, PORT##nr##_FN1,			\

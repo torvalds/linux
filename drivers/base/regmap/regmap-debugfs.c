@@ -15,7 +15,7 @@
 
 #include "internal.h"
 
-struct regmap_debugfs_node {
+struct regmap_debugfs_yesde {
 	struct regmap *map;
 	const char *name;
 	struct list_head link;
@@ -37,7 +37,7 @@ static ssize_t regmap_name_read_file(struct file *file,
 				     loff_t *ppos)
 {
 	struct regmap *map = file->private_data;
-	const char *name = "nodev";
+	const char *name = "yesdev";
 	int ret;
 	char *buf;
 
@@ -156,7 +156,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	/*
 	 * This should never happen; we return above if we fail to
 	 * allocate and we should never be in this code if there are
-	 * no registers at all.
+	 * yes registers at all.
 	 */
 	WARN_ON(list_empty(&map->debugfs_off_cache));
 	ret = base;
@@ -241,7 +241,7 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
-			/* ...but not beyond it */
+			/* ...but yest beyond it */
 			if (buf_pos + map->debugfs_tot_len > count)
 				break;
 
@@ -342,7 +342,7 @@ static const struct file_operations regmap_map_fops = {
 static ssize_t regmap_range_read_file(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
-	struct regmap_range_node *range = file->private_data;
+	struct regmap_range_yesde *range = file->private_data;
 	struct regmap *map = range->map;
 
 	return regmap_read_debugfs(map, range->range_min, range->range_max,
@@ -382,15 +382,15 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	}
 
 	/* While we are at it, build the register dump cache
-	 * now so the read() operation on the `registers' file
-	 * can benefit from using the cache.  We do not care
+	 * yesw so the read() operation on the `registers' file
+	 * can benefit from using the cache.  We do yest care
 	 * about the file position information that is contained
 	 * in the cache, just about the actual register blocks */
 	regmap_calc_tot_len(map, buf, count);
 	regmap_debugfs_get_dump_start(map, 0, *ppos, &p);
 
 	/* Reset file pointer as the fixed-format of the `registers'
-	 * file is not compatible with the `range' file */
+	 * file is yest compatible with the `range' file */
 	p = 0;
 	mutex_lock(&map->cache_lock);
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
@@ -426,7 +426,7 @@ static const struct file_operations regmap_reg_ranges_fops = {
 	.llseek = default_llseek,
 };
 
-static int regmap_access_show(struct seq_file *s, void *ignored)
+static int regmap_access_show(struct seq_file *s, void *igyesred)
 {
 	struct regmap *map = s->private;
 	int i, reg_len;
@@ -434,7 +434,7 @@ static int regmap_access_show(struct seq_file *s, void *ignored)
 	reg_len = regmap_calc_reg_len(map->max_register);
 
 	for (i = 0; i <= map->max_register; i += map->reg_stride) {
-		/* Ignore registers which are neither readable nor writable */
+		/* Igyesre registers which are neither readable yesr writable */
 		if (!regmap_readable(map, i) && !regmap_writeable(map, i))
 			continue;
 
@@ -534,32 +534,32 @@ static const struct file_operations regmap_cache_bypass_fops = {
 
 void regmap_debugfs_init(struct regmap *map, const char *name)
 {
-	struct rb_node *next;
-	struct regmap_range_node *range_node;
+	struct rb_yesde *next;
+	struct regmap_range_yesde *range_yesde;
 	const char *devname = "dummy";
 
 	/*
 	 * Userspace can initiate reads from the hardware over debugfs.
 	 * Normally internal regmap structures and buffers are protected with
 	 * a mutex or a spinlock, but if the regmap owner decided to disable
-	 * all locking mechanisms, this is no longer the case. For safety:
+	 * all locking mechanisms, this is yes longer the case. For safety:
 	 * don't create the debugfs entries if locking is disabled.
 	 */
 	if (map->debugfs_disable) {
-		dev_dbg(map->dev, "regmap locking disabled - not creating debugfs entries\n");
+		dev_dbg(map->dev, "regmap locking disabled - yest creating debugfs entries\n");
 		return;
 	}
 
 	/* If we don't have the debugfs root yet, postpone init */
 	if (!regmap_debugfs_root) {
-		struct regmap_debugfs_node *node;
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
+		struct regmap_debugfs_yesde *yesde;
+		yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+		if (!yesde)
 			return;
-		node->map = map;
-		node->name = name;
+		yesde->map = map;
+		yesde->name = name;
 		mutex_lock(&regmap_debugfs_early_lock);
-		list_add(&node->link, &regmap_debugfs_early_list);
+		list_add(&yesde->link, &regmap_debugfs_early_list);
 		mutex_unlock(&regmap_debugfs_early_lock);
 		return;
 	}
@@ -622,14 +622,14 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 
 	next = rb_first(&map->range_tree);
 	while (next) {
-		range_node = rb_entry(next, struct regmap_range_node, node);
+		range_yesde = rb_entry(next, struct regmap_range_yesde, yesde);
 
-		if (range_node->name)
-			debugfs_create_file(range_node->name, 0400,
-					    map->debugfs, range_node,
+		if (range_yesde->name)
+			debugfs_create_file(range_yesde->name, 0400,
+					    map->debugfs, range_yesde,
 					    &regmap_range_fops);
 
-		next = rb_next(&range_node->node);
+		next = rb_next(&range_yesde->yesde);
 	}
 
 	if (map->cache_ops && map->cache_ops->debugfs_init)
@@ -645,14 +645,14 @@ void regmap_debugfs_exit(struct regmap *map)
 		mutex_unlock(&map->cache_lock);
 		kfree(map->debugfs_name);
 	} else {
-		struct regmap_debugfs_node *node, *tmp;
+		struct regmap_debugfs_yesde *yesde, *tmp;
 
 		mutex_lock(&regmap_debugfs_early_lock);
-		list_for_each_entry_safe(node, tmp, &regmap_debugfs_early_list,
+		list_for_each_entry_safe(yesde, tmp, &regmap_debugfs_early_list,
 					 link) {
-			if (node->map == map) {
-				list_del(&node->link);
-				kfree(node);
+			if (yesde->map == map) {
+				list_del(&yesde->link);
+				kfree(yesde);
 			}
 		}
 		mutex_unlock(&regmap_debugfs_early_lock);
@@ -661,15 +661,15 @@ void regmap_debugfs_exit(struct regmap *map)
 
 void regmap_debugfs_initcall(void)
 {
-	struct regmap_debugfs_node *node, *tmp;
+	struct regmap_debugfs_yesde *yesde, *tmp;
 
 	regmap_debugfs_root = debugfs_create_dir("regmap", NULL);
 
 	mutex_lock(&regmap_debugfs_early_lock);
-	list_for_each_entry_safe(node, tmp, &regmap_debugfs_early_list, link) {
-		regmap_debugfs_init(node->map, node->name);
-		list_del(&node->link);
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmp, &regmap_debugfs_early_list, link) {
+		regmap_debugfs_init(yesde->map, yesde->name);
+		list_del(&yesde->link);
+		kfree(yesde);
 	}
 	mutex_unlock(&regmap_debugfs_early_lock);
 }

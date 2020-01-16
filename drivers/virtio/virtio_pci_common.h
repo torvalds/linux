@@ -32,10 +32,10 @@ struct virtio_pci_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+	/* the list yesde for the virtqueues list */
+	struct list_head yesde;
 
-	/* MSI-X vector (or none) */
+	/* MSI-X vector (or yesne) */
 	unsigned msix_vector;
 };
 
@@ -49,22 +49,22 @@ struct virtio_pci_device {
 	u8 __iomem *isr;
 
 	/* Modern only fields */
-	/* The IO mapping for the PCI config space (non-legacy mode) */
+	/* The IO mapping for the PCI config space (yesn-legacy mode) */
 	struct virtio_pci_common_cfg __iomem *common;
-	/* Device-specific data (non-legacy mode)  */
+	/* Device-specific data (yesn-legacy mode)  */
 	void __iomem *device;
-	/* Base of vq notifications (non-legacy mode). */
-	void __iomem *notify_base;
+	/* Base of vq yestifications (yesn-legacy mode). */
+	void __iomem *yestify_base;
 
 	/* So we can sanity-check accesses. */
-	size_t notify_len;
+	size_t yestify_len;
 	size_t device_len;
 
-	/* Capability for when we need to map notifications per-vq. */
-	int notify_map_cap;
+	/* Capability for when we need to map yestifications per-vq. */
+	int yestify_map_cap;
 
-	/* Multiply queue_notify_off by this value. (non-legacy mode). */
-	u32 notify_offset_multiplier;
+	/* Multiply queue_yestify_off by this value. (yesn-legacy mode). */
+	u32 yestify_offset_multiplier;
 
 	int modern_bars;
 
@@ -83,7 +83,7 @@ struct virtio_pci_device {
 	int msix_enabled;
 	int intx_enabled;
 	cpumask_var_t *msix_affinity_masks;
-	/* Name strings for interrupts. This size should be enough,
+	/* Name strings for interrupts. This size should be eyesugh,
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
 	/* Number of available vectors */
@@ -122,8 +122,8 @@ static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
 
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev);
-/* the notify function used when creating a virt queue */
-bool vp_notify(struct virtqueue *vq);
+/* the yestify function used when creating a virt queue */
+bool vp_yestify(struct virtqueue *vq);
 /* the config->del_vqs() implementation */
 void vp_del_vqs(struct virtio_device *vdev);
 /* the config->find_vqs() implementation */
@@ -136,7 +136,7 @@ const char *vp_bus_name(struct virtio_device *vdev);
 /* Setup the affinity for a virtqueue:
  * - force the affinity for per vq vector
  * - OR over all affinities for shared MSI
- * - ignore the affinity request if we're using INTX
+ * - igyesre the affinity request if we're using INTX
  */
 int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask);
 
