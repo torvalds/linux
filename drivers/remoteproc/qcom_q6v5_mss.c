@@ -79,6 +79,11 @@
 #define Q6SS_CORE_ARES			BIT(1)
 #define Q6SS_BUS_ARES_ENABLE		BIT(2)
 
+/* QDSP6SS CBCR */
+#define Q6SS_CBCR_CLKEN			BIT(0)
+#define Q6SS_CBCR_CLKOFF		BIT(31)
+#define Q6SS_CBCR_TIMEOUT_US		200
+
 /* QDSP6SS_GFMUX_CTL */
 #define Q6SS_CLK_ENABLE			BIT(1)
 
@@ -99,7 +104,6 @@
 #define QDSP6v56_BHS_ON		BIT(24)
 #define QDSP6v56_CLAMP_WL		BIT(21)
 #define QDSP6v56_CLAMP_QMC_MEM		BIT(22)
-#define HALT_CHECK_MAX_LOOPS		200
 #define QDSP6SS_XO_CBCR		0x0038
 #define QDSP6SS_ACC_OVERRIDE_VAL		0x20
 
@@ -501,12 +505,12 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 
 	if (qproc->version == MSS_SDM845) {
 		val = readl(qproc->reg_base + QDSP6SS_SLEEP);
-		val |= 0x1;
+		val |= Q6SS_CBCR_CLKEN;
 		writel(val, qproc->reg_base + QDSP6SS_SLEEP);
 
 		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_SLEEP,
-					 val, !(val & BIT(31)), 1,
-					 SLEEP_CHECK_MAX_LOOPS);
+					 val, !(val & Q6SS_CBCR_CLKOFF), 1,
+					 Q6SS_CBCR_TIMEOUT_US);
 		if (ret) {
 			dev_err(qproc->dev, "QDSP6SS Sleep clock timed out\n");
 			return -ETIMEDOUT;
@@ -529,12 +533,12 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 		goto pbl_wait;
 	} else if (qproc->version == MSS_SC7180) {
 		val = readl(qproc->reg_base + QDSP6SS_SLEEP);
-		val |= 0x1;
+		val |= Q6SS_CBCR_CLKEN;
 		writel(val, qproc->reg_base + QDSP6SS_SLEEP);
 
 		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_SLEEP,
-					 val, !(val & BIT(31)), 1,
-					 SLEEP_CHECK_MAX_LOOPS);
+					 val, !(val & Q6SS_CBCR_CLKOFF), 1,
+					 Q6SS_CBCR_TIMEOUT_US);
 		if (ret) {
 			dev_err(qproc->dev, "QDSP6SS Sleep clock timed out\n");
 			return -ETIMEDOUT;
@@ -542,12 +546,12 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 
 		/* Turn on the XO clock needed for PLL setup */
 		val = readl(qproc->reg_base + QDSP6SS_XO_CBCR);
-		val |= 0x1;
+		val |= Q6SS_CBCR_CLKEN;
 		writel(val, qproc->reg_base + QDSP6SS_XO_CBCR);
 
 		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_XO_CBCR,
-					 val, !(val & BIT(31)), 1,
-					 SLEEP_CHECK_MAX_LOOPS);
+					 val, !(val & Q6SS_CBCR_CLKOFF), 1,
+					 Q6SS_CBCR_TIMEOUT_US);
 		if (ret) {
 			dev_err(qproc->dev, "QDSP6SS XO clock timed out\n");
 			return -ETIMEDOUT;
@@ -555,7 +559,7 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 
 		/* Configure Q6 core CBCR to auto-enable after reset sequence */
 		val = readl(qproc->reg_base + QDSP6SS_CORE_CBCR);
-		val |= 0x1;
+		val |= Q6SS_CBCR_CLKEN;
 		writel(val, qproc->reg_base + QDSP6SS_CORE_CBCR);
 
 		/* De-assert the Q6 stop core signal */
@@ -590,13 +594,13 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 
 		/* BHS require xo cbcr to be enabled */
 		val = readl(qproc->reg_base + QDSP6SS_XO_CBCR);
-		val |= 0x1;
+		val |= Q6SS_CBCR_CLKEN;
 		writel(val, qproc->reg_base + QDSP6SS_XO_CBCR);
 
 		/* Read CLKOFF bit to go low indicating CLK is enabled */
 		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_XO_CBCR,
-					 val, !(val & BIT(31)), 1,
-					 HALT_CHECK_MAX_LOOPS);
+					 val, !(val & Q6SS_CBCR_CLKOFF), 1,
+					 Q6SS_CBCR_TIMEOUT_US);
 		if (ret) {
 			dev_err(qproc->dev,
 				"xo cbcr enabling timed out (rc:%d)\n", ret);
