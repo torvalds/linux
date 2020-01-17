@@ -251,6 +251,8 @@ struct io_ring_ctx {
 	 */
 	struct fixed_file_data	*file_data;
 	unsigned		nr_user_files;
+	int 			ring_fd;
+	struct file 		*ring_file;
 
 	/* if used, fixed mapped user buffers */
 	unsigned		nr_user_bufs;
@@ -475,15 +477,10 @@ struct io_kiocb {
 	};
 
 	struct io_async_ctx		*io;
-	union {
-		/*
-		 * ring_file is only used in the submission path, and
-		 * llist_node is only used for poll deferred completions
-		 */
-		struct file		*ring_file;
-		struct llist_node	llist_node;
-	};
-	int				ring_fd;
+	/*
+	 * llist_node is only used for poll deferred completions
+	 */
+	struct llist_node		llist_node;
 	bool				has_user;
 	bool				in_async;
 	bool				needs_fixed_file;
@@ -1141,7 +1138,6 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 
 got_it:
 	req->io = NULL;
-	req->ring_file = NULL;
 	req->file = NULL;
 	req->ctx = ctx;
 	req->flags = 0;
@@ -2725,7 +2721,7 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	req->close.fd = READ_ONCE(sqe->fd);
 	if (req->file->f_op == &io_uring_fops ||
-	    req->close.fd == req->ring_fd)
+	    req->close.fd == req->ctx->ring_fd)
 		return -EBADF;
 
 	return 0;
@@ -4395,7 +4391,7 @@ static int io_grab_files(struct io_kiocb *req)
 	int ret = -EBADF;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!req->ring_file)
+	if (!ctx->ring_file)
 		return -EBADF;
 
 	rcu_read_lock();
@@ -4406,7 +4402,7 @@ static int io_grab_files(struct io_kiocb *req)
 	 * the fd has changed since we started down this path, and disallow
 	 * this operation if it has.
 	 */
-	if (fcheck(req->ring_fd) == req->ring_file) {
+	if (fcheck(ctx->ring_fd) == ctx->ring_file) {
 		list_add(&req->inflight_entry, &ctx->inflight_list);
 		req->flags |= REQ_F_INFLIGHT;
 		req->work.files = current->files;
@@ -4778,6 +4774,9 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		statep = &state;
 	}
 
+	ctx->ring_fd = ring_fd;
+	ctx->ring_file = ring_file;
+
 	for (i = 0; i < nr; i++) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
@@ -4810,8 +4809,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			}
 		}
 
-		req->ring_file = ring_file;
-		req->ring_fd = ring_fd;
 		req->has_user = *mm != NULL;
 		req->in_async = async;
 		req->needs_fixed_file = async;
