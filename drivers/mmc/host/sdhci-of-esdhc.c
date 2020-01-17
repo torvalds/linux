@@ -173,6 +173,9 @@ static u16 esdhc_readw_fixup(struct sdhci_host *host,
 	u16 ret;
 	int shift = (spec_reg & 0x2) * 8;
 
+	if (spec_reg == SDHCI_TRANSFER_MODE)
+		return pltfm_host->xfer_mode_shadow;
+
 	if (spec_reg == SDHCI_HOST_VERSION)
 		ret = value & 0xffff;
 	else
