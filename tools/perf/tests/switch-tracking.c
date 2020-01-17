@@ -14,9 +14,9 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "record.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 static int spin_sleep(void)
 {
@@ -144,7 +144,7 @@ static int process_sample_event(struct evlist *evlist,
 			return err;
 		/*
 		 * Check for no missing sched_switch events i.e. that the
-		 * evsel->system_wide flag has worked.
+		 * evsel->core.system_wide flag has worked.
 		 */
 		if (switch_tracking->tids[cpu] != -1 &&
 		    switch_tracking->tids[cpu] != prev_tid) {
@@ -264,10 +264,10 @@ static int process_events(struct evlist *evlist,
 	unsigned pos, cnt = 0;
 	LIST_HEAD(events);
 	struct event_node *events_array, *node;
-	struct perf_mmap *md;
+	struct mmap *md;
 	int i, ret;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		md = &evlist->mmap[i];
 		if (perf_mmap__read_init(md) < 0)
 			continue;
@@ -316,7 +316,7 @@ out_free_nodes:
  *
  * This function implements a test that checks that sched_switch events and
  * tracking events can be recorded for a workload (current process) using the
- * evsel->system_wide and evsel->tracking flags (respectively) with other events
+ * evsel->core.system_wide and evsel->tracking flags (respectively) with other events
  * sometimes enabled or disabled.
  */
 int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_unused)
@@ -367,7 +367,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	cpu_clocks_evsel = perf_evlist__last(evlist);
+	cpu_clocks_evsel = evlist__last(evlist);
 
 	/* Second event */
 	err = parse_events(evlist, "cycles:u", NULL);
@@ -376,7 +376,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	cycles_evsel = perf_evlist__last(evlist);
+	cycles_evsel = evlist__last(evlist);
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
@@ -391,22 +391,22 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	switch_evsel = perf_evlist__last(evlist);
+	switch_evsel = evlist__last(evlist);
 
 	perf_evsel__set_sample_bit(switch_evsel, CPU);
 	perf_evsel__set_sample_bit(switch_evsel, TIME);
 
-	switch_evsel->system_wide = true;
+	switch_evsel->core.system_wide = true;
 	switch_evsel->no_aux_samples = true;
 	switch_evsel->immediate = true;
 
 	/* Test moving an event to the front */
-	if (cycles_evsel == perf_evlist__first(evlist)) {
+	if (cycles_evsel == evlist__first(evlist)) {
 		pr_debug("cycles event already at front");
 		goto out_err;
 	}
 	perf_evlist__to_front(evlist, cycles_evsel);
-	if (cycles_evsel != perf_evlist__first(evlist)) {
+	if (cycles_evsel != evlist__first(evlist)) {
 		pr_debug("Failed to move cycles event to front");
 		goto out_err;
 	}
@@ -421,7 +421,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	tracking_evsel = perf_evlist__last(evlist);
+	tracking_evsel = evlist__last(evlist);
 
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
@@ -434,7 +434,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	perf_evlist__config(evlist, &opts, NULL);
 
 	/* Check moved event is still at the front */
-	if (cycles_evsel != perf_evlist__first(evlist)) {
+	if (cycles_evsel != evlist__first(evlist)) {
 		pr_debug("Front event no longer at front");
 		goto out_err;
 	}
@@ -461,9 +461,9 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out;
 	}
 
-	err = perf_evlist__mmap(evlist, UINT_MAX);
+	err = evlist__mmap(evlist, UINT_MAX);
 	if (err) {
-		pr_debug("perf_evlist__mmap failed!\n");
+		pr_debug("evlist__mmap failed!\n");
 		goto out_err;
 	}
 

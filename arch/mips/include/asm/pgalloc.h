@@ -54,7 +54,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 #define __pte_free_tlb(tlb,pte,address)			\
 do {							\
-	pgtable_page_dtor(pte);				\
+	pgtable_pte_page_dtor(pte);			\
 	tlb_remove_page((tlb), pte);			\
 } while (0)
 
@@ -96,16 +96,14 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 	free_pages((unsigned long)pud, PUD_ORDER);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
 {
-	set_pgd(pgd, __pgd((unsigned long)pud));
+	set_p4d(p4d, __p4d((unsigned long)pud));
 }
 
 #define __pud_free_tlb(tlb, x, addr)	pud_free((tlb)->mm, x)
 
 #endif /* __PAGETABLE_PUD_FOLDED */
-
-#define check_pgt_cache()	do { } while (0)
 
 extern void pagetable_init(void);
 

@@ -147,7 +147,10 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		}
 
 		kfree(iov);
+		/* This is only for isochronous case */
 		kfree(iso_buffer);
+		iso_buffer = NULL;
+
 		usbip_dbg_vhci_tx("send txdata\n");
 
 		total_size += txsize;

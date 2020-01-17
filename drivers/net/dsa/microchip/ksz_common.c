@@ -436,7 +436,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	}
 
 	mutex_init(&dev->dev_mutex);
-	mutex_init(&dev->stats_mutex);
+	mutex_init(&dev->regmap_mutex);
 	mutex_init(&dev->alu_mutex);
 	mutex_init(&dev->vlan_mutex);
 

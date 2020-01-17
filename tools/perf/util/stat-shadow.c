@@ -738,6 +738,8 @@ static void generic_metric(struct perf_stat_config *config,
 	char *n, *pn;
 
 	expr__ctx_init(&pctx);
+	/* Must be first id entry */
+	expr__add_id(&pctx, name, avg);
 	for (i = 0; metric_events[i]; i++) {
 		struct saved_value *v;
 		struct stats *stats;
@@ -775,8 +777,6 @@ static void generic_metric(struct perf_stat_config *config,
 		else
 			expr__add_id(&pctx, n, avg_stats(stats)*scale);
 	}
-
-	expr__add_id(&pctx, name, avg);
 
 	if (!metric_events[i]) {
 		const char *p = metric_expr;

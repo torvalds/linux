@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-============================================================
-Linux* Base Virtual Function Driver for Intel(R) 1G Ethernet
-============================================================
+===========================================================
+Linux Base Virtual Function Driver for Intel(R) 1G Ethernet
+===========================================================
 
 Intel Gigabit Virtual Function Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.

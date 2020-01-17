@@ -2,8 +2,8 @@
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
 #include <perf/cpumap.h>
+#include <internal/cpumap.h>
 #include "tests.h"
-#include "cpumap.h"
 #include "debug.h"
 
 #define NBITS 100

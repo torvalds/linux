@@ -583,6 +583,7 @@ void ia64_process_pending_intr(void)
 static irqreturn_t dummy_handler (int irq, void *dev_id)
 {
 	BUG();
+	return IRQ_NONE;
 }
 
 static struct irqaction ipi_irqaction = {

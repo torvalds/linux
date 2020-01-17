@@ -89,12 +89,9 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 {
 	int ret;
 
-	pfdev->regulator = devm_regulator_get_optional(pfdev->dev, "mali");
+	pfdev->regulator = devm_regulator_get(pfdev->dev, "mali");
 	if (IS_ERR(pfdev->regulator)) {
 		ret = PTR_ERR(pfdev->regulator);
-		pfdev->regulator = NULL;
-		if (ret == -ENODEV)
-			return 0;
 		dev_err(pfdev->dev, "failed to get regulator: %d\n", ret);
 		return ret;
 	}
@@ -110,8 +107,7 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 
 static void panfrost_regulator_fini(struct panfrost_device *pfdev)
 {
-	if (pfdev->regulator)
-		regulator_disable(pfdev->regulator);
+	regulator_disable(pfdev->regulator);
 }
 
 int panfrost_device_init(struct panfrost_device *pfdev)

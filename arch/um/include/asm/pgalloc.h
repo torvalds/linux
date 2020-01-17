@@ -29,7 +29,7 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 
 #define __pte_free_tlb(tlb,pte, address)		\
 do {							\
-	pgtable_page_dtor(pte);				\
+	pgtable_pte_page_dtor(pte);			\
 	tlb_remove_page((tlb),(pte));			\
 } while (0)
 
@@ -42,8 +42,6 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 #define __pmd_free_tlb(tlb,x, address)   tlb_remove_page((tlb),virt_to_page(x))
 #endif
-
-#define check_pgt_cache()	do { } while (0)
 
 #endif
 

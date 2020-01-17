@@ -36,12 +36,6 @@ properties:
     enum: [ 4, 8, 12, 16, 20, 24 ]
     default: 8
 
-  adi,disable-energy-detect:
-    description: |
-      Disables Energy Detect Powerdown Mode (default disabled, i.e energy detect
-      is enabled if this property is unspecified)
-    type: boolean
-
 examples:
   - |
     ethernet {
@@ -68,6 +62,5 @@ examples:
             reg = <1>;
 
             adi,fifo-depth-bits = <16>;
-            adi,disable-energy-detect;
         };
     };

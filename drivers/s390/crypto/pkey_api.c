@@ -715,36 +715,18 @@ out:
 
 static void *_copy_key_from_user(void __user *ukey, size_t keylen)
 {
-	void *kkey;
-
 	if (!ukey || keylen < MINKEYBLOBSIZE || keylen > KEYBLOBBUFSIZE)
 		return ERR_PTR(-EINVAL);
-	kkey = kmalloc(keylen, GFP_KERNEL);
-	if (!kkey)
-		return ERR_PTR(-ENOMEM);
-	if (copy_from_user(kkey, ukey, keylen)) {
-		kfree(kkey);
-		return ERR_PTR(-EFAULT);
-	}
 
-	return kkey;
+	return memdup_user(ukey, keylen);
 }
 
 static void *_copy_apqns_from_user(void __user *uapqns, size_t nr_apqns)
 {
-	void *kapqns = NULL;
-	size_t nbytes;
+	if (!uapqns || nr_apqns == 0)
+		return NULL;
 
-	if (uapqns && nr_apqns > 0) {
-		nbytes = nr_apqns * sizeof(struct pkey_apqn);
-		kapqns = kmalloc(nbytes, GFP_KERNEL);
-		if (!kapqns)
-			return ERR_PTR(-ENOMEM);
-		if (copy_from_user(kapqns, uapqns, nbytes))
-			return ERR_PTR(-EFAULT);
-	}
-
-	return kapqns;
+	return memdup_user(uapqns, nr_apqns * sizeof(struct pkey_apqn));
 }
 
 static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
@@ -1363,9 +1345,122 @@ static struct attribute_group ccadata_attr_group = {
 	.bin_attrs = ccadata_attrs,
 };
 
+#define CCACIPHERTOKENSIZE	(sizeof(struct cipherkeytoken) + 80)
+
+/*
+ * Sysfs attribute read function for all secure key ccacipher binary attributes.
+ * The implementation can not deal with partial reads, because a new random
+ * secure key blob is generated with each read. In case of partial reads
+ * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
+ */
+static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
+					    bool is_xts, char *buf, loff_t off,
+					    size_t count)
+{
+	size_t keysize;
+	int rc;
+
+	if (off != 0 || count < CCACIPHERTOKENSIZE)
+		return -EINVAL;
+	if (is_xts)
+		if (count < 2 * CCACIPHERTOKENSIZE)
+			return -EINVAL;
+
+	keysize = CCACIPHERTOKENSIZE;
+	rc = cca_gencipherkey(-1, -1, keybits, 0, buf, &keysize);
+	if (rc)
+		return rc;
+	memset(buf + keysize, 0, CCACIPHERTOKENSIZE - keysize);
+
+	if (is_xts) {
+		keysize = CCACIPHERTOKENSIZE;
+		rc = cca_gencipherkey(-1, -1, keybits, 0,
+				      buf + CCACIPHERTOKENSIZE, &keysize);
+		if (rc)
+			return rc;
+		memset(buf + CCACIPHERTOKENSIZE + keysize, 0,
+		       CCACIPHERTOKENSIZE - keysize);
+
+		return 2 * CCACIPHERTOKENSIZE;
+	}
+
+	return CCACIPHERTOKENSIZE;
+}
+
+static ssize_t ccacipher_aes_128_read(struct file *filp,
+				      struct kobject *kobj,
+				      struct bin_attribute *attr,
+				      char *buf, loff_t off,
+				      size_t count)
+{
+	return pkey_ccacipher_aes_attr_read(PKEY_SIZE_AES_128, false, buf,
+					    off, count);
+}
+
+static ssize_t ccacipher_aes_192_read(struct file *filp,
+				      struct kobject *kobj,
+				      struct bin_attribute *attr,
+				      char *buf, loff_t off,
+				      size_t count)
+{
+	return pkey_ccacipher_aes_attr_read(PKEY_SIZE_AES_192, false, buf,
+					    off, count);
+}
+
+static ssize_t ccacipher_aes_256_read(struct file *filp,
+				      struct kobject *kobj,
+				      struct bin_attribute *attr,
+				      char *buf, loff_t off,
+				      size_t count)
+{
+	return pkey_ccacipher_aes_attr_read(PKEY_SIZE_AES_256, false, buf,
+					    off, count);
+}
+
+static ssize_t ccacipher_aes_128_xts_read(struct file *filp,
+					  struct kobject *kobj,
+					  struct bin_attribute *attr,
+					  char *buf, loff_t off,
+					  size_t count)
+{
+	return pkey_ccacipher_aes_attr_read(PKEY_SIZE_AES_128, true, buf,
+					    off, count);
+}
+
+static ssize_t ccacipher_aes_256_xts_read(struct file *filp,
+					  struct kobject *kobj,
+					  struct bin_attribute *attr,
+					  char *buf, loff_t off,
+					  size_t count)
+{
+	return pkey_ccacipher_aes_attr_read(PKEY_SIZE_AES_256, true, buf,
+					    off, count);
+}
+
+static BIN_ATTR_RO(ccacipher_aes_128, CCACIPHERTOKENSIZE);
+static BIN_ATTR_RO(ccacipher_aes_192, CCACIPHERTOKENSIZE);
+static BIN_ATTR_RO(ccacipher_aes_256, CCACIPHERTOKENSIZE);
+static BIN_ATTR_RO(ccacipher_aes_128_xts, 2 * CCACIPHERTOKENSIZE);
+static BIN_ATTR_RO(ccacipher_aes_256_xts, 2 * CCACIPHERTOKENSIZE);
+
+static struct bin_attribute *ccacipher_attrs[] = {
+	&bin_attr_ccacipher_aes_128,
+	&bin_attr_ccacipher_aes_192,
+	&bin_attr_ccacipher_aes_256,
+	&bin_attr_ccacipher_aes_128_xts,
+	&bin_attr_ccacipher_aes_256_xts,
+	NULL
+};
+
+static struct attribute_group ccacipher_attr_group = {
+	.name	   = "ccacipher",
+	.bin_attrs = ccacipher_attrs,
+};
+
 static const struct attribute_group *pkey_attr_groups[] = {
 	&protkey_attr_group,
 	&ccadata_attr_group,
+	&ccacipher_attr_group,
 	NULL,
 };
 

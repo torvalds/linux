@@ -15,6 +15,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/interface/memory.h>
 #include <xen/page.h>
+#include <xen/xen-ops.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/cacheflush.h>
@@ -28,7 +29,10 @@ unsigned long xen_get_swiotlb_free_pages(unsigned int order)
 
 	for_each_memblock(memory, reg) {
 		if (reg->base < (phys_addr_t)0xffffffff) {
-			flags |= __GFP_DMA;
+			if (IS_ENABLED(CONFIG_ZONE_DMA32))
+				flags |= __GFP_DMA32;
+			else
+				flags |= __GFP_DMA;
 			break;
 		}
 	}
@@ -130,7 +134,7 @@ void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
 	return;
 }
 
-int __init xen_mm_init(void)
+static int __init xen_mm_init(void)
 {
 	struct gnttab_cache_flush cflush;
 	if (!xen_initial_domain())

@@ -9,7 +9,6 @@
 
 #include "util/cache.h"
 #include <subcmd/parse-options.h>
-#include "util/util.h"
 #include "util/debug.h"
 #include "util/config.h"
 #include <linux/string.h>

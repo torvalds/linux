@@ -16,16 +16,21 @@ the kernel may be unreproducible, and how to avoid them.
 Timestamps
 ----------
 
-The kernel embeds a timestamp in two places:
+The kernel embeds timestamps in three places:
 
 * The version string exposed by ``uname()`` and included in
   ``/proc/version``
 
 * File timestamps in the embedded initramfs
 
-By default the timestamp is the current time.  This must be overridden
-using the `KBUILD_BUILD_TIMESTAMP`_ variable.  If you are building
-from a git commit, you could use its commit date.
+* If enabled via ``CONFIG_IKHEADERS``, file timestamps of kernel
+  headers embedded in the kernel or respective module,
+  exposed via ``/sys/kernel/kheaders.tar.xz``
+
+By default the timestamp is the current time and in the case of
+``kheaders`` the various files' modification times. This must
+be overridden using the `KBUILD_BUILD_TIMESTAMP`_ variable.
+If you are building from a git commit, you could use its commit date.
 
 The kernel does *not* use the ``__DATE__`` and ``__TIME__`` macros,
 and enables warnings if they are used.  If you incorporate external

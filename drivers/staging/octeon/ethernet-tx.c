@@ -261,11 +261,11 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Build the PKO buffer pointer */
 	hw_buffer.u64 = 0;
 	if (skb_shinfo(skb)->nr_frags == 0) {
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((uintptr_t)skb->data);
 		hw_buffer.s.pool = 0;
 		hw_buffer.s.size = skb->len;
 	} else {
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((uintptr_t)skb->data);
 		hw_buffer.s.pool = 0;
 		hw_buffer.s.size = skb_headlen(skb);
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
@@ -273,11 +273,12 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_frag_t *fs = skb_shinfo(skb)->frags + i;
 
 			hw_buffer.s.addr =
-				XKPHYS_TO_PHYS((u64)skb_frag_address(fs));
+				XKPHYS_TO_PHYS((uintptr_t)skb_frag_address(fs));
 			hw_buffer.s.size = skb_frag_size(fs);
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
-		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)CVM_OCT_SKB_CB(skb));
+		hw_buffer.s.addr =
+			XKPHYS_TO_PHYS((uintptr_t)CVM_OCT_SKB_CB(skb));
 		hw_buffer.s.size = skb_shinfo(skb)->nr_frags + 1;
 		pko_command.s.segs = skb_shinfo(skb)->nr_frags + 1;
 		pko_command.s.gather = 1;
@@ -349,10 +350,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	dst_release(skb_dst(skb));
 	skb_dst_set(skb, NULL);
-#ifdef CONFIG_XFRM
-	secpath_reset(skb);
-#endif
-	nf_reset(skb);
+	skb_ext_reset(skb);
+	nf_reset_ct(skb);
 
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;

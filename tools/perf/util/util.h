@@ -11,14 +11,12 @@
 #include <stddef.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
-#include <internal/lib.h>
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);
 
 struct dirent;
-struct nsinfo;
 struct strlist;
 
 int mkdir_p(char *path, mode_t mode);
@@ -26,14 +24,8 @@ int rm_rf(const char *path);
 int rm_rf_perf_data(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
-int copyfile(const char *from, const char *to);
-int copyfile_mode(const char *from, const char *to, mode_t mode);
-int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi);
-int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size);
 
 size_t hex_width(u64 v);
-
-extern unsigned int page_size;
 
 int sysctl__max_stack(void);
 

@@ -180,6 +180,8 @@ void mlx5dr_send_fill_and_append_ste_send_info(struct mlx5dr_ste *ste, u16 size,
 struct mlx5dr_ste_build {
 	u8 inner:1;
 	u8 rx:1;
+	u8 vhca_id_valid:1;
+	struct mlx5dr_domain *dmn;
 	struct mlx5dr_cmd_caps *caps;
 	u8 lu_type;
 	u16 byte_mask;
@@ -331,7 +333,7 @@ void mlx5dr_ste_build_register_1(struct mlx5dr_ste_build *sb,
 				 bool inner, bool rx);
 int mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
-				  struct mlx5dr_cmd_caps *caps,
+				  struct mlx5dr_domain *dmn,
 				  bool inner, bool rx);
 void mlx5dr_ste_build_empty_always_hit(struct mlx5dr_ste_build *sb, bool rx);
 
@@ -453,7 +455,7 @@ struct mlx5dr_match_misc {
 	u32 gre_c_present:1;
 	/* Source port.;0xffff determines wire port */
 	u32 source_port:16;
-	u32 reserved_auto2:16;
+	u32 source_eswitch_owner_vhca_id:16;
 	/* VLAN ID of first VLAN tag the inner header of the incoming packet.
 	 * Valid only when inner_second_cvlan_tag ==1 or inner_second_svlan_tag ==1
 	 */
@@ -745,7 +747,6 @@ struct mlx5dr_action {
 		struct {
 			struct mlx5dr_domain *dmn;
 			struct mlx5dr_cmd_vport_cap *caps;
-			u32 num;
 		} vport;
 		struct {
 			u32 vlan_hdr; /* tpid_pcp_dei_vid */

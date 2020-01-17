@@ -1443,7 +1443,7 @@ xlog_alloc_log(
 		prev_iclog = iclog;
 
 		iclog->ic_data = kmem_alloc_io(log->l_iclog_size, align_mask,
-						KM_MAYFAIL);
+						KM_MAYFAIL | KM_ZERO);
 		if (!iclog->ic_data)
 			goto out_free_iclog;
 #ifdef DEBUG

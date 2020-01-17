@@ -13,7 +13,7 @@
   {
     "EventName": "ex_ret_brn",
     "EventCode": "0xc2",
-    "BriefDescription": "[Retired Branch Instructions.",
+    "BriefDescription": "Retired Branch Instructions.",
     "PublicDescription": "The number of branch instructions retired. This includes all types of architectural control flow changes, including exceptions and interrupts."
   },
   {

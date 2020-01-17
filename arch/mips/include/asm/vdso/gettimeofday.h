@@ -24,6 +24,8 @@
 
 #define VDSO_HAS_CLOCK_GETRES		1
 
+#define __VDSO_USE_SYSCALL		ULLONG_MAX
+
 #ifdef CONFIG_MIPS_CLOCK_VSYSCALL
 
 static __always_inline long gettimeofday_fallback(
@@ -205,7 +207,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 		break;
 #endif
 	default:
-		cycle_now = 0;
+		cycle_now = __VDSO_USE_SYSCALL;
 		break;
 	}
 

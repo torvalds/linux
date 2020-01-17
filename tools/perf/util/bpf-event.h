@@ -6,9 +6,9 @@
 #include <linux/rbtree.h>
 #include <pthread.h>
 #include <api/fd/array.h>
-#include "event.h"
 #include <stdio.h>
 
+struct bpf_prog_info;
 struct machine;
 union perf_event;
 struct perf_env;
@@ -33,11 +33,6 @@ struct btf_node {
 #ifdef HAVE_LIBBPF_SUPPORT
 int machine__process_bpf(struct machine *machine, union perf_event *event,
 			 struct perf_sample *sample);
-
-int perf_event__synthesize_bpf_events(struct perf_session *session,
-				      perf_event__handler_t process,
-				      struct machine *machine,
-				      struct record_opts *opts);
 int bpf_event__add_sb_event(struct evlist **evlist,
 				 struct perf_env *env);
 void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
@@ -47,14 +42,6 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 static inline int machine__process_bpf(struct machine *machine __maybe_unused,
 				       union perf_event *event __maybe_unused,
 				       struct perf_sample *sample __maybe_unused)
-{
-	return 0;
-}
-
-static inline int perf_event__synthesize_bpf_events(struct perf_session *session __maybe_unused,
-						    perf_event__handler_t process __maybe_unused,
-						    struct machine *machine __maybe_unused,
-						    struct record_opts *opts __maybe_unused)
 {
 	return 0;
 }

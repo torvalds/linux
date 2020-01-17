@@ -708,6 +708,10 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 
 unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev)
 {
+	/* for dali, the highest voltage level we want is 0 */
+	if (ASICREV_IS_DALI(hw_internal_rev))
+		return 0;
+
 	/* we are ok with all levels */
 	return 4;
 }

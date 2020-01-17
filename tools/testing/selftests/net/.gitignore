@@ -21,3 +21,4 @@ ipv6_flowlabel
 ipv6_flowlabel_mgr
 so_txtime
 tcp_fastopen_backup_key
+nettest

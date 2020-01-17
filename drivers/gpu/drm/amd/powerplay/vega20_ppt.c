@@ -219,7 +219,7 @@ static struct smu_11_0_cmn2aisc_mapping vega20_workload_map[PP_SMC_POWER_PROFILE
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
@@ -3023,6 +3023,7 @@ static int vega20_read_sensor(struct smu_context *smu,
 	if(!data || !size)
 		return -EINVAL;
 
+	mutex_lock(&smu->sensor_lock);
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
@@ -3048,6 +3049,7 @@ static int vega20_read_sensor(struct smu_context *smu,
 	default:
 		ret = smu_smc_read_sensor(smu, sensor, data, size);
 	}
+	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }

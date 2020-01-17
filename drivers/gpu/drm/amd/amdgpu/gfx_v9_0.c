@@ -973,6 +973,13 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 	adev->gfx.me_fw_write_wait = false;
 	adev->gfx.mec_fw_write_wait = false;
 
+	if ((adev->gfx.mec_fw_version < 0x000001a5) ||
+	    (adev->gfx.mec_feature_version < 46) ||
+	    (adev->gfx.pfp_fw_version < 0x000000b7) ||
+	    (adev->gfx.pfp_feature_version < 46))
+		DRM_WARN_ONCE("Warning: check cp_fw_version and update it to realize \
+			      GRBM requires 1-cycle delay in cp firmware\n");
+
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
@@ -1031,14 +1038,25 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		break;
 	case CHIP_RAVEN:
-		if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
-			&&((adev->gfx.rlc_fw_version != 106 &&
+		/* Disable GFXOFF on original raven.  There are combinations
+		 * of sbios and platforms that are not stable.
+		 */
+		if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8))
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		else if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+			 &&((adev->gfx.rlc_fw_version != 106 &&
 			     adev->gfx.rlc_fw_version < 531) ||
 			    (adev->gfx.rlc_fw_version == 53815) ||
 			    (adev->gfx.rlc_feature_version < 1) ||
 			    !adev->gfx.rlc.is_rlc_v2_1))
 			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 
+		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_RLC_SMU_HS;
+		break;
+	case CHIP_RENOIR:
 		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_CP |
@@ -1650,7 +1668,6 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
 		gfx_v9_0_init_lbpw(adev);
 		break;
 	case CHIP_VEGA20:
@@ -3026,7 +3043,6 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
 		if (amdgpu_lbpw == 0)
 			gfx_v9_0_enable_lbpw(adev, false);
 		else

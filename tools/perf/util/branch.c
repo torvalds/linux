@@ -1,5 +1,3 @@
-#include "util/util.h"
-#include "util/debug.h"
 #include "util/map_symbol.h"
 #include "util/branch.h"
 #include <linux/kernel.h>

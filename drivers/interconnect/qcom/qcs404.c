@@ -433,7 +433,8 @@ static int qnoc_probe(struct platform_device *pdev)
 	if (!qp)
 		return -ENOMEM;
 
-	data = devm_kcalloc(dev, num_nodes, sizeof(*node), GFP_KERNEL);
+	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

@@ -1197,9 +1197,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					 struct drm_printer *m)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	const struct intel_engine_execlists * const execlists =
-		&engine->execlists;
-	unsigned long flags;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
 	u64 addr;
 
 	if (engine->id == RENDER_CLASS && IS_GEN_RANGE(dev_priv, 4, 7))
@@ -1281,7 +1279,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 				   idx, hws[idx * 2], hws[idx * 2 + 1]);
 		}
 
-		spin_lock_irqsave(&engine->active.lock, flags);
+		execlists_active_lock_bh(execlists);
 		for (port = execlists->active; (rq = *port); port++) {
 			char hdr[80];
 			int len;
@@ -1309,7 +1307,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 				 hwsp_seqno(rq));
 			print_request(m, rq, hdr);
 		}
-		spin_unlock_irqrestore(&engine->active.lock, flags);
+		execlists_active_unlock_bh(execlists);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   ENGINE_READ(engine, RING_PP_DIR_BASE));
@@ -1440,8 +1438,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
-	spin_lock_irqsave(&engine->active.lock, flags);
-	write_seqlock(&engine->stats.lock);
+	execlists_active_lock_bh(execlists);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
 		err = -EBUSY;
@@ -1469,8 +1467,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	}
 
 unlock:
-	write_sequnlock(&engine->stats.lock);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
+	execlists_active_unlock_bh(execlists);
 
 	return err;
 }

@@ -5550,6 +5550,14 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
 const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
 
 /**
+ * regulatory_pre_cac_allowed - check if pre-CAC allowed in the current regdom
+ * @wiphy: wiphy for which pre-CAC capability is checked.
+ *
+ * Pre-CAC is allowed only in some regdomains (notable ETSI).
+ */
+bool regulatory_pre_cac_allowed(struct wiphy *wiphy);
+
+/**
  * DOC: Internal regulatory db functions
  *
  */

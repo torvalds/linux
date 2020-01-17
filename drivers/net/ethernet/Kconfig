@@ -140,17 +140,6 @@ source "drivers/net/ethernet/neterion/Kconfig"
 source "drivers/net/ethernet/netronome/Kconfig"
 source "drivers/net/ethernet/ni/Kconfig"
 source "drivers/net/ethernet/8390/Kconfig"
-
-config NET_NETX
-	tristate "NetX Ethernet support"
-	select MII
-	depends on ARCH_NETX
-	---help---
-	  This is support for the Hilscher netX builtin Ethernet ports
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called netx-eth.
-
 source "drivers/net/ethernet/nvidia/Kconfig"
 source "drivers/net/ethernet/nxp/Kconfig"
 source "drivers/net/ethernet/oki-semi/Kconfig"

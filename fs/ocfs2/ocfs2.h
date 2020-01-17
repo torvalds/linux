@@ -223,8 +223,6 @@ struct ocfs2_orphan_scan {
 
 struct ocfs2_dlm_debug {
 	struct kref d_refcnt;
-	struct dentry *d_locking_state;
-	struct dentry *d_locking_filter;
 	u32 d_filter_secs;
 	struct list_head d_lockres_tracking;
 };
@@ -401,7 +399,6 @@ struct ocfs2_super
 	struct ocfs2_dlm_debug *osb_dlm_debug;
 
 	struct dentry *osb_debug_root;
-	struct dentry *osb_ctxt;
 
 	wait_queue_head_t recovery_event;
 

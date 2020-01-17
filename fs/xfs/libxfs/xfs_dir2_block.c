@@ -1096,7 +1096,7 @@ xfs_dir2_sf_to_block(
 	memcpy(sfp, oldsfp, ifp->if_bytes);
 
 	xfs_idata_realloc(dp, -ifp->if_bytes, XFS_DATA_FORK);
-	xfs_bmap_local_to_extents_empty(dp, XFS_DATA_FORK);
+	xfs_bmap_local_to_extents_empty(tp, dp, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
 
 	/*

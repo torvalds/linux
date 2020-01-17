@@ -632,11 +632,11 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 	if (!is_memory(dev) && a == &dev_attr_dax_seed.attr)
 		return 0;
 
-	if (!is_nd_pmem(dev) && a == &dev_attr_badblocks.attr)
+	if (!is_memory(dev) && a == &dev_attr_badblocks.attr)
 		return 0;
 
 	if (a == &dev_attr_resource.attr) {
-		if (is_nd_pmem(dev))
+		if (is_memory(dev))
 			return 0400;
 		else
 			return 0;
@@ -1168,6 +1168,9 @@ EXPORT_SYMBOL_GPL(nvdimm_has_cache);
 
 bool is_nvdimm_sync(struct nd_region *nd_region)
 {
+	if (is_nd_volatile(&nd_region->dev))
+		return true;
+
 	return is_nd_pmem(&nd_region->dev) &&
 		!test_bit(ND_REGION_ASYNC, &nd_region->flags);
 }

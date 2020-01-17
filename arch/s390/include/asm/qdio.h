@@ -111,7 +111,7 @@ struct qib {
 	/* private: */
 	u8 res[88];
 	/* public: */
-	u8 parm[QDIO_MAX_BUFFERS_PER_Q];
+	u8 parm[128];
 } __attribute__ ((packed, aligned(256)));
 
 /**
@@ -276,6 +276,7 @@ struct qdio_outbuf_state {
 #define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
 #define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
+#define CHSC_AC2_SNIFFER_AVAILABLE	0x0008
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
 
 #define CHSC_AC3_FORMAT2_CQ_AVAILABLE	0x8000

@@ -447,7 +447,6 @@ config ASSOCIATIVE_ARRAY
 config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM
-	select GENERIC_IO
 	default y
 
 config HAS_IOPORT_MAP
@@ -555,11 +554,10 @@ config SIGNATURE
 	  Implementation is done using GnuPG MPI library
 
 config DIMLIB
-	bool "DIM library"
-	default y
+	bool
 	help
 	  Dynamic Interrupt Moderation library.
-	  Implements an algorithm for dynamically change CQ modertion values
+	  Implements an algorithm for dynamically changing CQ moderation values
 	  according to run time performance.
 
 #

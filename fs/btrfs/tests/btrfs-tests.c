@@ -52,7 +52,13 @@ static struct file_system_type test_type = {
 
 struct inode *btrfs_new_test_inode(void)
 {
-	return new_inode(test_mnt->mnt_sb);
+	struct inode *inode;
+
+	inode = new_inode(test_mnt->mnt_sb);
+	if (inode)
+		inode_init_owner(inode, NULL, S_IFREG);
+
+	return inode;
 }
 
 static int btrfs_init_test_fs(void)
@@ -196,11 +202,11 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	kfree(root);
 }
 
-struct btrfs_block_group_cache *
+struct btrfs_block_group *
 btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 			      unsigned long length)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
@@ -212,9 +218,8 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 		return NULL;
 	}
 
-	cache->key.objectid = 0;
-	cache->key.offset = length;
-	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	cache->start = 0;
+	cache->length = length;
 	cache->full_stripe_len = fs_info->sectorsize;
 	cache->fs_info = fs_info;
 
@@ -227,7 +232,7 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 	return cache;
 }
 
-void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache)
+void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 {
 	if (!cache)
 		return;

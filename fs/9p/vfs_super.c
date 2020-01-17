@@ -58,7 +58,7 @@ static int v9fs_set_super(struct super_block *s, void *data)
 
 static int
 v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
-		int flags, void *data)
+		int flags)
 {
 	int ret;
 
@@ -132,7 +132,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		retval = PTR_ERR(sb);
 		goto clunk_fid;
 	}
-	retval = v9fs_fill_super(sb, v9ses, flags, data);
+	retval = v9fs_fill_super(sb, v9ses, flags);
 	if (retval)
 		goto release_sb;
 

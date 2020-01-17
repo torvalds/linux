@@ -525,16 +525,31 @@ static void hsw_ddi_wrpll_disable(struct drm_i915_private *dev_priv,
 	val = I915_READ(WRPLL_CTL(id));
 	I915_WRITE(WRPLL_CTL(id), val & ~WRPLL_PLL_ENABLE);
 	POSTING_READ(WRPLL_CTL(id));
+
+	/*
+	 * Try to set up the PCH reference clock once all DPLLs
+	 * that depend on it have been shut down.
+	 */
+	if (dev_priv->pch_ssc_use & BIT(id))
+		intel_init_pch_refclk(dev_priv);
 }
 
 static void hsw_ddi_spll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
+	enum intel_dpll_id id = pll->info->id;
 	u32 val;
 
 	val = I915_READ(SPLL_CTL);
 	I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
 	POSTING_READ(SPLL_CTL);
+
+	/*
+	 * Try to set up the PCH reference clock once all DPLLs
+	 * that depend on it have been shut down.
+	 */
+	if (dev_priv->pch_ssc_use & BIT(id))
+		intel_init_pch_refclk(dev_priv);
 }
 
 static bool hsw_ddi_wrpll_get_hw_state(struct drm_i915_private *dev_priv,

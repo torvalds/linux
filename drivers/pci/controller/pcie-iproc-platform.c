@@ -93,12 +93,9 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	pcie->need_ib_cfg = of_property_read_bool(np, "dma-ranges");
 
 	/* PHY use is optional */
-	pcie->phy = devm_phy_get(dev, "pcie-phy");
-	if (IS_ERR(pcie->phy)) {
-		if (PTR_ERR(pcie->phy) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		pcie->phy = NULL;
-	}
+	pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
 
 	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
 						    &iobase);

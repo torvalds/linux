@@ -6,7 +6,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 
-#include "../../util/debug.h"
 #include "../helpline.h"
 #include "../ui.h"
 #include "../libslang.h"

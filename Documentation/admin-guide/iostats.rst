@@ -121,6 +121,15 @@ Field 15 -- # of milliseconds spent discarding
     This is the total number of milliseconds spent by all discards (as
     measured from __make_request() to end_that_request_last()).
 
+Field 16 -- # of flush requests completed
+    This is the total number of flush requests completed successfully.
+
+    Block layer combines flush requests and executes at most one at a time.
+    This counts flush requests executed by disk. Not tracked for partitions.
+
+Field 17 -- # of milliseconds spent flushing
+    This is the total number of milliseconds spent by all flush requests.
+
 To avoid introducing performance bottlenecks, no locks are held while
 modifying these counters.  This implies that minor inaccuracies may be
 introduced when changes collide, so (for instance) adding up all the

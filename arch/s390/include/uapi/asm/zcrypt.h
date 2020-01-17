@@ -4,7 +4,7 @@
  *
  *  zcrypt 2.2.1 (user-visible header)
  *
- *  Copyright IBM Corp. 2001, 2018
+ *  Copyright IBM Corp. 2001, 2019
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -286,7 +286,7 @@ struct zcrypt_device_matrix_ext {
  *	 0x08: CEX3A
  *	 0x0a: CEX4
  *	 0x0b: CEX5
- *	 0x0c: CEX6
+ *	 0x0c: CEX6 and CEX7
  *	 0x0d: device is disabled
  *
  *   ZCRYPT_QDEPTH_MASK

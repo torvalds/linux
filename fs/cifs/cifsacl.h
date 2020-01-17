@@ -90,13 +90,92 @@ struct cifs_acl {
 	__le32 num_aces;
 } __attribute__((packed));
 
+/* ACE types - see MS-DTYP 2.4.4.1 */
+#define ACCESS_ALLOWED_ACE_TYPE	0x00
+#define ACCESS_DENIED_ACE_TYPE	0x01
+#define SYSTEM_AUDIT_ACE_TYPE	0x02
+#define SYSTEM_ALARM_ACE_TYPE	0x03
+#define ACCESS_ALLOWED_COMPOUND_ACE_TYPE 0x04
+#define ACCESS_ALLOWED_OBJECT_ACE_TYPE	0x05
+#define ACCESS_DENIED_OBJECT_ACE_TYPE	0x06
+#define SYSTEM_AUDIT_OBJECT_ACE_TYPE	0x07
+#define SYSTEM_ALARM_OBJECT_ACE_TYPE	0x08
+#define ACCESS_ALLOWED_CALLBACK_ACE_TYPE 0x09
+#define ACCESS_DENIED_CALLBACK_ACE_TYPE	0x0A
+#define ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE 0x0B
+#define ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE  0x0C
+#define SYSTEM_AUDIT_CALLBACK_ACE_TYPE	0x0D
+#define SYSTEM_ALARM_CALLBACK_ACE_TYPE	0x0E /* Reserved */
+#define SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE 0x0F
+#define SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE 0x10 /* reserved */
+#define SYSTEM_MANDATORY_LABEL_ACE_TYPE	0x11
+#define SYSTEM_RESOURCE_ATTRIBUTE_ACE_TYPE 0x12
+#define SYSTEM_SCOPED_POLICY_ID_ACE_TYPE 0x13
+
+/* ACE flags */
+#define OBJECT_INHERIT_ACE	0x01
+#define CONTAINER_INHERIT_ACE	0x02
+#define NO_PROPAGATE_INHERIT_ACE 0x04
+#define INHERIT_ONLY_ACE	0x08
+#define INHERITED_ACE		0x10
+#define SUCCESSFUL_ACCESS_ACE_FLAG 0x40
+#define FAILED_ACCESS_ACE_FLAG	0x80
+
 struct cifs_ace {
-	__u8 type;
+	__u8 type; /* see above and MS-DTYP 2.4.4.1 */
 	__u8 flags;
 	__le16 size;
 	__le32 access_req;
 	struct cifs_sid sid; /* ie UUID of user or group who gets these perms */
 } __attribute__((packed));
+
+/*
+ * The current SMB3 form of security descriptor is similar to what was used for
+ * cifs (see above) but some fields are split, and fields in the struct below
+ * matches names of fields to the the spec, MS-DTYP (see sections 2.4.5 and
+ * 2.4.6). Note that "CamelCase" fields are used in this struct in order to
+ * match the MS-DTYP and MS-SMB2 specs which define the wire format.
+ */
+struct smb3_sd {
+	__u8 Revision; /* revision level, MUST be one */
+	__u8 Sbz1; /* only meaningful if 'RM' flag set below */
+	__le16 Control;
+	__le32 OffsetOwner;
+	__le32 OffsetGroup;
+	__le32 OffsetSacl;
+	__le32 OffsetDacl;
+} __packed;
+
+/* Meaning of 'Control' field flags */
+#define ACL_CONTROL_SR	0x0001	/* Self relative */
+#define ACL_CONTROL_RM	0x0002	/* Resource manager control bits */
+#define ACL_CONTROL_PS	0x0004	/* SACL protected from inherits */
+#define ACL_CONTROL_PD	0x0008	/* DACL protected from inherits */
+#define ACL_CONTROL_SI	0x0010	/* SACL Auto-Inherited */
+#define ACL_CONTROL_DI	0x0020	/* DACL Auto-Inherited */
+#define ACL_CONTROL_SC	0x0040	/* SACL computed through inheritance */
+#define ACL_CONTROL_DC	0x0080	/* DACL computed through inheritence */
+#define ACL_CONTROL_SS	0x0100	/* Create server ACL */
+#define ACL_CONTROL_DT	0x0200	/* DACL provided by trusteed source */
+#define ACL_CONTROL_SD	0x0400	/* SACL defaulted */
+#define ACL_CONTROL_SP	0x0800	/* SACL is present on object */
+#define ACL_CONTROL_DD	0x1000	/* DACL defaulted */
+#define ACL_CONTROL_DP	0x2000	/* DACL is present on object */
+#define ACL_CONTROL_GD	0x4000	/* Group was defaulted */
+#define ACL_CONTROL_OD	0x8000	/* User was defaulted */
+
+/* Meaning of AclRevision flags */
+#define ACL_REVISION	0x02 /* See section 2.4.4.1 of MS-DTYP */
+#define ACL_REVISION_DS	0x04 /* Additional AceTypes allowed */
+
+struct smb3_acl {
+	u8 AclRevision; /* revision level */
+	u8 Sbz1; /* MBZ */
+	__le16 AclSize;
+	__le16 AceCount;
+	__le16 Sbz2; /* MBZ */
+} __packed;
+
 
 /*
  * Minimum security identifier can be one for system defined Users

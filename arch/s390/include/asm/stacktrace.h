@@ -38,7 +38,7 @@ static inline unsigned long get_stack_pointer(struct task_struct *task,
 {
 	if (regs)
 		return (unsigned long) kernel_stack_pointer(regs);
-	if (task == current)
+	if (!task || task == current)
 		return current_stack_pointer();
 	return (unsigned long) task->thread.ksp;
 }

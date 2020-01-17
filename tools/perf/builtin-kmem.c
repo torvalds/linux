@@ -14,6 +14,7 @@
 #include "util/tool.h"
 #include "util/callchain.h"
 #include "util/time-utils.h"
+#include <linux/err.h>
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -690,6 +691,7 @@ static char *compact_gfp_flags(char *gfp_flags)
 			new = realloc(new_flags, len + strlen(cpt) + 2);
 			if (new == NULL) {
 				free(new_flags);
+				free(orig_flags);
 				return NULL;
 			}
 
@@ -1956,8 +1958,8 @@ int cmd_kmem(int argc, const char **argv)
 	data.path = input_name;
 
 	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	ret = -1;
 

@@ -2732,7 +2732,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 129 1>, <&edma_xbar 128 1>;
 				dma-names = "tx", "rx";
-				clocks = <&ipu_clkctrl DRA7_IPU_MCASP1_CLKCTRL 22>,
+				clocks = <&ipu_clkctrl DRA7_IPU_MCASP1_CLKCTRL 0>,
 					 <&ipu_clkctrl DRA7_IPU_MCASP1_CLKCTRL 24>,
 					 <&ipu_clkctrl DRA7_IPU_MCASP1_CLKCTRL 28>;
 				clock-names = "fck", "ahclkx", "ahclkr";
@@ -2768,8 +2768,8 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 131 1>, <&edma_xbar 130 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP2_CLKCTRL 22>,
-					 <&l4per2_clkctrl DRA7_L4PER2_MCASP2_CLKCTRL 24>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP2_CLKCTRL 0>,
+					 <&ipu_clkctrl DRA7_IPU_MCASP1_CLKCTRL 24>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP2_CLKCTRL 28>;
 				clock-names = "fck", "ahclkx", "ahclkr";
 				status = "disabled";
@@ -2786,9 +2786,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x68000 0x2000>,
@@ -2804,7 +2803,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 133 1>, <&edma_xbar 132 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";
@@ -2821,9 +2820,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x6c000 0x2000>,
@@ -2839,7 +2837,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 135 1>, <&edma_xbar 134 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP4_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";
@@ -2856,9 +2854,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x70000 0x2000>,
@@ -2874,7 +2871,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 137 1>, <&edma_xbar 136 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP5_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";
@@ -2891,9 +2888,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x74000 0x2000>,
@@ -2909,7 +2905,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 139 1>, <&edma_xbar 138 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP6_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";
@@ -2926,9 +2922,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x78000 0x2000>,
@@ -2944,7 +2939,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 141 1>, <&edma_xbar 140 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP7_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";
@@ -2961,9 +2956,8 @@
 					<SYSC_IDLE_SMART>;
 			/* Domains (P, C): l4per_pwrdm, l4per2_clkdm */
 			clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 0>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 24>,
-				 <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 28>;
-			clock-names = "fck", "ahclkx", "ahclkr";
+				 <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x7c000 0x2000>,
@@ -2979,7 +2973,7 @@
 				interrupt-names = "tx", "rx";
 				dmas = <&edma_xbar 143 1>, <&edma_xbar 142 1>;
 				dma-names = "tx", "rx";
-				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 22>,
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 0>,
 					 <&l4per2_clkctrl DRA7_L4PER2_MCASP8_CLKCTRL 24>;
 				clock-names = "fck", "ahclkx";
 				status = "disabled";

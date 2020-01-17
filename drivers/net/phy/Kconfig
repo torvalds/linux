@@ -460,9 +460,9 @@ config RENESAS_PHY
 	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
-        tristate "Driver for Rockchip Ethernet PHYs"
-        ---help---
-          Currently supports the integrated Ethernet PHY.
+	tristate "Driver for Rockchip Ethernet PHYs"
+	---help---
+	  Currently supports the integrated Ethernet PHY.
 
 config SMSC_PHY
 	tristate "SMSC PHYs"

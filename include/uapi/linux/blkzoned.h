@@ -120,9 +120,11 @@ struct blk_zone_report {
 };
 
 /**
- * struct blk_zone_range - BLKRESETZONE ioctl request
- * @sector: starting sector of the first zone to issue reset write pointer
- * @nr_sectors: Total number of sectors of 1 or more zones to reset
+ * struct blk_zone_range - BLKRESETZONE/BLKOPENZONE/
+ *                         BLKCLOSEZONE/BLKFINISHZONE ioctl
+ *                         requests
+ * @sector: Starting sector of the first zone to operate on.
+ * @nr_sectors: Total number of sectors of all zones to operate on.
  */
 struct blk_zone_range {
 	__u64		sector;
@@ -139,10 +141,19 @@ struct blk_zone_range {
  *                sector range. The sector range must be zone aligned.
  * @BLKGETZONESZ: Get the device zone size in number of 512 B sectors.
  * @BLKGETNRZONES: Get the total number of zones of the device.
+ * @BLKOPENZONE: Open the zones in the specified sector range.
+ *               The 512 B sector range must be zone aligned.
+ * @BLKCLOSEZONE: Close the zones in the specified sector range.
+ *                The 512 B sector range must be zone aligned.
+ * @BLKFINISHZONE: Mark the zones as full in the specified sector range.
+ *                 The 512 B sector range must be zone aligned.
  */
 #define BLKREPORTZONE	_IOWR(0x12, 130, struct blk_zone_report)
 #define BLKRESETZONE	_IOW(0x12, 131, struct blk_zone_range)
 #define BLKGETZONESZ	_IOR(0x12, 132, __u32)
 #define BLKGETNRZONES	_IOR(0x12, 133, __u32)
+#define BLKOPENZONE	_IOW(0x12, 134, struct blk_zone_range)
+#define BLKCLOSEZONE	_IOW(0x12, 135, struct blk_zone_range)
+#define BLKFINISHZONE	_IOW(0x12, 136, struct blk_zone_range)
 
 #endif /* _UAPI_BLKZONED_H */

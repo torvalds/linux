@@ -46,7 +46,7 @@ static ssize_t soc_uid_show(struct device *dev,
 	hdr->func = IMX_SC_MISC_FUNC_UNIQUE_ID;
 	hdr->size = 1;
 
-	ret = imx_scu_call_rpc(soc_ipc_handle, &msg, false);
+	ret = imx_scu_call_rpc(soc_ipc_handle, &msg, true);
 	if (ret) {
 		pr_err("%s: get soc uid failed, ret %d\n", __func__, ret);
 		return ret;

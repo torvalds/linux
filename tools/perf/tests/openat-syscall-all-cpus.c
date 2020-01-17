@@ -14,7 +14,8 @@
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
-#include "cpumap.h"
+#include <perf/cpumap.h>
+#include <internal/cpumap.h>
 #include "debug.h"
 #include "stat.h"
 #include "util/counts.h"
@@ -37,7 +38,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 
 	cpus = perf_cpu_map__new(NULL);
 	if (cpus == NULL) {
-		pr_debug("cpu_map__new\n");
+		pr_debug("perf_cpu_map__new\n");
 		goto out_thread_map_delete;
 	}
 

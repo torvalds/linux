@@ -38,7 +38,7 @@ int intel_engine_reset(struct intel_engine_cs *engine,
 
 void __i915_request_reset(struct i915_request *rq, bool guilty);
 
-int __must_check intel_gt_reset_trylock(struct intel_gt *gt);
+int __must_check intel_gt_reset_trylock(struct intel_gt *gt, int *srcu);
 void intel_gt_reset_unlock(struct intel_gt *gt, int tag);
 
 void intel_gt_set_wedged(struct intel_gt *gt);

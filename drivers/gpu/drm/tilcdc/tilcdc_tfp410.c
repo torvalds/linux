@@ -7,6 +7,7 @@
 #include <linux/gpio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>

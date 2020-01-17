@@ -11,7 +11,7 @@ Required properties:
 - reg-names:
    - "ctrl" for the control register region
    - "config" for the config space region
-- interrupts: Interrupt specifier for the PCIe controler
+- interrupts: Interrupt specifier for the PCIe controller
 - clocks: reference to the PCIe controller clocks
 - clock-names: mandatory if there is a second clock, in this case the
    name must be "core" for the first clock and "reg" for the second

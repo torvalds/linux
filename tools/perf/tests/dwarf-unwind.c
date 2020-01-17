@@ -15,6 +15,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include "callchain.h"
+#include "util/synthetic-events.h"
 
 #if defined (__x86_64__) || defined (__i386__) || defined (__powerpc__)
 #include "arch-tests.h"

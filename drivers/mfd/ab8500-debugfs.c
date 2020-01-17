@@ -2680,16 +2680,12 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	irq_ab8500 = res->start;
 
 	irq_first = platform_get_irq_byname(plf, "IRQ_FIRST");
-	if (irq_first < 0) {
-		dev_err(&plf->dev, "First irq not found, err %d\n", irq_first);
+	if (irq_first < 0)
 		return irq_first;
-	}
 
 	irq_last = platform_get_irq_byname(plf, "IRQ_LAST");
-	if (irq_last < 0) {
-		dev_err(&plf->dev, "Last irq not found, err %d\n", irq_last);
+	if (irq_last < 0)
 		return irq_last;
-	}
 
 	ab8500_dir = debugfs_create_dir(AB8500_NAME_STRING, NULL);
 

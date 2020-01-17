@@ -430,8 +430,7 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 
 	of_property_for_each_u32(np, "samsung,pwm-outputs", prop, cur, val) {
 		if (val >= SAMSUNG_PWM_NUM) {
-			pr_warning("%s: invalid channel index in samsung,pwm-outputs property\n",
-								__func__);
+			pr_warn("%s: invalid channel index in samsung,pwm-outputs property\n", __func__);
 			continue;
 		}
 		pwm.variant.output_mask |= 1 << val;

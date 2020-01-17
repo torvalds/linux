@@ -192,6 +192,13 @@ struct i915_gem_context {
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
+
+	/** jump_whitelist: Bit array for tracking cmds during cmdparsing
+	 *  Guarded by struct_mutex
+	 */
+	unsigned long *jump_whitelist;
+	/** jump_whitelist_cmds: No of cmd slots available */
+	u32 jump_whitelist_cmds;
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

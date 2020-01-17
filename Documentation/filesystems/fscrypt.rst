@@ -256,13 +256,8 @@ alternative master keys or to support rotating master keys.  Instead,
 the master keys may be wrapped in userspace, e.g. as is done by the
 `fscrypt <https://github.com/google/fscrypt>`_ tool.
 
-Including the inode number in the IVs was considered.  However, it was
-rejected as it would have prevented ext4 filesystems from being
-resized, and by itself still wouldn't have been sufficient to prevent
-the same key from being directly reused for both XTS and CTS-CBC.
-
-DIRECT_KEY and per-mode keys
-----------------------------
+DIRECT_KEY policies
+-------------------
 
 The Adiantum encryption mode (see `Encryption modes and usage`_) is
 suitable for both contents and filenames encryption, and it accepts
@@ -284,6 +279,21 @@ IV.  Moreover:
 - For v2 encryption policies, the encryption is done with a per-mode
   key derived using the KDF.  Users may use the same master key for
   other v2 encryption policies.
+
+IV_INO_LBLK_64 policies
+-----------------------
+
+When FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 is set in the fscrypt policy,
+the encryption keys are derived from the master key, encryption mode
+number, and filesystem UUID.  This normally results in all files
+protected by the same master key sharing a single contents encryption
+key and a single filenames encryption key.  To still encrypt different
+files' data differently, inode numbers are included in the IVs.
+Consequently, shrinking the filesystem may not be allowed.
+
+This format is optimized for use with inline encryption hardware
+compliant with the UFS or eMMC standards, which support only 64 IV
+bits per I/O request and may have only a small number of keyslots.
 
 Key identifiers
 ---------------
@@ -308,8 +318,9 @@ If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
 
 AES-128-CBC was added only for low-powered embedded devices with
 crypto accelerators such as CAAM or CESA that do not support XTS.  To
-use AES-128-CBC, CONFIG_CRYPTO_SHA256 (or another SHA-256
-implementation) must be enabled so that ESSIV can be used.
+use AES-128-CBC, CONFIG_CRYPTO_ESSIV and CONFIG_CRYPTO_SHA256 (or
+another SHA-256 implementation) must be enabled so that ESSIV can be
+used.
 
 Adiantum is a (primarily) stream cipher-based mode that is fast even
 on CPUs without dedicated crypto instructions.  It's also a true
@@ -341,10 +352,16 @@ a little endian number, except that:
   is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
   of the file's data encryption key.
 
-- In the "direct key" configuration (FSCRYPT_POLICY_FLAG_DIRECT_KEY
-  set in the fscrypt_policy), the file's nonce is also appended to the
-  IV.  Currently this is only allowed with the Adiantum encryption
-  mode.
+- With `DIRECT_KEY policies`_, the file's nonce is appended to the IV.
+  Currently this is only allowed with the Adiantum encryption mode.
+
+- With `IV_INO_LBLK_64 policies`_, the logical block number is limited
+  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
+  (which is also limited to 32 bits) is placed in bits 32-63.
+
+Note that because file logical block numbers are included in the IVs,
+filesystems must enforce that blocks are never shifted around within
+encrypted files, e.g. via "collapse range" or "insert range".
 
 Filenames encryption
 --------------------
@@ -354,10 +371,10 @@ the requirements to retain support for efficient directory lookups and
 filenames of up to 255 bytes, the same IV is used for every filename
 in a directory.
 
-However, each encrypted directory still uses a unique key; or
-alternatively (for the "direct key" configuration) has the file's
-nonce included in the IVs.  Thus, IV reuse is limited to within a
-single directory.
+However, each encrypted directory still uses a unique key, or
+alternatively has the file's nonce (for `DIRECT_KEY policies`_) or
+inode number (for `IV_INO_LBLK_64 policies`_) included in the IVs.
+Thus, IV reuse is limited to within a single directory.
 
 With CTS-CBC, the IV reuse means that when the plaintext filenames
 share a common prefix at least as long as the cipher block size (16
@@ -431,12 +448,15 @@ This structure must be initialized as follows:
   (1) for ``contents_encryption_mode`` and FSCRYPT_MODE_AES_256_CTS
   (4) for ``filenames_encryption_mode``.
 
-- ``flags`` must contain a value from ``<linux/fscrypt.h>`` which
-  identifies the amount of NUL-padding to use when encrypting
-  filenames.  If unsure, use FSCRYPT_POLICY_FLAGS_PAD_32 (0x3).
-  Additionally, if the encryption modes are both
-  FSCRYPT_MODE_ADIANTUM, this can contain
-  FSCRYPT_POLICY_FLAG_DIRECT_KEY; see `DIRECT_KEY and per-mode keys`_.
+- ``flags`` contains optional flags from ``<linux/fscrypt.h>``:
+
+  - FSCRYPT_POLICY_FLAGS_PAD_*: The amount of NUL padding to use when
+    encrypting filenames.  If unsure, use FSCRYPT_POLICY_FLAGS_PAD_32
+    (0x3).
+  - FSCRYPT_POLICY_FLAG_DIRECT_KEY: See `DIRECT_KEY policies`_.
+  - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64: See `IV_INO_LBLK_64
+    policies`_.  This is mutually exclusive with DIRECT_KEY and is not
+    supported on v1 policies.
 
 - For v2 encryption policies, ``__reserved`` must be zeroed.
 
@@ -1089,7 +1109,7 @@ policy structs (see `Setting an encryption policy`_), except that the
 context structs also contain a nonce.  The nonce is randomly generated
 by the kernel and is used as KDF input or as a tweak to cause
 different files to be encrypted differently; see `Per-file keys`_ and
-`DIRECT_KEY and per-mode keys`_.
+`DIRECT_KEY policies`_.
 
 Data path changes
 -----------------

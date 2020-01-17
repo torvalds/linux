@@ -147,11 +147,11 @@ enum intel_dpll_id {
 	 */
 	DPLL_ID_ICL_MGPLL4 = 6,
 	/**
-	 * @DPLL_ID_TGL_TCPLL5: TGL TC PLL port 5 (TC5)
+	 * @DPLL_ID_TGL_MGPLL5: TGL TC PLL port 5 (TC5)
 	 */
 	DPLL_ID_TGL_MGPLL5 = 7,
 	/**
-	 * @DPLL_ID_TGL_TCPLL6: TGL TC PLL port 6 (TC6)
+	 * @DPLL_ID_TGL_MGPLL6: TGL TC PLL port 6 (TC6)
 	 */
 	DPLL_ID_TGL_MGPLL6 = 8,
 };

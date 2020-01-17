@@ -1776,30 +1776,6 @@
     "PublicDescription": ""
   },
   {,
-    "EventCode": "0xa29084",
-    "EventName": "PM_L3_P0_GRP_PUMP",
-    "BriefDescription": "L3 pf sent with grp scope port 0",
-    "PublicDescription": ""
-  },
-  {,
-    "EventCode": "0x528084",
-    "EventName": "PM_L3_P0_LCO_DATA",
-    "BriefDescription": "lco sent with data port 0",
-    "PublicDescription": ""
-  },
-  {,
-    "EventCode": "0x518080",
-    "EventName": "PM_L3_P0_LCO_NO_DATA",
-    "BriefDescription": "dataless l3 lco sent port 0",
-    "PublicDescription": ""
-  },
-  {,
-    "EventCode": "0xa4908c",
-    "EventName": "PM_L3_P0_LCO_RTY",
-    "BriefDescription": "L3 LCO received retry port 0",
-    "PublicDescription": ""
-  },
-  {,
     "EventCode": "0x84908d",
     "EventName": "PM_L3_PF0_ALLOC",
     "BriefDescription": "lifetime, sample of PF machine 0 valid",

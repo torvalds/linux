@@ -267,7 +267,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->image.pitch[0] = fb->base.pitches[0];
 		}
 
-		if (!(asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC))
+		if (!asyh->state.async_flip)
 			asyw->image.interval = 1;
 		else
 			asyw->image.interval = 0;
@@ -383,7 +383,7 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 	}
 
 	/* Can't do an immediate flip while changing the LUT. */
-	asyh->state.pageflip_flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
+	asyh->state.async_flip = false;
 }
 
 static int

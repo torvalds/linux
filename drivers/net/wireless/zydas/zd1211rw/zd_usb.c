@@ -1633,7 +1633,7 @@ static bool check_read_regs(struct zd_usb *usb, struct usb_req_read_regs *req,
 	 */
 	if (rr->length < struct_size(regs, regs, count)) {
 		dev_dbg_f(zd_usb_dev(usb),
-			 "error: actual length %d less than expected %ld\n",
+			 "error: actual length %d less than expected %zu\n",
 			 rr->length, struct_size(regs, regs, count));
 		return false;
 	}

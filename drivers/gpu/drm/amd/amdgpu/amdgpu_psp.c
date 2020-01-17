@@ -950,21 +950,7 @@ static void psp_print_fw_hdr(struct psp_context *psp,
 			     struct amdgpu_firmware_info *ucode)
 {
 	struct amdgpu_device *adev = psp->adev;
-	const struct sdma_firmware_header_v1_0 *sdma_hdr =
-		(const struct sdma_firmware_header_v1_0 *)
-		adev->sdma.instance[ucode->ucode_id - AMDGPU_UCODE_ID_SDMA0].fw->data;
-	const struct gfx_firmware_header_v1_0 *ce_hdr =
-		(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
-	const struct gfx_firmware_header_v1_0 *pfp_hdr =
-		(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
-	const struct gfx_firmware_header_v1_0 *me_hdr =
-		(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
-	const struct gfx_firmware_header_v1_0 *mec_hdr =
-		(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
-	const struct rlc_firmware_header_v2_0 *rlc_hdr =
-		(const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
-	const struct smc_firmware_header_v1_0 *smc_hdr =
-		(const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
+	struct common_firmware_header *hdr;
 
 	switch (ucode->ucode_id) {
 	case AMDGPU_UCODE_ID_SDMA0:
@@ -975,25 +961,33 @@ static void psp_print_fw_hdr(struct psp_context *psp,
 	case AMDGPU_UCODE_ID_SDMA5:
 	case AMDGPU_UCODE_ID_SDMA6:
 	case AMDGPU_UCODE_ID_SDMA7:
-		amdgpu_ucode_print_sdma_hdr(&sdma_hdr->header);
+		hdr = (struct common_firmware_header *)
+			adev->sdma.instance[ucode->ucode_id - AMDGPU_UCODE_ID_SDMA0].fw->data;
+		amdgpu_ucode_print_sdma_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_CP_CE:
-		amdgpu_ucode_print_gfx_hdr(&ce_hdr->header);
+		hdr = (struct common_firmware_header *)adev->gfx.ce_fw->data;
+		amdgpu_ucode_print_gfx_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_CP_PFP:
-		amdgpu_ucode_print_gfx_hdr(&pfp_hdr->header);
+		hdr = (struct common_firmware_header *)adev->gfx.pfp_fw->data;
+		amdgpu_ucode_print_gfx_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_CP_ME:
-		amdgpu_ucode_print_gfx_hdr(&me_hdr->header);
+		hdr = (struct common_firmware_header *)adev->gfx.me_fw->data;
+		amdgpu_ucode_print_gfx_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_CP_MEC1:
-		amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
+		hdr = (struct common_firmware_header *)adev->gfx.mec_fw->data;
+		amdgpu_ucode_print_gfx_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_RLC_G:
-		amdgpu_ucode_print_rlc_hdr(&rlc_hdr->header);
+		hdr = (struct common_firmware_header *)adev->gfx.rlc_fw->data;
+		amdgpu_ucode_print_rlc_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_SMC:
-		amdgpu_ucode_print_smc_hdr(&smc_hdr->header);
+		hdr = (struct common_firmware_header *)adev->pm.fw->data;
+		amdgpu_ucode_print_smc_hdr(hdr);
 		break;
 	default:
 		break;

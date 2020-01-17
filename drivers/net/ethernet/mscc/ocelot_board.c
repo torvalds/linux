@@ -388,13 +388,14 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 			continue;
 
 		phy = of_phy_find_device(phy_node);
+		of_node_put(phy_node);
 		if (!phy)
 			continue;
 
 		err = ocelot_probe_port(ocelot, port, regs, phy);
 		if (err) {
 			of_node_put(portnp);
-			return err;
+			goto out_put_ports;
 		}
 
 		phy_mode = of_get_phy_mode(portnp);
@@ -422,7 +423,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 				"invalid phy mode for port%d, (Q)SGMII only\n",
 				port);
 			of_node_put(portnp);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_ports;
 		}
 
 		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
@@ -435,7 +437,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 					"missing SerDes phys for port%d\n",
 					port);
 
-			goto err_probe_ports;
+			of_node_put(portnp);
+			goto out_put_ports;
 		}
 
 		ocelot->ports[port]->serdes = serdes;
@@ -447,9 +450,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Ocelot switch probed\n");
 
-	return 0;
-
-err_probe_ports:
+out_put_ports:
+	of_node_put(ports);
 	return err;
 }
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig FB_TFT
 	tristate "Support for small TFT LCD display modules"
-	depends on FB && SPI
+	depends on FB && SPI && OF
 	depends on GPIOLIB || COMPILE_TEST
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
@@ -199,13 +199,3 @@ config FB_TFT_WATTEROTT
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for WATTEROTT
-
-config FB_FLEX
-	tristate "Generic FB driver for TFT LCD displays"
-	depends on FB_TFT
-	help
-	  Generic Framebuffer support for TFT LCD displays.
-
-config FB_TFT_FBTFT_DEVICE
-	tristate "Module to for adding FBTFT devices"
-	depends on FB_TFT

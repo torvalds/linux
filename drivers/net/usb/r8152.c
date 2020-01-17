@@ -4283,10 +4283,10 @@ static int rtl8152_close(struct net_device *netdev)
 	unregister_pm_notifier(&tp->pm_notifier);
 #endif
 	tasklet_disable(&tp->tx_tl);
-	napi_disable(&tp->napi);
 	clear_bit(WORK_ENABLE, &tp->flags);
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
+	napi_disable(&tp->napi);
 	netif_stop_queue(netdev);
 
 	res = usb_autopm_get_interface(tp->intf);
@@ -4552,10 +4552,10 @@ static int rtl8152_pre_reset(struct usb_interface *intf)
 
 	netif_stop_queue(netdev);
 	tasklet_disable(&tp->tx_tl);
-	napi_disable(&tp->napi);
 	clear_bit(WORK_ENABLE, &tp->flags);
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
+	napi_disable(&tp->napi);
 	if (netif_carrier_ok(netdev)) {
 		mutex_lock(&tp->control);
 		tp->rtl_ops.disable(tp);
@@ -4673,7 +4673,7 @@ static int rtl8152_system_resume(struct r8152 *tp)
 
 	netif_device_attach(netdev);
 
-	if (netif_running(netdev) && netdev->flags & IFF_UP) {
+	if (netif_running(netdev) && (netdev->flags & IFF_UP)) {
 		tp->rtl_ops.up(tp);
 		netif_carrier_off(netdev);
 		set_bit(WORK_ENABLE, &tp->flags);
@@ -4799,10 +4799,9 @@ static int rtl8152_reset_resume(struct usb_interface *intf)
 	struct r8152 *tp = usb_get_intfdata(intf);
 
 	clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-	mutex_lock(&tp->control);
 	tp->rtl_ops.init(tp);
 	queue_delayed_work(system_long_wq, &tp->hw_phy_work, 0);
-	mutex_unlock(&tp->control);
+	set_ethernet_addr(tp);
 	return rtl8152_resume(intf);
 }
 
@@ -5245,9 +5244,15 @@ static int rtl8152_set_tunable(struct net_device *netdev,
 		}
 
 		if (tp->rx_copybreak != val) {
-			napi_disable(&tp->napi);
-			tp->rx_copybreak = val;
-			napi_enable(&tp->napi);
+			if (netdev->flags & IFF_UP) {
+				mutex_lock(&tp->control);
+				napi_disable(&tp->napi);
+				tp->rx_copybreak = val;
+				napi_enable(&tp->napi);
+				mutex_unlock(&tp->control);
+			} else {
+				tp->rx_copybreak = val;
+			}
 		}
 		break;
 	default:
@@ -5275,9 +5280,15 @@ static int rtl8152_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	if (tp->rx_pending != ring->rx_pending) {
-		napi_disable(&tp->napi);
-		tp->rx_pending = ring->rx_pending;
-		napi_enable(&tp->napi);
+		if (netdev->flags & IFF_UP) {
+			mutex_lock(&tp->control);
+			napi_disable(&tp->napi);
+			tp->rx_pending = ring->rx_pending;
+			napi_enable(&tp->napi);
+			mutex_unlock(&tp->control);
+		} else {
+			tp->rx_pending = ring->rx_pending;
+		}
 	}
 
 	return 0;
@@ -5756,6 +5767,7 @@ static const struct usb_device_id rtl8152_table[] = {
 	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x7205)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x720c)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x7214)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0xa387)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_LINKSYS, 0x0041)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_NVIDIA,  0x09ff)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_TPLINK,  0x0601)},

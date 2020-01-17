@@ -185,7 +185,7 @@ static inline struct sk_buff *ip_fraglist_next(struct ip_fraglist_iter *iter)
 }
 
 struct ip_frag_state {
-	struct iphdr	*iph;
+	bool		DF;
 	unsigned int	hlen;
 	unsigned int	ll_rs;
 	unsigned int	mtu;
@@ -196,7 +196,7 @@ struct ip_frag_state {
 };
 
 void ip_frag_init(struct sk_buff *skb, unsigned int hlen, unsigned int ll_rs,
-		  unsigned int mtu, struct ip_frag_state *state);
+		  unsigned int mtu, bool DF, struct ip_frag_state *state);
 struct sk_buff *ip_frag_next(struct sk_buff *skb,
 			     struct ip_frag_state *state);
 

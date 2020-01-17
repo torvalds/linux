@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <stdarg.h>
+#include <stdio.h>
 #include <linux/perf_event.h>
 #include <perf/cpumap.h>
 #include <perf/threadmap.h>
 #include <perf/evsel.h>
 #include <internal/tests.h>
+
+static int libperf_print(enum libperf_print_level level,
+			 const char *fmt, va_list ap)
+{
+	return vfprintf(stderr, fmt, ap);
+}
 
 static int test_stat_cpu(void)
 {
@@ -115,6 +123,8 @@ static int test_stat_thread_enable(void)
 int main(int argc, char **argv)
 {
 	__T_START;
+
+	libperf_init(libperf_print);
 
 	test_stat_cpu();
 	test_stat_thread();

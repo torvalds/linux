@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/hw_random.h>
 #include <linux/kernel.h>
@@ -422,9 +421,7 @@ static int hwrng_fillfn(void *unused)
 {
 	long rc;
 
-	set_freezable();
-
-	while (!kthread_freezable_should_stop(NULL)) {
+	while (!kthread_should_stop()) {
 		struct hwrng *rng;
 
 		rng = get_current_rng();

@@ -143,7 +143,8 @@ be added to the following table:
    * - ``port_list_is_empty``
      - ``drop``
      - Traps packets that the device decided to drop in case they need to be
-       flooded and the flood list is empty
+       flooded (e.g., unknown unicast, unregistered multicast) and there are
+       no ports the packets should be flooded to
    * - ``port_loopback_filter``
      - ``drop``
      - Traps packets that the device decided to drop in case after layer 2

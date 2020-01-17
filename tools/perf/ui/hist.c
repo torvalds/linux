@@ -8,7 +8,6 @@
 #include "../util/callchain.h"
 #include "../util/debug.h"
 #include "../util/hist.h"
-#include "../util/util.h"
 #include "../util/sort.h"
 #include "../util/evsel.h"
 #include "../util/evlist.h"

@@ -29,25 +29,20 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
 	health_status = val & 0xffff;
 
-	if (health_status == BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Healthy;");
-		if (rc)
-			return rc;
-	} else if (health_status < BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Not yet completed initialization;");
+	if (health_status < BNXT_FW_STATUS_HEALTHY) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
+						  "Not yet completed initialization");
 		if (rc)
 			return rc;
 	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Encountered fatal error and cannot recover;");
+		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
+						  "Encountered fatal error and cannot recover");
 		if (rc)
 			return rc;
 	}
 
 	if (val >> 16) {
-		rc = devlink_fmsg_u32_pair_put(fmsg, "Error", val >> 16);
+		rc = devlink_fmsg_u32_pair_put(fmsg, "Error code", val >> 16);
 		if (rc)
 			return rc;
 	}
@@ -215,25 +210,68 @@ enum bnxt_dl_param_id {
 
 static const struct bnxt_dl_nvm_param nvm_params[] = {
 	{DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV, NVM_OFF_ENABLE_SRIOV,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 	{DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI, NVM_OFF_IGNORE_ARI,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
-	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10},
+	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10, 4},
 	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
-	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7},
+	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7, 4},
 	{BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK, NVM_OFF_DIS_GRE_VER_CHECK,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 };
+
+union bnxt_nvm_data {
+	u8	val8;
+	__le32	val32;
+};
+
+static void bnxt_copy_to_nvm_data(union bnxt_nvm_data *dst,
+				  union devlink_param_value *src,
+				  int nvm_num_bits, int dl_num_bytes)
+{
+	u32 val32 = 0;
+
+	if (nvm_num_bits == 1) {
+		dst->val8 = src->vbool;
+		return;
+	}
+	if (dl_num_bytes == 4)
+		val32 = src->vu32;
+	else if (dl_num_bytes == 2)
+		val32 = (u32)src->vu16;
+	else if (dl_num_bytes == 1)
+		val32 = (u32)src->vu8;
+	dst->val32 = cpu_to_le32(val32);
+}
+
+static void bnxt_copy_from_nvm_data(union devlink_param_value *dst,
+				    union bnxt_nvm_data *src,
+				    int nvm_num_bits, int dl_num_bytes)
+{
+	u32 val32;
+
+	if (nvm_num_bits == 1) {
+		dst->vbool = src->val8;
+		return;
+	}
+	val32 = le32_to_cpu(src->val32);
+	if (dl_num_bytes == 4)
+		dst->vu32 = val32;
+	else if (dl_num_bytes == 2)
+		dst->vu16 = (u16)val32;
+	else if (dl_num_bytes == 1)
+		dst->vu8 = (u8)val32;
+}
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 			     int msg_len, union devlink_param_value *val)
 {
 	struct hwrm_nvm_get_variable_input *req = msg;
-	void *data_addr = NULL, *buf = NULL;
 	struct bnxt_dl_nvm_param nvm_param;
-	int bytesize, idx = 0, rc, i;
+	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
+	int idx = 0, rc, i;
 
 	/* Get/Set NVM CFG parameter is supported only on PFs */
 	if (BNXT_VF(bp))
@@ -254,47 +292,31 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
-	bytesize = roundup(nvm_param.num_bits, BITS_PER_BYTE) / BITS_PER_BYTE;
-	switch (bytesize) {
-	case 1:
-		if (nvm_param.num_bits == 1)
-			buf = &val->vbool;
-		else
-			buf = &val->vu8;
-		break;
-	case 2:
-		buf = &val->vu16;
-		break;
-	case 4:
-		buf = &val->vu32;
-		break;
-	default:
-		return -EFAULT;
-	}
-
-	data_addr = dma_alloc_coherent(&bp->pdev->dev, bytesize,
-				       &data_dma_addr, GFP_KERNEL);
-	if (!data_addr)
+	data = dma_alloc_coherent(&bp->pdev->dev, sizeof(*data),
+				  &data_dma_addr, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
-	req->data_len = cpu_to_le16(nvm_param.num_bits);
+	req->data_len = cpu_to_le16(nvm_param.nvm_num_bits);
 	req->option_num = cpu_to_le16(nvm_param.offset);
 	req->index_0 = cpu_to_le16(idx);
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
 	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
-		memcpy(data_addr, buf, bytesize);
+		bnxt_copy_to_nvm_data(data, val, nvm_param.nvm_num_bits,
+				      nvm_param.dl_num_bytes);
 		rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
 	} else {
 		rc = hwrm_send_message_silent(bp, msg, msg_len,
 					      HWRM_CMD_TIMEOUT);
+		if (!rc)
+			bnxt_copy_from_nvm_data(val, data,
+						nvm_param.nvm_num_bits,
+						nvm_param.dl_num_bytes);
 	}
-	if (!rc && req->req_type == cpu_to_le16(HWRM_NVM_GET_VARIABLE))
-		memcpy(buf, data_addr, bytesize);
-
-	dma_free_coherent(&bp->pdev->dev, bytesize, data_addr, data_dma_addr);
+	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
 	if (rc == -EACCES)
 		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
 	return rc;

@@ -235,6 +235,11 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = ggtt->gmadr.start;
 	info->apertures->ranges[0].size = ggtt->mappable_end;
 
+	/* Our framebuffer is the entirety of fbdev's system memory */
+	info->fix.smem_start =
+		(unsigned long)(ggtt->gmadr.start + vma->node.start);
+	info->fix.smem_len = vma->node.size;
+
 	vaddr = i915_vma_pin_iomap(vma);
 	if (IS_ERR(vaddr)) {
 		DRM_ERROR("Failed to remap framebuffer into virtual memory\n");
@@ -243,10 +248,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 	info->screen_base = vaddr;
 	info->screen_size = vma->node.size;
-
-	/* Our framebuffer is the entirety of fbdev's system memory */
-	info->fix.smem_start = (unsigned long)info->screen_base;
-	info->fix.smem_len = info->screen_size;
 
 	drm_fb_helper_fill_info(info, &ifbdev->helper, sizes);
 

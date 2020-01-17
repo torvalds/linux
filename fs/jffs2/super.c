@@ -163,13 +163,11 @@ static const struct export_operations jffs2_export_ops = {
  * Opt_rp_size: size of reserved pool in KiB
  */
 enum {
-	Opt_source,
 	Opt_override_compr,
 	Opt_rp_size,
 };
 
 static const struct fs_parameter_spec jffs2_param_specs[] = {
-	fsparam_string	("source",	Opt_source),
 	fsparam_enum	("compr",	Opt_override_compr),
 	fsparam_u32	("rp_size",	Opt_rp_size),
 	{}

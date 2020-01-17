@@ -906,6 +906,9 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 		hnae3_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 				HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
 
+		/* nic's msix numbers is always equals to the roce's. */
+		hdev->num_nic_msi = hdev->num_roce_msi;
+
 		/* PF should have NIC vectors and Roce vectors,
 		 * NIC vectors are queued before Roce vectors.
 		 */
@@ -915,6 +918,15 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 		hdev->num_msi =
 		hnae3_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 				HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
+
+		hdev->num_nic_msi = hdev->num_msi;
+	}
+
+	if (hdev->num_nic_msi < HNAE3_MIN_VECTOR_NUM) {
+		dev_err(&hdev->pdev->dev,
+			"Just %u msi resources, not enough for pf(min:2).\n",
+			hdev->num_nic_msi);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1506,6 +1518,10 @@ static int  hclge_assign_tqp(struct hclge_vport *vport, u16 num_tqps)
 	vport->alloc_tqps = alloced;
 	kinfo->rss_size = min_t(u16, hdev->rss_size_max,
 				vport->alloc_tqps / hdev->tm_info.num_tc);
+
+	/* ensure one to one mapping between irq and queue at default */
+	kinfo->rss_size = min_t(u16, kinfo->rss_size,
+				(hdev->num_nic_msi - 1) / hdev->tm_info.num_tc);
 
 	return 0;
 }
@@ -2285,7 +2301,8 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	int vectors;
 	int i;
 
-	vectors = pci_alloc_irq_vectors(pdev, 1, hdev->num_msi,
+	vectors = pci_alloc_irq_vectors(pdev, HNAE3_MIN_VECTOR_NUM,
+					hdev->num_msi,
 					PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (vectors < 0) {
 		dev_err(&pdev->dev,
@@ -2300,6 +2317,7 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
+
 	hdev->base_msi_vector = pdev->irq;
 	hdev->roce_base_vector = hdev->base_msi_vector +
 				hdev->roce_base_msix_offset;
@@ -3569,12 +3587,28 @@ static int hclge_set_rst_done(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_done_cmd *req;
 	struct hclge_desc desc;
+	int ret;
 
 	req = (struct hclge_pf_rst_done_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PF_RST_DONE, false);
 	req->pf_rst_done |= HCLGE_PF_RESET_DONE_BIT;
 
-	return hclge_cmd_send(&hdev->hw, &desc, 1);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	/* To be compatible with the old firmware, which does not support
+	 * command HCLGE_OPC_PF_RST_DONE, just print a warning and
+	 * return success
+	 */
+	if (ret == -EOPNOTSUPP) {
+		dev_warn(&hdev->pdev->dev,
+			 "current firmware does not support command(0x%x)!\n",
+			 HCLGE_OPC_PF_RST_DONE);
+		return 0;
+	} else if (ret) {
+		dev_err(&hdev->pdev->dev, "assert PF reset done fail %d!\n",
+			ret);
+	}
+
+	return ret;
 }
 
 static int hclge_reset_prepare_up(struct hclge_dev *hdev)
@@ -3903,6 +3937,7 @@ static int hclge_get_vector(struct hnae3_handle *handle, u16 vector_num,
 	int alloc = 0;
 	int i, j;
 
+	vector_num = min_t(u16, hdev->num_nic_msi - 1, vector_num);
 	vector_num = min(hdev->num_msi_left, vector_num);
 
 	for (j = 0; j < vector_num; j++) {
@@ -6228,11 +6263,23 @@ static int hclge_config_switch_param(struct hclge_dev *hdev, int vfid,
 
 	func_id = hclge_get_port_number(HOST_PORT, 0, vfid, 0);
 	req = (struct hclge_mac_vlan_switch_cmd *)desc.data;
+
+	/* read current config parameter */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_SWITCH_PARAM,
-				   false);
+				   true);
 	req->roce_sel = HCLGE_MAC_VLAN_NIC_SEL;
 	req->func_id = cpu_to_le32(func_id);
-	req->switch_param = switch_param;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"read mac vlan switch parameter fail, ret = %d\n", ret);
+		return ret;
+	}
+
+	/* modify and write new config parameter */
+	hclge_cmd_reuse_desc(&desc, false);
+	req->switch_param = (req->switch_param & param_mask) | switch_param;
 	req->param_mask = param_mask;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);

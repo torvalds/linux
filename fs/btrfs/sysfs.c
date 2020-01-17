@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/bug.h>
+#include <crypto/hash.h>
 
 #include "ctree.h"
 #include "disk-io.h"
@@ -258,6 +259,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
 BTRFS_FEAT_ATTR_INCOMPAT(metadata_uuid, METADATA_UUID);
 BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
+BTRFS_FEAT_ATTR_INCOMPAT(raid1c34, RAID1C34);
 
 static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(mixed_backref),
@@ -272,6 +274,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(no_holes),
 	BTRFS_FEAT_ATTR_PTR(metadata_uuid),
 	BTRFS_FEAT_ATTR_PTR(free_space_tree),
+	BTRFS_FEAT_ATTR_PTR(raid1c34),
 	NULL
 };
 
@@ -295,8 +298,30 @@ static ssize_t rmdir_subvol_show(struct kobject *kobj,
 }
 BTRFS_ATTR(static_feature, rmdir_subvol, rmdir_subvol_show);
 
+static ssize_t supported_checksums_show(struct kobject *kobj,
+					struct kobj_attribute *a, char *buf)
+{
+	ssize_t ret = 0;
+	int i;
+
+	for (i = 0; i < btrfs_get_num_csums(); i++) {
+		/*
+		 * This "trick" only works as long as 'enum btrfs_csum_type' has
+		 * no holes in it
+		 */
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+				(i == 0 ? "" : " "), btrfs_super_csum_name(i));
+
+	}
+
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	return ret;
+}
+BTRFS_ATTR(static_feature, supported_checksums, supported_checksums_show);
+
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
+	BTRFS_ATTR_PTR(static_feature, supported_checksums),
 	NULL
 };
 
@@ -372,16 +397,16 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	int index = btrfs_bg_flags_to_raid_index(to_raid_kobj(kobj)->flags);
 	u64 val = 0;
 
 	down_read(&sinfo->groups_sem);
 	list_for_each_entry(block_group, &sinfo->block_groups[index], list) {
 		if (&attr->attr == BTRFS_ATTR_PTR(raid, total_bytes))
-			val += block_group->key.offset;
+			val += block_group->length;
 		else
-			val += btrfs_block_group_used(&block_group->item);
+			val += block_group->used;
 	}
 	up_read(&sinfo->groups_sem);
 	return snprintf(buf, PAGE_SIZE, "%llu\n", val);
@@ -604,6 +629,19 @@ static ssize_t btrfs_metadata_uuid_show(struct kobject *kobj,
 
 BTRFS_ATTR(, metadata_uuid, btrfs_metadata_uuid_show);
 
+static ssize_t btrfs_checksum_show(struct kobject *kobj,
+				   struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	u16 csum_type = btrfs_super_csum_type(fs_info->super_copy);
+
+	return snprintf(buf, PAGE_SIZE, "%s (%s)\n",
+			btrfs_super_csum_name(csum_type),
+			crypto_shash_driver_name(fs_info->csum_shash));
+}
+
+BTRFS_ATTR(, checksum, btrfs_checksum_show);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -611,6 +649,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, clone_alignment),
 	BTRFS_ATTR_PTR(, quota_override),
 	BTRFS_ATTR_PTR(, metadata_uuid),
+	BTRFS_ATTR_PTR(, checksum),
 	NULL,
 };
 
@@ -822,7 +861,7 @@ static void init_feature_attrs(void)
  * Create a sysfs entry for a given block group type at path
  * /sys/fs/btrfs/UUID/allocation/data/TYPE
  */
-void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache)
+void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_space_info *space_info = cache->space_info;

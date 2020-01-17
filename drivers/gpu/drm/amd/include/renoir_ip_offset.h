@@ -155,7 +155,7 @@ static const struct IP_BASE MP0_BASE ={ { { { 0x00016000, 0x0243FC00, 0x00DC0000
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE MP1_BASE ={ { { { 0x00016200, 0x02400400, 0x00E80000, 0x00EC0000, 0x00F00000 } },
+static const struct IP_BASE MP1_BASE ={ { { { 0x00016000, 0x02400400, 0x00E80000, 0x00EC0000, 0x00F00000 } },
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },
                                         { { 0, 0, 0, 0, 0 } },

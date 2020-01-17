@@ -113,7 +113,7 @@ static void set_impl_params(struct qdio_irq *irq_ptr,
 	irq_ptr->qib.pfmt = qib_param_field_format;
 	if (qib_param_field)
 		memcpy(irq_ptr->qib.parm, qib_param_field,
-		       QDIO_MAX_BUFFERS_PER_Q);
+		       sizeof(irq_ptr->qib.parm));
 
 	if (!input_slib_elements)
 		goto output;
@@ -150,7 +150,6 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 			return -ENOMEM;
 		}
 		irq_ptr_qs[i] = q;
-		INIT_LIST_HEAD(&q->entry);
 	}
 	return 0;
 }
@@ -179,7 +178,6 @@ static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->mask = 1 << (31 - i);
 	q->nr = i;
 	q->handler = handler;
-	INIT_LIST_HEAD(&q->entry);
 }
 
 static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
