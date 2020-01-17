@@ -20,6 +20,8 @@
 #include <linux/elf.h>
 #include <linux/tick.h>
 
+#include <asm/fpu.h>
+
 SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
 {
 	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
@@ -263,7 +265,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 /*
  * Do necessary setup to start up a new user task
  */
-void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
+void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 {
 	regs->sp = usp;
 	regs->ret = pc;
@@ -278,6 +280,8 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 #ifdef CONFIG_EZNPS_MTM_EXT
 	regs->eflags = 0;
 #endif
+
+	fpu_init_task(regs);
 
 	/* bogus seed values for debugging */
 	regs->lp_start = 0x10;
