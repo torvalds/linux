@@ -1244,3 +1244,32 @@ enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 
 	return status;
 }
+
+/**
+ * ice_get_rss_cfg - returns hashed fields for the given header types
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
+ * @hdrs: protocol header type
+ *
+ * This function will return the match fields of the first instance of flow
+ * profile having the given header types and containing input VSI
+ */
+u64 ice_get_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u32 hdrs)
+{
+	struct ice_rss_cfg *r, *rss_cfg = NULL;
+
+	/* verify if the protocol header is non zero and VSI is valid */
+	if (hdrs == ICE_FLOW_SEG_HDR_NONE || !ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_HASH_INVALID;
+
+	mutex_lock(&hw->rss_locks);
+	list_for_each_entry(r, &hw->rss_list_head, l_entry)
+		if (test_bit(vsi_handle, r->vsis) &&
+		    r->packet_hdr == hdrs) {
+			rss_cfg = r;
+			break;
+		}
+	mutex_unlock(&hw->rss_locks);
+
+	return rss_cfg ? rss_cfg->hashed_flds : ICE_HASH_INVALID;
+}
