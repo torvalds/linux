@@ -9,6 +9,9 @@
 #include <linux/xattr.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <linux/splice.h>
+#include <linux/mm.h>
+#include <linux/fs.h>
 #include "overlayfs.h"
 
 struct ovl_aio_req {
@@ -359,6 +362,48 @@ out:
 out_unlock:
 	inode_unlock(inode);
 
+	return ret;
+}
+
+static ssize_t ovl_splice_read(struct file *in, loff_t *ppos,
+			 struct pipe_inode_info *pipe, size_t len,
+			 unsigned int flags)
+{
+	ssize_t ret;
+	struct fd real;
+	const struct cred *old_cred;
+
+	ret = ovl_real_fdget(in, &real);
+	if (ret)
+		return ret;
+
+	old_cred = ovl_override_creds(file_inode(in)->i_sb);
+	ret = generic_file_splice_read(real.file, ppos, pipe, len, flags);
+	revert_creds(old_cred);
+
+	ovl_file_accessed(in);
+	fdput(real);
+	return ret;
+}
+
+static ssize_t
+ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
+			  loff_t *ppos, size_t len, unsigned int flags)
+{
+	struct fd real;
+	const struct cred *old_cred;
+	ssize_t ret;
+
+	ret = ovl_real_fdget(out, &real);
+	if (ret)
+		return ret;
+
+	old_cred = ovl_override_creds(file_inode(out)->i_sb);
+	ret = iter_file_splice_write(pipe, real.file, ppos, len, flags);
+	revert_creds(old_cred);
+
+	ovl_file_accessed(out);
+	fdput(real);
 	return ret;
 }
 
@@ -718,6 +763,8 @@ const struct file_operations ovl_file_operations = {
 	.fadvise	= ovl_fadvise,
 	.unlocked_ioctl	= ovl_ioctl,
 	.compat_ioctl	= ovl_compat_ioctl,
+	.splice_read    = ovl_splice_read,
+	.splice_write   = ovl_splice_write,
 
 	.copy_file_range	= ovl_copy_file_range,
 	.remap_file_range	= ovl_remap_file_range,
