@@ -464,6 +464,15 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 	gl->gl_tchange = jiffies;
 }
 
+static void gfs2_set_demote(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	set_bit(GLF_DEMOTE, &gl->gl_flags);
+	smp_mb();
+	wake_up(&sdp->sd_async_glock_wait);
+}
+
 static void gfs2_demote_wake(struct gfs2_glock *gl)
 {
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
@@ -876,7 +885,7 @@ static void glock_work_func(struct work_struct *work)
 
 		if (!delay) {
 			clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
-			set_bit(GLF_DEMOTE, &gl->gl_flags);
+			gfs2_set_demote(gl);
 		}
 	}
 	run_queue(gl, 0);
@@ -1221,9 +1230,10 @@ wait_for_dlm:
 static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 			    unsigned long delay, bool remote)
 {
-	int bit = delay ? GLF_PENDING_DEMOTE : GLF_DEMOTE;
-
-	set_bit(bit, &gl->gl_flags);
+	if (delay)
+		set_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
+	else
+		gfs2_set_demote(gl);
 	if (gl->gl_demote_state == LM_ST_EXCLUSIVE) {
 		gl->gl_demote_state = state;
 		gl->gl_demote_time = jiffies;
