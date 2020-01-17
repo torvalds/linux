@@ -578,19 +578,25 @@ static inline bool ct_header_is_response(u32 header)
 static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 {
 	struct guc_ct_buffer_desc *desc = ctb->desc;
-	u32 head = desc->head / 4;	/* in dwords */
-	u32 tail = desc->tail / 4;	/* in dwords */
-	u32 size = desc->size / 4;	/* in dwords */
+	u32 head = desc->head;
+	u32 tail = desc->tail;
+	u32 size = desc->size;
 	u32 *cmds = ctb->cmds;
-	s32 available;			/* in dwords */
+	s32 available;
 	unsigned int len;
 	unsigned int i;
 
-	GEM_BUG_ON(desc->size % 4);
-	GEM_BUG_ON(desc->head % 4);
-	GEM_BUG_ON(desc->tail % 4);
-	GEM_BUG_ON(tail >= size);
-	GEM_BUG_ON(head >= size);
+	if (unlikely(desc->is_in_error))
+		return -EPIPE;
+
+	if (unlikely(!IS_ALIGNED(head | tail | size, 4) ||
+		     (tail | head) >= size))
+		goto corrupted;
+
+	/* later calculations will be done in dwords */
+	head /= 4;
+	tail /= 4;
+	size /= 4;
 
 	/* tail == head condition indicates empty */
 	available = tail - head;
@@ -615,7 +621,7 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 			       size - head : available - 1), &cmds[head],
 			  4 * (head + available - 1 > size ?
 			       available - 1 - size + head : 0), &cmds[0]);
-		return -EPROTO;
+		goto corrupted;
 	}
 
 	for (i = 1; i < len; i++) {
@@ -626,6 +632,12 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 
 	desc->head = head * 4;
 	return 0;
+
+corrupted:
+	DRM_ERROR("CT: Corrupted descriptor addr=%#x head=%u tail=%u size=%u\n",
+		  desc->addr, desc->head, desc->tail, desc->size);
+	desc->is_in_error = 1;
+	return -EPIPE;
 }
 
 /**
@@ -836,10 +848,4 @@ void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 		else
 			err = ct_handle_request(ct, msg);
 	} while (!err);
-
-	if (GEM_WARN_ON(err == -EPROTO)) {
-		CT_ERROR(ct, "Corrupted message: %#x\n", msg[0]);
-		ctb->desc->is_in_error = 1;
-	}
 }
-
