@@ -540,7 +540,7 @@ int musb_set_peripheral(struct musb *musb)
 				   devctl & MUSB_DEVCTL_BDEVICE, 5000,
 				   1000000);
 	if (error) {
-		dev_err(musb->controller, "%s: could not set periperal: %02x\n",
+		dev_err(musb->controller, "%s: could not set peripheral: %02x\n",
 			__func__, devctl);
 
 		return error;
