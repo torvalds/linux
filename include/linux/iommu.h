@@ -388,11 +388,18 @@ void iommu_device_sysfs_remove(struct iommu_device *iommu);
 int  iommu_device_link(struct iommu_device   *iommu, struct device *link);
 void iommu_device_unlink(struct iommu_device *iommu, struct device *link);
 
-static inline void iommu_device_set_ops(struct iommu_device *iommu,
-					const struct iommu_ops *ops)
+static inline void __iommu_device_set_ops(struct iommu_device *iommu,
+					  const struct iommu_ops *ops)
 {
 	iommu->ops = ops;
 }
+
+#define iommu_device_set_ops(iommu, ops)				\
+do {									\
+	struct iommu_ops *__ops = (struct iommu_ops *)(ops);		\
+	__ops->owner = THIS_MODULE;					\
+	__iommu_device_set_ops(iommu, __ops);				\
+} while (0)
 
 static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 					   struct fwnode_handle *fwnode)
@@ -572,6 +579,7 @@ struct iommu_group *fsl_mc_device_group(struct device *dev);
  * @ops: ops for this device's IOMMU
  * @iommu_fwnode: firmware handle for this device's IOMMU
  * @iommu_priv: IOMMU driver private data for this device
+ * @num_pasid_bits: number of PASID bits supported by this device
  * @num_ids: number of associated device IDs
  * @ids: IDs which this device may present to the IOMMU
  */
@@ -580,6 +588,7 @@ struct iommu_fwspec {
 	struct fwnode_handle	*iommu_fwnode;
 	void			*iommu_priv;
 	u32			flags;
+	u32			num_pasid_bits;
 	unsigned int		num_ids;
 	u32			ids[1];
 };
