@@ -506,7 +506,6 @@ struct io_kiocb {
 #define REQ_F_LINK		64	/* linked sqes */
 #define REQ_F_LINK_TIMEOUT	128	/* has linked timeout */
 #define REQ_F_FAIL_LINK		256	/* fail rest of links */
-#define REQ_F_DRAIN_LINK	512	/* link should be fully drained */
 #define REQ_F_TIMEOUT		1024	/* timeout request */
 #define REQ_F_ISREG		2048	/* regular file */
 #define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
@@ -4558,12 +4557,6 @@ static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	int ret;
 
-	if (unlikely(req->ctx->drain_next)) {
-		req->flags |= REQ_F_IO_DRAIN;
-		req->ctx->drain_next = 0;
-	}
-	req->ctx->drain_next = (req->flags & REQ_F_DRAIN_LINK) != 0;
-
 	ret = io_req_defer(req, sqe);
 	if (ret) {
 		if (ret != -EIOCBQUEUED) {
@@ -4630,8 +4623,10 @@ err_req:
 	if (*link) {
 		struct io_kiocb *head = *link;
 
-		if (sqe_flags & IOSQE_IO_DRAIN)
-			head->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
+		if (sqe_flags & IOSQE_IO_DRAIN) {
+			head->flags |= REQ_F_IO_DRAIN;
+			ctx->drain_next = 1;
+		}
 
 		if (sqe_flags & IOSQE_IO_HARDLINK)
 			req->flags |= REQ_F_HARDLINK;
@@ -4655,18 +4650,24 @@ err_req:
 			io_queue_link_head(head);
 			*link = NULL;
 		}
-	} else if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
-		req->flags |= REQ_F_LINK;
-		if (sqe_flags & IOSQE_IO_HARDLINK)
-			req->flags |= REQ_F_HARDLINK;
-
-		INIT_LIST_HEAD(&req->link_list);
-		ret = io_req_defer_prep(req, sqe);
-		if (ret)
-			req->flags |= REQ_F_FAIL_LINK;
-		*link = req;
 	} else {
-		io_queue_sqe(req, sqe);
+		if (unlikely(ctx->drain_next)) {
+			req->flags |= REQ_F_IO_DRAIN;
+			req->ctx->drain_next = 0;
+		}
+		if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
+			req->flags |= REQ_F_LINK;
+			if (sqe_flags & IOSQE_IO_HARDLINK)
+				req->flags |= REQ_F_HARDLINK;
+
+			INIT_LIST_HEAD(&req->link_list);
+			ret = io_req_defer_prep(req, sqe);
+			if (ret)
+				req->flags |= REQ_F_FAIL_LINK;
+			*link = req;
+		} else {
+			io_queue_sqe(req, sqe);
+		}
 	}
 
 	return true;
