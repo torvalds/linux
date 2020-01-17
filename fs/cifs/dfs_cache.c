@@ -592,7 +592,7 @@ static int __update_cache_entry(const char *path,
 
 	kfree(th);
 
-	return 0;
+	return rc;
 }
 
 static int get_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
