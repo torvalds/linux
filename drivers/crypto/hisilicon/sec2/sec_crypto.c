@@ -690,7 +690,7 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 		ret = crypto_shash_digest(shash, keys->authkey,
 					  keys->authkeylen, ctx->a_key);
 		if (ret) {
-			pr_err("hisi_sec2: aead auth disgest error!\n");
+			pr_err("hisi_sec2: aead auth digest error!\n");
 			return -EINVAL;
 		}
 		ctx->a_key_len = blocksize;
