@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 
+#include "i915_debugfs_params.h"
 #include "i915_drv.h"
 #include "i915_params.h"
 
