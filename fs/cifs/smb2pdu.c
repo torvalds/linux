@@ -4441,13 +4441,10 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	int resp_buftype = CIFS_NO_BUFFER;
 	struct kvec rsp_iov;
 	int rc = 0;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = 0;
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	if (smb3_encryption_required(tcon))
