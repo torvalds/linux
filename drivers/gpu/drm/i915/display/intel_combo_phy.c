@@ -265,8 +265,8 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 
 static u32 ehl_combo_phy_a_mux(struct drm_i915_private *i915, u32 val)
 {
-	bool ddi_a_present = i915->vbt.ddi_port_info[PORT_A].child != NULL;
-	bool ddi_d_present = i915->vbt.ddi_port_info[PORT_D].child != NULL;
+	bool ddi_a_present = intel_bios_is_port_present(i915, PORT_A);
+	bool ddi_d_present = intel_bios_is_port_present(i915, PORT_D);
 	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
 
 	/*
