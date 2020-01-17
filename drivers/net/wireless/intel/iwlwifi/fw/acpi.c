@@ -357,8 +357,8 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
 	bool enabled;
-	int i, n_profiles, tbl_rev;
-	int  ret = 0;
+	int i, n_profiles, tbl_rev, pos;
+	int ret = 0;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_EWRD_METHOD);
 	if (IS_ERR(data))
@@ -390,10 +390,10 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		goto out_free;
 	}
 
-	for (i = 0; i < n_profiles; i++) {
-		/* the tables start at element 3 */
-		int pos = 3;
+	/* the tables start at element 3 */
+	pos = 3;
 
+	for (i = 0; i < n_profiles; i++) {
 		/* The EWRD profiles officially go from 2 to 4, but we
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
