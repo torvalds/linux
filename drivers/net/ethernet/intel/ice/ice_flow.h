@@ -20,6 +20,9 @@
 #define ICE_FLOW_HASH_UDP_PORT	\
 	(BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT) | \
 	 BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT))
+#define ICE_FLOW_HASH_SCTP_PORT	\
+	(BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT) | \
+	 BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_DST_PORT))
 
 #define ICE_HASH_INVALID	0
 #define ICE_HASH_TCP_IPV4	(ICE_FLOW_HASH_IPV4 | ICE_FLOW_HASH_TCP_PORT)
@@ -53,9 +56,63 @@ enum ice_flow_field {
 	ICE_FLOW_FIELD_IDX_TCP_DST_PORT,
 	ICE_FLOW_FIELD_IDX_UDP_SRC_PORT,
 	ICE_FLOW_FIELD_IDX_UDP_DST_PORT,
+	ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT,
+	ICE_FLOW_FIELD_IDX_SCTP_DST_PORT,
 	/* The total number of enums must not exceed 64 */
 	ICE_FLOW_FIELD_IDX_MAX
 };
+
+/* Flow headers and fields for AVF support */
+enum ice_flow_avf_hdr_field {
+	/* Values 0 - 28 are reserved for future use */
+	ICE_AVF_FLOW_FIELD_INVALID		= 0,
+	ICE_AVF_FLOW_FIELD_UNICAST_IPV4_UDP	= 29,
+	ICE_AVF_FLOW_FIELD_MULTICAST_IPV4_UDP,
+	ICE_AVF_FLOW_FIELD_IPV4_UDP,
+	ICE_AVF_FLOW_FIELD_IPV4_TCP_SYN_NO_ACK,
+	ICE_AVF_FLOW_FIELD_IPV4_TCP,
+	ICE_AVF_FLOW_FIELD_IPV4_SCTP,
+	ICE_AVF_FLOW_FIELD_IPV4_OTHER,
+	ICE_AVF_FLOW_FIELD_FRAG_IPV4,
+	/* Values 37-38 are reserved */
+	ICE_AVF_FLOW_FIELD_UNICAST_IPV6_UDP	= 39,
+	ICE_AVF_FLOW_FIELD_MULTICAST_IPV6_UDP,
+	ICE_AVF_FLOW_FIELD_IPV6_UDP,
+	ICE_AVF_FLOW_FIELD_IPV6_TCP_SYN_NO_ACK,
+	ICE_AVF_FLOW_FIELD_IPV6_TCP,
+	ICE_AVF_FLOW_FIELD_IPV6_SCTP,
+	ICE_AVF_FLOW_FIELD_IPV6_OTHER,
+	ICE_AVF_FLOW_FIELD_FRAG_IPV6,
+	ICE_AVF_FLOW_FIELD_RSVD47,
+	ICE_AVF_FLOW_FIELD_FCOE_OX,
+	ICE_AVF_FLOW_FIELD_FCOE_RX,
+	ICE_AVF_FLOW_FIELD_FCOE_OTHER,
+	/* Values 51-62 are reserved */
+	ICE_AVF_FLOW_FIELD_L2_PAYLOAD		= 63,
+	ICE_AVF_FLOW_FIELD_MAX
+};
+
+/* Supported RSS offloads  This macro is defined to support
+ * VIRTCHNL_OP_GET_RSS_HENA_CAPS ops. PF driver sends the RSS hardware
+ * capabilities to the caller of this ops.
+ */
+#define ICE_DEFAULT_RSS_HENA ( \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_UDP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_SCTP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_TCP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_OTHER) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_FRAG_IPV4) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_UDP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_TCP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_SCTP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_OTHER) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_FRAG_IPV6) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_TCP_SYN_NO_ACK) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_UNICAST_IPV4_UDP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_MULTICAST_IPV4_UDP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_TCP_SYN_NO_ACK) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_UNICAST_IPV6_UDP) | \
+	BIT_ULL(ICE_AVF_FLOW_FIELD_MULTICAST_IPV6_UDP))
 
 enum ice_flow_dir {
 	ICE_FLOW_RX		= 0x02,
@@ -140,6 +197,8 @@ struct ice_rss_cfg {
 enum ice_status ice_flow_rem_entry(struct ice_hw *hw, u64 entry_h);
 void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
+enum ice_status
+ice_add_avf_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds);
 enum ice_status ice_rem_vsi_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,

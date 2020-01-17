@@ -18,6 +18,7 @@ enum ice_prot_id {
 	ICE_PROT_IPV6_IL	= 41,
 	ICE_PROT_TCP_IL		= 49,
 	ICE_PROT_UDP_IL_OR_S	= 53,
+	ICE_PROT_SCTP_IL	= 96,
 	ICE_PROT_META_ID	= 255, /* when offset == metadata */
 	ICE_PROT_INVALID	= 255  /* when offset == ICE_FV_OFFSET_INVAL */
 };
