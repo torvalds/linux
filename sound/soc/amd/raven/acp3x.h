@@ -13,7 +13,7 @@
 #define TDM_ENABLE 1
 #define TDM_DISABLE 0
 
-#define ACP3x_DEVS		3
+#define ACP3x_DEVS		4
 #define ACP3x_PHY_BASE_ADDRESS 0x1240000
 #define	ACP3x_I2S_MODE	0
 #define	ACP3x_REG_START	0x1240000
