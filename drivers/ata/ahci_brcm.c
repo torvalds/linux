@@ -352,7 +352,8 @@ static int brcm_ahci_suspend(struct device *dev)
 	else
 		ret = 0;
 
-	reset_control_assert(priv->rcdev);
+	if (priv->version != BRCM_SATA_BCM7216)
+		reset_control_assert(priv->rcdev);
 
 	return ret;
 }
@@ -364,7 +365,10 @@ static int __maybe_unused brcm_ahci_resume(struct device *dev)
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
 	int ret = 0;
 
-	ret = reset_control_deassert(priv->rcdev);
+	if (priv->version == BRCM_SATA_BCM7216)
+		ret = reset_control_reset(priv->rcdev);
+	else
+		ret = reset_control_deassert(priv->rcdev);
 	if (ret)
 		return ret;
 
@@ -475,7 +479,10 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 		break;
 	}
 
-	ret = reset_control_deassert(priv->rcdev);
+	if (priv->version == BRCM_SATA_BCM7216)
+		ret = reset_control_reset(priv->rcdev);
+	else
+		ret = reset_control_deassert(priv->rcdev);
 	if (ret)
 		return ret;
 
@@ -520,7 +527,8 @@ out_disable_phys:
 out_disable_clks:
 	ahci_platform_disable_clks(hpriv);
 out_reset:
-	reset_control_assert(priv->rcdev);
+	if (priv->version != BRCM_SATA_BCM7216)
+		reset_control_assert(priv->rcdev);
 	return ret;
 }
 
