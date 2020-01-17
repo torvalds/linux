@@ -625,7 +625,7 @@ static int adin_soft_reset(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	msleep(10);
+	msleep(20);
 
 	/* If we get a read error something may be wrong */
 	rc = phy_read_mmd(phydev, MDIO_MMD_VEND1,
