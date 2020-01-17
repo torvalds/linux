@@ -23,6 +23,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/nospec.h>
 
 #include <soc/rockchip/pm_domains.h>
 
@@ -776,6 +777,7 @@ static int mpp_process_request(struct mpp_session *session,
 				MPP_DEVICE_BUTT);
 			return -EINVAL;
 		}
+		client_type = array_index_nospec(client_type, MPP_DEVICE_BUTT);
 		mpp = srv->sub_devices[client_type];
 		if (!mpp)
 			return -EINVAL;
