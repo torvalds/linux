@@ -145,14 +145,15 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 		flags = 0;
 	}
 
-	flags = MEDIA_LNK_FL_ENABLED;
+	flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
 
 	/* create ISP->RSZ->CAP links */
 	for (i = 0; i < 2; i++) {
 		source = &rkisp1->isp.sd.entity;
 		sink = &rkisp1->resizer_devs[i].sd.entity;
 		ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_VIDEO,
-					    sink, RKISP1_RSZ_PAD_SINK, flags);
+					    sink, RKISP1_RSZ_PAD_SINK,
+					    MEDIA_LNK_FL_ENABLED);
 		if (ret)
 			return ret;
 
