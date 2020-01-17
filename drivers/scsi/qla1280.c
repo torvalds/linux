@@ -1699,7 +1699,7 @@ qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 	return err;
 }
 
-#if QLA_64BIT_PTR
+#ifdef QLA_64BIT_PTR
 #define LOAD_CMD	MBC_LOAD_RAM_A64_ROM
 #define DUMP_CMD	MBC_DUMP_RAM_A64_ROM
 #define CMD_ARGS	(BIT_7 | BIT_6 | BIT_4 | BIT_3 | BIT_2 | BIT_1 | BIT_0)
