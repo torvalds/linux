@@ -2569,3 +2569,12 @@ int intel_bios_max_tmds_clock(struct intel_encoder *encoder)
 
 	return i915->vbt.ddi_port_info[encoder->port].max_tmds_clock;
 }
+
+int intel_bios_hdmi_level_shift(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct ddi_vbt_port_info *info =
+		&i915->vbt.ddi_port_info[encoder->port];
+
+	return info->hdmi_level_shift_set ? info->hdmi_level_shift : -1;
+}

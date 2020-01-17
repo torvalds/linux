@@ -944,11 +944,11 @@ tgl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 	return tgl_combo_phy_ddi_translations_dp_hbr;
 }
 
-static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port port)
+static int intel_ddi_hdmi_level(struct intel_encoder *encoder)
 {
-	struct ddi_vbt_port_info *port_info = &dev_priv->vbt.ddi_port_info[port];
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int n_entries, level, default_entry;
-	enum phy phy = intel_port_to_phy(dev_priv, port);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		if (intel_phy_is_combo(dev_priv, phy))
@@ -987,9 +987,8 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 	if (WARN_ON_ONCE(n_entries == 0))
 		return 0;
 
-	if (port_info->hdmi_level_shift_set)
-		level = port_info->hdmi_level_shift;
-	else
+	level = intel_bios_hdmi_level_shift(encoder);
+	if (level < 0)
 		level = default_entry;
 
 	if (WARN_ON_ONCE(level >= n_entries))
@@ -3665,8 +3664,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
-	int level = intel_ddi_hdmi_level(dev_priv, port);
+	int level = intel_ddi_hdmi_level(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
