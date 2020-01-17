@@ -355,7 +355,7 @@ static umode_t k10temp_is_visible(const void *_data,
 			}
 			break;
 		case hwmon_temp_max:
-			if (channel)
+			if (channel || data->show_tdie)
 				return 0;
 			break;
 		case hwmon_temp_crit:
