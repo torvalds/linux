@@ -574,7 +574,7 @@ __acquires(ps->lock)
 
 	/* Now carefully unlink all the marked pending URBs */
  rescan:
-	list_for_each_entry(as, &ps->async_pending, asynclist) {
+	list_for_each_entry_reverse(as, &ps->async_pending, asynclist) {
 		if (as->bulk_status == AS_UNLINK) {
 			as->bulk_status = 0;		/* Only once */
 			urb = as->urb;
@@ -636,7 +636,7 @@ static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
 
 	spin_lock_irqsave(&ps->lock, flags);
 	while (!list_empty(list)) {
-		as = list_entry(list->next, struct async, asynclist);
+		as = list_last_entry(list, struct async, asynclist);
 		list_del_init(&as->asynclist);
 		urb = as->urb;
 		usb_get_urb(urb);
