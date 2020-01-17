@@ -85,7 +85,7 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
  * list appropriately. If the result of the expression is undefined
  * all of the rules are disabled for safety.
  */
-int evaluate_cond_node(struct policydb *p, struct cond_node *node)
+void evaluate_cond_node(struct policydb *p, struct cond_node *node)
 {
 	int new_state;
 	struct cond_av_list *cur;
@@ -111,7 +111,6 @@ int evaluate_cond_node(struct policydb *p, struct cond_node *node)
 				cur->node->key.specified |= AVTAB_ENABLED;
 		}
 	}
-	return 0;
 }
 
 int cond_policydb_init(struct policydb *p)
