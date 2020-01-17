@@ -617,12 +617,12 @@ static int ct_read(struct intel_guc_ct *ct, u32 *data)
 	/* message len with header */
 	len = ct_header_get_len(data[0]) + 1;
 	if (unlikely(len > (u32)available)) {
-		DRM_ERROR("CT: incomplete message %*ph %*ph %*ph\n",
-			  4, data,
-			  4 * (head + available - 1 > size ?
-			       size - head : available - 1), &cmds[head],
-			  4 * (head + available - 1 > size ?
-			       available - 1 - size + head : 0), &cmds[0]);
+		CT_ERROR(ct, "Incomplete message %*ph %*ph %*ph\n",
+			 4, data,
+			 4 * (head + available - 1 > size ?
+			      size - head : available - 1), &cmds[head],
+			 4 * (head + available - 1 > size ?
+			      available - 1 - size + head : 0), &cmds[0]);
 		goto corrupted;
 	}
 
@@ -636,8 +636,8 @@ static int ct_read(struct intel_guc_ct *ct, u32 *data)
 	return 0;
 
 corrupted:
-	DRM_ERROR("CT: Corrupted descriptor addr=%#x head=%u tail=%u size=%u\n",
-		  desc->addr, desc->head, desc->tail, desc->size);
+	CT_ERROR(ct, "Corrupted descriptor addr=%#x head=%u tail=%u size=%u\n",
+		 desc->addr, desc->head, desc->tail, desc->size);
 	desc->is_in_error = 1;
 	return -EPIPE;
 }
