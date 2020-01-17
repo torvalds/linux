@@ -56,7 +56,13 @@ enum ice_flow_field {
 	ICE_FLOW_FIELD_IDX_MAX
 };
 
+enum ice_flow_dir {
+	ICE_FLOW_RX		= 0x02,
+};
+
 #define ICE_FLOW_SEG_MAX		2
+#define ICE_FLOW_FV_EXTRACT_SZ		2
+
 #define ICE_FLOW_SET_HDRS(seg, val)	((seg)->hdrs |= (u32)(val))
 
 struct ice_flow_seg_xtrct {
@@ -97,6 +103,23 @@ struct ice_flow_seg_info {
 	u64 range;	/* Bitmask indicating header fields matched as ranges */
 
 	struct ice_flow_fld_info fields[ICE_FLOW_FIELD_IDX_MAX];
+};
+
+struct ice_flow_prof {
+	struct list_head l_entry;
+
+	u64 id;
+	enum ice_flow_dir dir;
+	u8 segs_cnt;
+
+	/* Keep track of flow entries associated with this flow profile */
+	struct mutex entries_lock;
+	struct list_head entries;
+
+	struct ice_flow_seg_info segs[ICE_FLOW_SEG_MAX];
+
+	/* software VSI handles referenced by this flow profile */
+	DECLARE_BITMAP(vsis, ICE_MAX_VSI);
 };
 
 struct ice_rss_cfg {

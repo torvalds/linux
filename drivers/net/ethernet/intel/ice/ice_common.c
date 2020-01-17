@@ -1498,6 +1498,81 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 }
 
 /**
+ * ice_aq_alloc_free_res - command to allocate/free resources
+ * @hw: pointer to the HW struct
+ * @num_entries: number of resource entries in buffer
+ * @buf: Indirect buffer to hold data parameters and response
+ * @buf_size: size of buffer for indirect commands
+ * @opc: pass in the command opcode
+ * @cd: pointer to command details structure or NULL
+ *
+ * Helper function to allocate/free resources using the admin queue commands
+ */
+enum ice_status
+ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
+		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
+		      enum ice_adminq_opc opc, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_alloc_free_res_cmd *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.sw_res_ctrl;
+
+	if (!buf)
+		return ICE_ERR_PARAM;
+
+	if (buf_size < (num_entries * sizeof(buf->elem[0])))
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, opc);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	cmd->num_entries = cpu_to_le16(num_entries);
+
+	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+}
+
+/**
+ * ice_alloc_hw_res - allocate resource
+ * @hw: pointer to the HW struct
+ * @type: type of resource
+ * @num: number of resources to allocate
+ * @btm: allocate from bottom
+ * @res: pointer to array that will receive the resources
+ */
+enum ice_status
+ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	buf_len = struct_size(buf, elem, num - 1);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Prepare buffer to allocate resource. */
+	buf->num_elems = cpu_to_le16(num);
+	buf->res_type = cpu_to_le16(type | ICE_AQC_RES_TYPE_FLAG_DEDICATED |
+				    ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX);
+	if (btm)
+		buf->res_type |= cpu_to_le16(ICE_AQC_RES_TYPE_FLAG_SCAN_BOTTOM);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_alloc_res, NULL);
+	if (status)
+		goto ice_alloc_res_exit;
+
+	memcpy(res, buf->elem, sizeof(buf->elem) * num);
+
+ice_alloc_res_exit:
+	kfree(buf);
+	return status;
+}
+
+/**
  * ice_get_num_per_func - determine number of resources per PF
  * @hw: pointer to the HW structure
  * @max: value to be evenly split between each PF

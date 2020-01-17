@@ -1118,6 +1118,117 @@ ice_vsig_add_mv_vsi(struct ice_hw *hw, enum ice_block blk, u16 vsi, u16 vsig)
 	return 0;
 }
 
+/**
+ * ice_find_prof_id - find profile ID for a given field vector
+ * @hw: pointer to the hardware structure
+ * @blk: HW block
+ * @fv: field vector to search for
+ * @prof_id: receives the profile ID
+ */
+static enum ice_status
+ice_find_prof_id(struct ice_hw *hw, enum ice_block blk,
+		 struct ice_fv_word *fv, u8 *prof_id)
+{
+	struct ice_es *es = &hw->blk[blk].es;
+	u16 off, i;
+
+	for (i = 0; i < es->count; i++) {
+		off = i * es->fvw;
+
+		if (memcmp(&es->t[off], fv, es->fvw * sizeof(*fv)))
+			continue;
+
+		*prof_id = i;
+		return 0;
+	}
+
+	return ICE_ERR_DOES_NOT_EXIST;
+}
+
+/**
+ * ice_prof_id_rsrc_type - get profile ID resource type for a block type
+ * @blk: the block type
+ * @rsrc_type: pointer to variable to receive the resource type
+ */
+static bool ice_prof_id_rsrc_type(enum ice_block blk, u16 *rsrc_type)
+{
+	switch (blk) {
+	case ICE_BLK_RSS:
+		*rsrc_type = ICE_AQC_RES_TYPE_HASH_PROF_BLDR_PROFID;
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
+/**
+ * ice_alloc_prof_id - allocate profile ID
+ * @hw: pointer to the HW struct
+ * @blk: the block to allocate the profile ID for
+ * @prof_id: pointer to variable to receive the profile ID
+ *
+ * This function allocates a new profile ID, which also corresponds to a Field
+ * Vector (Extraction Sequence) entry.
+ */
+static enum ice_status
+ice_alloc_prof_id(struct ice_hw *hw, enum ice_block blk, u8 *prof_id)
+{
+	enum ice_status status;
+	u16 res_type;
+	u16 get_prof;
+
+	if (!ice_prof_id_rsrc_type(blk, &res_type))
+		return ICE_ERR_PARAM;
+
+	status = ice_alloc_hw_res(hw, res_type, 1, false, &get_prof);
+	if (!status)
+		*prof_id = (u8)get_prof;
+
+	return status;
+}
+
+/**
+ * ice_prof_inc_ref - increment reference count for profile
+ * @hw: pointer to the HW struct
+ * @blk: the block from which to free the profile ID
+ * @prof_id: the profile ID for which to increment the reference count
+ */
+static enum ice_status
+ice_prof_inc_ref(struct ice_hw *hw, enum ice_block blk, u8 prof_id)
+{
+	if (prof_id > hw->blk[blk].es.count)
+		return ICE_ERR_PARAM;
+
+	hw->blk[blk].es.ref_count[prof_id]++;
+
+	return 0;
+}
+
+/**
+ * ice_write_es - write an extraction sequence to hardware
+ * @hw: pointer to the HW struct
+ * @blk: the block in which to write the extraction sequence
+ * @prof_id: the profile ID to write
+ * @fv: pointer to the extraction sequence to write - NULL to clear extraction
+ */
+static void
+ice_write_es(struct ice_hw *hw, enum ice_block blk, u8 prof_id,
+	     struct ice_fv_word *fv)
+{
+	u16 off;
+
+	off = prof_id * hw->blk[blk].es.fvw;
+	if (!fv) {
+		memset(&hw->blk[blk].es.t[off], 0,
+		       hw->blk[blk].es.fvw * sizeof(*fv));
+		hw->blk[blk].es.written[prof_id] = false;
+	} else {
+		memcpy(&hw->blk[blk].es.t[off], fv,
+		       hw->blk[blk].es.fvw * sizeof(*fv));
+	}
+}
+
 /* Block / table section IDs */
 static const u32 ice_blk_sids[ICE_BLK_COUNT][ICE_SID_OFF_COUNT] = {
 	/* SWITCH */
@@ -1575,4 +1686,109 @@ enum ice_status ice_init_hw_tbls(struct ice_hw *hw)
 err:
 	ice_free_hw_tbls(hw);
 	return ICE_ERR_NO_MEMORY;
+}
+
+/**
+ * ice_add_prof - add profile
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @id: profile tracking ID
+ * @ptypes: array of bitmaps indicating ptypes (ICE_FLOW_PTYPE_MAX bits)
+ * @es: extraction sequence (length of array is determined by the block)
+ *
+ * This function registers a profile, which matches a set of PTGs with a
+ * particular extraction sequence. While the hardware profile is allocated
+ * it will not be written until the first call to ice_add_flow that specifies
+ * the ID value used here.
+ */
+enum ice_status
+ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
+	     struct ice_fv_word *es)
+{
+	u32 bytes = DIV_ROUND_UP(ICE_FLOW_PTYPE_MAX, BITS_PER_BYTE);
+	DECLARE_BITMAP(ptgs_used, ICE_XLT1_CNT);
+	struct ice_prof_map *prof;
+	enum ice_status status;
+	u32 byte = 0;
+	u8 prof_id;
+
+	bitmap_zero(ptgs_used, ICE_XLT1_CNT);
+
+	mutex_lock(&hw->blk[blk].es.prof_map_lock);
+
+	/* search for existing profile */
+	status = ice_find_prof_id(hw, blk, es, &prof_id);
+	if (status) {
+		/* allocate profile ID */
+		status = ice_alloc_prof_id(hw, blk, &prof_id);
+		if (status)
+			goto err_ice_add_prof;
+
+		/* and write new es */
+		ice_write_es(hw, blk, prof_id, es);
+	}
+
+	ice_prof_inc_ref(hw, blk, prof_id);
+
+	/* add profile info */
+	prof = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*prof), GFP_KERNEL);
+	if (!prof)
+		goto err_ice_add_prof;
+
+	prof->profile_cookie = id;
+	prof->prof_id = prof_id;
+	prof->ptg_cnt = 0;
+	prof->context = 0;
+
+	/* build list of ptgs */
+	while (bytes && prof->ptg_cnt < ICE_MAX_PTG_PER_PROFILE) {
+		u32 bit;
+
+		if (!ptypes[byte]) {
+			bytes--;
+			byte++;
+			continue;
+		}
+
+		/* Examine 8 bits per byte */
+		for_each_set_bit(bit, (unsigned long *)&ptypes[byte],
+				 BITS_PER_BYTE) {
+			u16 ptype;
+			u8 ptg;
+			u8 m;
+
+			ptype = byte * BITS_PER_BYTE + bit;
+
+			/* The package should place all ptypes in a non-zero
+			 * PTG, so the following call should never fail.
+			 */
+			if (ice_ptg_find_ptype(hw, blk, ptype, &ptg))
+				continue;
+
+			/* If PTG is already added, skip and continue */
+			if (test_bit(ptg, ptgs_used))
+				continue;
+
+			set_bit(ptg, ptgs_used);
+			prof->ptg[prof->ptg_cnt] = ptg;
+
+			if (++prof->ptg_cnt >= ICE_MAX_PTG_PER_PROFILE)
+				break;
+
+			/* nothing left in byte, then exit */
+			m = ~((1 << (bit + 1)) - 1);
+			if (!(ptypes[byte] & m))
+				break;
+		}
+
+		bytes--;
+		byte++;
+	}
+
+	list_add(&prof->list, &hw->blk[blk].es.prof_map);
+	status = 0;
+
+err_ice_add_prof:
+	mutex_unlock(&hw->blk[blk].es.prof_map_lock);
+	return status;
 }

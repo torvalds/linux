@@ -3,6 +3,9 @@
 
 #ifndef _ICE_FLEX_TYPE_H_
 #define _ICE_FLEX_TYPE_H_
+
+#define ICE_FV_OFFSET_INVAL	0x1FF
+
 /* Extraction Sequence (Field Vector) Table */
 struct ice_fv_word {
 	u8 prot_id;
@@ -280,6 +283,17 @@ struct ice_ptg_ptype {
 	u8 ptg;
 };
 
+#define ICE_MAX_PTG_PER_PROFILE		32
+
+struct ice_prof_map {
+	struct list_head list;
+	u64 profile_cookie;
+	u64 context;
+	u8 prof_id;
+	u8 ptg_cnt;
+	u8 ptg[ICE_MAX_PTG_PER_PROFILE];
+};
+
 struct ice_vsig_entry {
 	struct list_head prop_lst;
 	struct ice_vsig_vsi *first_vsi;
@@ -371,4 +385,5 @@ struct ice_blk_info {
 	u8 is_list_init;
 };
 
+#define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT
 #endif /* _ICE_FLEX_TYPE_H_ */
