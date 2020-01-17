@@ -5089,11 +5089,14 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 		return -ENXIO;
 
 	/* protect against inflight atomic switch, which drops the ref */
-	flush_work(&data->ref_work);
 	percpu_ref_get(&data->refs);
+	/* wait for existing switches */
+	flush_work(&data->ref_work);
 	percpu_ref_kill_and_confirm(&data->refs, io_file_ref_kill);
 	wait_for_completion(&data->done);
 	percpu_ref_put(&data->refs);
+	/* flush potential new switch */
+	flush_work(&data->ref_work);
 	percpu_ref_exit(&data->refs);
 
 	__io_sqe_files_unregister(ctx);
