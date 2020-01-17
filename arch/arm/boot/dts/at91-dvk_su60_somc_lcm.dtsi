@@ -17,7 +17,7 @@
 	};
 
 	panel: panel {
-		compatible = "winstar,wf70gtiagdng0", "innolux,at070tn92", "simple-panel";
+		compatible = "winstar,wf70gtiagdng0", "innolux,at070tn92";
 		backlight = <&backlight>;
 		power-supply = <&vcc_lcd_reg>;
 		#address-cells = <1>;
