@@ -1283,7 +1283,7 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 	long page_sz = sysconf(_SC_PAGE_SIZE);
 	size_t map_sz;
 
-	map_sz = roundup(map->def.value_size, 8) * map->def.max_entries;
+	map_sz = (size_t)roundup(map->def.value_size, 8) * map->def.max_entries;
 	map_sz = roundup(map_sz, page_sz);
 	return map_sz;
 }
