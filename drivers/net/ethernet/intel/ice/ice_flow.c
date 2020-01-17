@@ -377,6 +377,77 @@ ice_flow_proc_segs(struct ice_hw *hw, struct ice_flow_prof_params *params)
 	return status;
 }
 
+#define ICE_FLOW_FIND_PROF_CHK_FLDS	0x00000001
+#define ICE_FLOW_FIND_PROF_CHK_VSI	0x00000002
+#define ICE_FLOW_FIND_PROF_NOT_CHK_DIR	0x00000004
+
+/**
+ * ice_flow_find_prof_conds - Find a profile matching headers and conditions
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @dir: flow direction
+ * @segs: array of one or more packet segments that describe the flow
+ * @segs_cnt: number of packet segments provided
+ * @vsi_handle: software VSI handle to check VSI (ICE_FLOW_FIND_PROF_CHK_VSI)
+ * @conds: additional conditions to be checked (ICE_FLOW_FIND_PROF_CHK_*)
+ */
+static struct ice_flow_prof *
+ice_flow_find_prof_conds(struct ice_hw *hw, enum ice_block blk,
+			 enum ice_flow_dir dir, struct ice_flow_seg_info *segs,
+			 u8 segs_cnt, u16 vsi_handle, u32 conds)
+{
+	struct ice_flow_prof *p, *prof = NULL;
+
+	mutex_lock(&hw->fl_profs_locks[blk]);
+	list_for_each_entry(p, &hw->fl_profs[blk], l_entry)
+		if ((p->dir == dir || conds & ICE_FLOW_FIND_PROF_NOT_CHK_DIR) &&
+		    segs_cnt && segs_cnt == p->segs_cnt) {
+			u8 i;
+
+			/* Check for profile-VSI association if specified */
+			if ((conds & ICE_FLOW_FIND_PROF_CHK_VSI) &&
+			    ice_is_vsi_valid(hw, vsi_handle) &&
+			    !test_bit(vsi_handle, p->vsis))
+				continue;
+
+			/* Protocol headers must be checked. Matched fields are
+			 * checked if specified.
+			 */
+			for (i = 0; i < segs_cnt; i++)
+				if (segs[i].hdrs != p->segs[i].hdrs ||
+				    ((conds & ICE_FLOW_FIND_PROF_CHK_FLDS) &&
+				     segs[i].match != p->segs[i].match))
+					break;
+
+			/* A match is found if all segments are matched */
+			if (i == segs_cnt) {
+				prof = p;
+				break;
+			}
+		}
+	mutex_unlock(&hw->fl_profs_locks[blk]);
+
+	return prof;
+}
+
+/**
+ * ice_flow_find_prof_id - Look up a profile with given profile ID
+ * @hw: pointer to the HW struct
+ * @blk: classification stage
+ * @prof_id: unique ID to identify this flow profile
+ */
+static struct ice_flow_prof *
+ice_flow_find_prof_id(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
+{
+	struct ice_flow_prof *p;
+
+	list_for_each_entry(p, &hw->fl_profs[blk], l_entry)
+		if (p->id == prof_id)
+			return p;
+
+	return NULL;
+}
+
 /**
  * ice_flow_add_prof_sync - Add a flow profile for packet segments and fields
  * @hw: pointer to the HW struct
@@ -451,6 +522,31 @@ out:
 }
 
 /**
+ * ice_flow_rem_prof_sync - remove a flow profile
+ * @hw: pointer to the hardware structure
+ * @blk: classification stage
+ * @prof: pointer to flow profile to remove
+ *
+ * Assumption: the caller has acquired the lock to the profile list
+ */
+static enum ice_status
+ice_flow_rem_prof_sync(struct ice_hw *hw, enum ice_block blk,
+		       struct ice_flow_prof *prof)
+{
+	enum ice_status status;
+
+	/* Remove all hardware profiles associated with this flow profile */
+	status = ice_rem_prof(hw, blk, prof->id);
+	if (!status) {
+		list_del(&prof->l_entry);
+		mutex_destroy(&prof->entries_lock);
+		devm_kfree(ice_hw_to_dev(hw), prof);
+	}
+
+	return status;
+}
+
+/**
  * ice_flow_assoc_prof - associate a VSI with a flow profile
  * @hw: pointer to the hardware structure
  * @blk: classification stage
@@ -476,6 +572,38 @@ ice_flow_assoc_prof(struct ice_hw *hw, enum ice_block blk,
 		else
 			ice_debug(hw, ICE_DBG_FLOW,
 				  "HW profile add failed, %d\n",
+				  status);
+	}
+
+	return status;
+}
+
+/**
+ * ice_flow_disassoc_prof - disassociate a VSI from a flow profile
+ * @hw: pointer to the hardware structure
+ * @blk: classification stage
+ * @prof: pointer to flow profile
+ * @vsi_handle: software VSI handle
+ *
+ * Assumption: the caller has acquired the lock to the profile list
+ * and the software VSI handle has been validated
+ */
+static enum ice_status
+ice_flow_disassoc_prof(struct ice_hw *hw, enum ice_block blk,
+		       struct ice_flow_prof *prof, u16 vsi_handle)
+{
+	enum ice_status status = 0;
+
+	if (test_bit(vsi_handle, prof->vsis)) {
+		status = ice_rem_prof_id_flow(hw, blk,
+					      ice_get_hw_vsi_num(hw,
+								 vsi_handle),
+					      prof->id);
+		if (!status)
+			clear_bit(vsi_handle, prof->vsis);
+		else
+			ice_debug(hw, ICE_DBG_FLOW,
+				  "HW profile remove failed, %d\n",
 				  status);
 	}
 
@@ -519,6 +647,35 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 	if (!status)
 		list_add(&(*prof)->l_entry, &hw->fl_profs[blk]);
 
+	mutex_unlock(&hw->fl_profs_locks[blk]);
+
+	return status;
+}
+
+/**
+ * ice_flow_rem_prof - Remove a flow profile and all entries associated with it
+ * @hw: pointer to the HW struct
+ * @blk: the block for which the flow profile is to be removed
+ * @prof_id: unique ID of the flow profile to be removed
+ */
+static enum ice_status
+ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id)
+{
+	struct ice_flow_prof *prof;
+	enum ice_status status;
+
+	mutex_lock(&hw->fl_profs_locks[blk]);
+
+	prof = ice_flow_find_prof_id(hw, blk, prof_id);
+	if (!prof) {
+		status = ICE_ERR_DOES_NOT_EXIST;
+		goto out;
+	}
+
+	/* prof becomes invalid after the call */
+	status = ice_flow_rem_prof_sync(hw, blk, prof);
+
+out:
 	mutex_unlock(&hw->fl_profs_locks[blk]);
 
 	return status;
@@ -645,6 +802,132 @@ ice_flow_set_rss_seg_info(struct ice_flow_seg_info *segs, u64 hash_fields,
 	return 0;
 }
 
+/**
+ * ice_rem_vsi_rss_list - remove VSI from RSS list
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
+ *
+ * Remove the VSI from all RSS configurations in the list.
+ */
+void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle)
+{
+	struct ice_rss_cfg *r, *tmp;
+
+	if (list_empty(&hw->rss_list_head))
+		return;
+
+	mutex_lock(&hw->rss_locks);
+	list_for_each_entry_safe(r, tmp, &hw->rss_list_head, l_entry)
+		if (test_and_clear_bit(vsi_handle, r->vsis))
+			if (bitmap_empty(r->vsis, ICE_MAX_VSI)) {
+				list_del(&r->l_entry);
+				devm_kfree(ice_hw_to_dev(hw), r);
+			}
+	mutex_unlock(&hw->rss_locks);
+}
+
+/**
+ * ice_rem_vsi_rss_cfg - remove RSS configurations associated with VSI
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function will iterate through all flow profiles and disassociate
+ * the VSI from that profile. If the flow profile has no VSIs it will
+ * be removed.
+ */
+enum ice_status ice_rem_vsi_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
+{
+	const enum ice_block blk = ICE_BLK_RSS;
+	struct ice_flow_prof *p, *t;
+	enum ice_status status = 0;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	if (list_empty(&hw->fl_profs[blk]))
+		return 0;
+
+	mutex_lock(&hw->fl_profs_locks[blk]);
+	list_for_each_entry_safe(p, t, &hw->fl_profs[blk], l_entry)
+		if (test_bit(vsi_handle, p->vsis)) {
+			status = ice_flow_disassoc_prof(hw, blk, p, vsi_handle);
+			if (status)
+				break;
+
+			if (bitmap_empty(p->vsis, ICE_MAX_VSI)) {
+				status = ice_flow_rem_prof_sync(hw, blk, p);
+				if (status)
+					break;
+			}
+		}
+	mutex_unlock(&hw->fl_profs_locks[blk]);
+
+	return status;
+}
+
+/**
+ * ice_rem_rss_list - remove RSS configuration from list
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
+ * @prof: pointer to flow profile
+ *
+ * Assumption: lock has already been acquired for RSS list
+ */
+static void
+ice_rem_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
+{
+	struct ice_rss_cfg *r, *tmp;
+
+	/* Search for RSS hash fields associated to the VSI that match the
+	 * hash configurations associated to the flow profile. If found
+	 * remove from the RSS entry list of the VSI context and delete entry.
+	 */
+	list_for_each_entry_safe(r, tmp, &hw->rss_list_head, l_entry)
+		if (r->hashed_flds == prof->segs[prof->segs_cnt - 1].match &&
+		    r->packet_hdr == prof->segs[prof->segs_cnt - 1].hdrs) {
+			clear_bit(vsi_handle, r->vsis);
+			if (bitmap_empty(r->vsis, ICE_MAX_VSI)) {
+				list_del(&r->l_entry);
+				devm_kfree(ice_hw_to_dev(hw), r);
+			}
+			return;
+		}
+}
+
+/**
+ * ice_add_rss_list - add RSS configuration to list
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
+ * @prof: pointer to flow profile
+ *
+ * Assumption: lock has already been acquired for RSS list
+ */
+static enum ice_status
+ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
+{
+	struct ice_rss_cfg *r, *rss_cfg;
+
+	list_for_each_entry(r, &hw->rss_list_head, l_entry)
+		if (r->hashed_flds == prof->segs[prof->segs_cnt - 1].match &&
+		    r->packet_hdr == prof->segs[prof->segs_cnt - 1].hdrs) {
+			set_bit(vsi_handle, r->vsis);
+			return 0;
+		}
+
+	rss_cfg = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*rss_cfg),
+			       GFP_KERNEL);
+	if (!rss_cfg)
+		return ICE_ERR_NO_MEMORY;
+
+	rss_cfg->hashed_flds = prof->segs[prof->segs_cnt - 1].match;
+	rss_cfg->packet_hdr = prof->segs[prof->segs_cnt - 1].hdrs;
+	set_bit(vsi_handle, rss_cfg->vsis);
+
+	list_add_tail(&rss_cfg->l_entry, &hw->rss_list_head);
+
+	return 0;
+}
+
 #define ICE_FLOW_PROF_HASH_S	0
 #define ICE_FLOW_PROF_HASH_M	(0xFFFFFFFFULL << ICE_FLOW_PROF_HASH_S)
 #define ICE_FLOW_PROF_HDR_S	32
@@ -696,6 +979,52 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 	if (status)
 		goto exit;
 
+	/* Search for a flow profile that has matching headers, hash fields
+	 * and has the input VSI associated to it. If found, no further
+	 * operations required and exit.
+	 */
+	prof = ice_flow_find_prof_conds(hw, blk, ICE_FLOW_RX, segs, segs_cnt,
+					vsi_handle,
+					ICE_FLOW_FIND_PROF_CHK_FLDS |
+					ICE_FLOW_FIND_PROF_CHK_VSI);
+	if (prof)
+		goto exit;
+
+	/* Check if a flow profile exists with the same protocol headers and
+	 * associated with the input VSI. If so disassociate the VSI from
+	 * this profile. The VSI will be added to a new profile created with
+	 * the protocol header and new hash field configuration.
+	 */
+	prof = ice_flow_find_prof_conds(hw, blk, ICE_FLOW_RX, segs, segs_cnt,
+					vsi_handle, ICE_FLOW_FIND_PROF_CHK_VSI);
+	if (prof) {
+		status = ice_flow_disassoc_prof(hw, blk, prof, vsi_handle);
+		if (!status)
+			ice_rem_rss_list(hw, vsi_handle, prof);
+		else
+			goto exit;
+
+		/* Remove profile if it has no VSIs associated */
+		if (bitmap_empty(prof->vsis, ICE_MAX_VSI)) {
+			status = ice_flow_rem_prof(hw, blk, prof->id);
+			if (status)
+				goto exit;
+		}
+	}
+
+	/* Search for a profile that has same match fields only. If this
+	 * exists then associate the VSI to this profile.
+	 */
+	prof = ice_flow_find_prof_conds(hw, blk, ICE_FLOW_RX, segs, segs_cnt,
+					vsi_handle,
+					ICE_FLOW_FIND_PROF_CHK_FLDS);
+	if (prof) {
+		status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
+		if (!status)
+			status = ice_add_rss_list(hw, vsi_handle, prof);
+		goto exit;
+	}
+
 	/* Create a new flow profile with generated profile and packet
 	 * segment information.
 	 */
@@ -708,6 +1037,15 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 		goto exit;
 
 	status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
+	/* If association to a new flow profile failed then this profile can
+	 * be removed.
+	 */
+	if (status) {
+		ice_flow_rem_prof(hw, blk, prof->id);
+		goto exit;
+	}
+
+	status = ice_add_rss_list(hw, vsi_handle, prof);
 
 exit:
 	kfree(segs);

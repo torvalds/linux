@@ -1922,6 +1922,26 @@ ice_alloc_prof_id(struct ice_hw *hw, enum ice_block blk, u8 *prof_id)
 }
 
 /**
+ * ice_free_prof_id - free profile ID
+ * @hw: pointer to the HW struct
+ * @blk: the block from which to free the profile ID
+ * @prof_id: the profile ID to free
+ *
+ * This function frees a profile ID, which also corresponds to a Field Vector.
+ */
+static enum ice_status
+ice_free_prof_id(struct ice_hw *hw, enum ice_block blk, u8 prof_id)
+{
+	u16 tmp_prof_id = (u16)prof_id;
+	u16 res_type;
+
+	if (!ice_prof_id_rsrc_type(blk, &res_type))
+		return ICE_ERR_PARAM;
+
+	return ice_free_hw_res(hw, res_type, 1, &tmp_prof_id);
+}
+
+/**
  * ice_prof_inc_ref - increment reference count for profile
  * @hw: pointer to the HW struct
  * @blk: the block from which to free the profile ID
@@ -1960,6 +1980,28 @@ ice_write_es(struct ice_hw *hw, enum ice_block blk, u8 prof_id,
 		memcpy(&hw->blk[blk].es.t[off], fv,
 		       hw->blk[blk].es.fvw * sizeof(*fv));
 	}
+}
+
+/**
+ * ice_prof_dec_ref - decrement reference count for profile
+ * @hw: pointer to the HW struct
+ * @blk: the block from which to free the profile ID
+ * @prof_id: the profile ID for which to decrement the reference count
+ */
+static enum ice_status
+ice_prof_dec_ref(struct ice_hw *hw, enum ice_block blk, u8 prof_id)
+{
+	if (prof_id > hw->blk[blk].es.count)
+		return ICE_ERR_PARAM;
+
+	if (hw->blk[blk].es.ref_count[prof_id] > 0) {
+		if (!--hw->blk[blk].es.ref_count[prof_id]) {
+			ice_write_es(hw, blk, prof_id, NULL);
+			return ice_free_prof_id(hw, blk, prof_id);
+		}
+	}
+
+	return 0;
 }
 
 /* Block / table section IDs */
@@ -2219,6 +2261,64 @@ void ice_fill_blk_tbls(struct ice_hw *hw)
 }
 
 /**
+ * ice_free_prof_map - free profile map
+ * @hw: pointer to the hardware structure
+ * @blk_idx: HW block index
+ */
+static void ice_free_prof_map(struct ice_hw *hw, u8 blk_idx)
+{
+	struct ice_es *es = &hw->blk[blk_idx].es;
+	struct ice_prof_map *del, *tmp;
+
+	mutex_lock(&es->prof_map_lock);
+	list_for_each_entry_safe(del, tmp, &es->prof_map, list) {
+		list_del(&del->list);
+		devm_kfree(ice_hw_to_dev(hw), del);
+	}
+	INIT_LIST_HEAD(&es->prof_map);
+	mutex_unlock(&es->prof_map_lock);
+}
+
+/**
+ * ice_free_flow_profs - free flow profile entries
+ * @hw: pointer to the hardware structure
+ * @blk_idx: HW block index
+ */
+static void ice_free_flow_profs(struct ice_hw *hw, u8 blk_idx)
+{
+	struct ice_flow_prof *p, *tmp;
+
+	mutex_lock(&hw->fl_profs_locks[blk_idx]);
+	list_for_each_entry_safe(p, tmp, &hw->fl_profs[blk_idx], l_entry) {
+		list_del(&p->l_entry);
+		devm_kfree(ice_hw_to_dev(hw), p);
+	}
+	mutex_unlock(&hw->fl_profs_locks[blk_idx]);
+
+	/* if driver is in reset and tables are being cleared
+	 * re-initialize the flow profile list heads
+	 */
+	INIT_LIST_HEAD(&hw->fl_profs[blk_idx]);
+}
+
+/**
+ * ice_free_vsig_tbl - free complete VSIG table entries
+ * @hw: pointer to the hardware structure
+ * @blk: the HW block on which to free the VSIG table entries
+ */
+static void ice_free_vsig_tbl(struct ice_hw *hw, enum ice_block blk)
+{
+	u16 i;
+
+	if (!hw->blk[blk].xlt2.vsig_tbl)
+		return;
+
+	for (i = 1; i < ICE_MAX_VSIGS; i++)
+		if (hw->blk[blk].xlt2.vsig_tbl[i].in_use)
+			ice_vsig_free(hw, blk, i);
+}
+
+/**
  * ice_free_hw_tbls - free hardware table memory
  * @hw: pointer to the hardware structure
  */
@@ -2231,11 +2331,15 @@ void ice_free_hw_tbls(struct ice_hw *hw)
 		if (hw->blk[i].is_list_init) {
 			struct ice_es *es = &hw->blk[i].es;
 
+			ice_free_prof_map(hw, i);
 			mutex_destroy(&es->prof_map_lock);
+
+			ice_free_flow_profs(hw, i);
 			mutex_destroy(&hw->fl_profs_locks[i]);
 
 			hw->blk[i].is_list_init = false;
 		}
+		ice_free_vsig_tbl(hw, (enum ice_block)i);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.ptypes);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.ptg_tbl);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.t);
@@ -2282,6 +2386,13 @@ void ice_clear_hw_tbls(struct ice_hw *hw)
 		struct ice_xlt1 *xlt1 = &hw->blk[i].xlt1;
 		struct ice_xlt2 *xlt2 = &hw->blk[i].xlt2;
 		struct ice_es *es = &hw->blk[i].es;
+
+		if (hw->blk[i].is_list_init) {
+			ice_free_prof_map(hw, i);
+			ice_free_flow_profs(hw, i);
+		}
+
+		ice_free_vsig_tbl(hw, (enum ice_block)i);
 
 		memset(xlt1->ptypes, 0, xlt1->count * sizeof(*xlt1->ptypes));
 		memset(xlt1->ptg_tbl, 0,
@@ -2957,6 +3068,25 @@ ice_search_prof_id(struct ice_hw *hw, enum ice_block blk, u64 id)
 }
 
 /**
+ * ice_vsig_prof_id_count - count profiles in a VSIG
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @vsig: VSIG to remove the profile from
+ */
+static u16
+ice_vsig_prof_id_count(struct ice_hw *hw, enum ice_block blk, u16 vsig)
+{
+	u16 idx = vsig & ICE_VSIG_IDX_M, count = 0;
+	struct ice_vsig_prof *p;
+
+	list_for_each_entry(p, &hw->blk[blk].xlt2.vsig_tbl[idx].prop_lst,
+			    list)
+		count++;
+
+	return count;
+}
+
+/**
  * ice_rel_tcam_idx - release a TCAM index
  * @hw: pointer to the HW struct
  * @blk: hardware block
@@ -3062,6 +3192,117 @@ ice_rem_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig,
 		} while (vsi_cur);
 
 	return ice_vsig_free(hw, blk, vsig);
+}
+
+/**
+ * ice_rem_prof_id_vsig - remove a specific profile from a VSIG
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @vsig: VSIG to remove the profile from
+ * @hdl: profile handle indicating which profile to remove
+ * @chg: list to receive a record of changes
+ */
+static enum ice_status
+ice_rem_prof_id_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig, u64 hdl,
+		     struct list_head *chg)
+{
+	u16 idx = vsig & ICE_VSIG_IDX_M;
+	struct ice_vsig_prof *p, *t;
+	enum ice_status status;
+
+	list_for_each_entry_safe(p, t,
+				 &hw->blk[blk].xlt2.vsig_tbl[idx].prop_lst,
+				 list)
+		if (p->profile_cookie == hdl) {
+			if (ice_vsig_prof_id_count(hw, blk, vsig) == 1)
+				/* this is the last profile, remove the VSIG */
+				return ice_rem_vsig(hw, blk, vsig, chg);
+
+			status = ice_rem_prof_id(hw, blk, p);
+			if (!status) {
+				list_del(&p->list);
+				devm_kfree(ice_hw_to_dev(hw), p);
+			}
+			return status;
+		}
+
+	return ICE_ERR_DOES_NOT_EXIST;
+}
+
+/**
+ * ice_rem_flow_all - remove all flows with a particular profile
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @id: profile tracking ID
+ */
+static enum ice_status
+ice_rem_flow_all(struct ice_hw *hw, enum ice_block blk, u64 id)
+{
+	struct ice_chs_chg *del, *tmp;
+	enum ice_status status;
+	struct list_head chg;
+	u16 i;
+
+	INIT_LIST_HEAD(&chg);
+
+	for (i = 1; i < ICE_MAX_VSIGS; i++)
+		if (hw->blk[blk].xlt2.vsig_tbl[i].in_use) {
+			if (ice_has_prof_vsig(hw, blk, i, id)) {
+				status = ice_rem_prof_id_vsig(hw, blk, i, id,
+							      &chg);
+				if (status)
+					goto err_ice_rem_flow_all;
+			}
+		}
+
+	status = ice_upd_prof_hw(hw, blk, &chg);
+
+err_ice_rem_flow_all:
+	list_for_each_entry_safe(del, tmp, &chg, list_entry) {
+		list_del(&del->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), del);
+	}
+
+	return status;
+}
+
+/**
+ * ice_rem_prof - remove profile
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @id: profile tracking ID
+ *
+ * This will remove the profile specified by the ID parameter, which was
+ * previously created through ice_add_prof. If any existing entries
+ * are associated with this profile, they will be removed as well.
+ */
+enum ice_status ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id)
+{
+	struct ice_prof_map *pmap;
+	enum ice_status status;
+
+	mutex_lock(&hw->blk[blk].es.prof_map_lock);
+
+	pmap = ice_search_prof_id_low(hw, blk, id);
+	if (!pmap) {
+		status = ICE_ERR_DOES_NOT_EXIST;
+		goto err_ice_rem_prof;
+	}
+
+	/* remove all flows with this profile */
+	status = ice_rem_flow_all(hw, blk, pmap->profile_cookie);
+	if (status)
+		goto err_ice_rem_prof;
+
+	/* dereference profile, and possibly remove */
+	ice_prof_dec_ref(hw, blk, pmap->prof_id);
+
+	list_del(&pmap->list);
+	devm_kfree(ice_hw_to_dev(hw), pmap);
+
+err_ice_rem_prof:
+	mutex_unlock(&hw->blk[blk].es.prof_map_lock);
+	return status;
 }
 
 /**
@@ -3708,6 +3949,159 @@ err_ice_add_prof_id_flow:
 	}
 
 	list_for_each_entry_safe(del1, tmp1, &union_lst, list) {
+		list_del(&del1->list);
+		devm_kfree(ice_hw_to_dev(hw), del1);
+	}
+
+	return status;
+}
+
+/**
+ * ice_rem_prof_from_list - remove a profile from list
+ * @hw: pointer to the HW struct
+ * @lst: list to remove the profile from
+ * @hdl: the profile handle indicating the profile to remove
+ */
+static enum ice_status
+ice_rem_prof_from_list(struct ice_hw *hw, struct list_head *lst, u64 hdl)
+{
+	struct ice_vsig_prof *ent, *tmp;
+
+	list_for_each_entry_safe(ent, tmp, lst, list)
+		if (ent->profile_cookie == hdl) {
+			list_del(&ent->list);
+			devm_kfree(ice_hw_to_dev(hw), ent);
+			return 0;
+		}
+
+	return ICE_ERR_DOES_NOT_EXIST;
+}
+
+/**
+ * ice_rem_prof_id_flow - remove flow
+ * @hw: pointer to the HW struct
+ * @blk: hardware block
+ * @vsi: the VSI from which to remove the profile specified by ID
+ * @hdl: profile tracking handle
+ *
+ * Calling this function will update the hardware tables to remove the
+ * profile indicated by the ID parameter for the VSIs specified in the VSI
+ * array. Once successfully called, the flow will be disabled.
+ */
+enum ice_status
+ice_rem_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl)
+{
+	struct ice_vsig_prof *tmp1, *del1;
+	struct ice_chs_chg *tmp, *del;
+	struct list_head chg, copy;
+	enum ice_status status;
+	u16 vsig;
+
+	INIT_LIST_HEAD(&copy);
+	INIT_LIST_HEAD(&chg);
+
+	/* determine if VSI is already part of a VSIG */
+	status = ice_vsig_find_vsi(hw, blk, vsi, &vsig);
+	if (!status && vsig) {
+		bool last_profile;
+		bool only_vsi;
+		u16 ref;
+
+		/* found in VSIG */
+		last_profile = ice_vsig_prof_id_count(hw, blk, vsig) == 1;
+		status = ice_vsig_get_ref(hw, blk, vsig, &ref);
+		if (status)
+			goto err_ice_rem_prof_id_flow;
+		only_vsi = (ref == 1);
+
+		if (only_vsi) {
+			/* If the original VSIG only contains one reference,
+			 * which will be the requesting VSI, then the VSI is not
+			 * sharing entries and we can simply remove the specific
+			 * characteristics from the VSIG.
+			 */
+
+			if (last_profile) {
+				/* If there are no profiles left for this VSIG,
+				 * then simply remove the the VSIG.
+				 */
+				status = ice_rem_vsig(hw, blk, vsig, &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+			} else {
+				status = ice_rem_prof_id_vsig(hw, blk, vsig,
+							      hdl, &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+
+				/* Adjust priorities */
+				status = ice_adj_prof_priorities(hw, blk, vsig,
+								 &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+			}
+
+		} else {
+			/* Make a copy of the VSIG's list of Profiles */
+			status = ice_get_profs_vsig(hw, blk, vsig, &copy);
+			if (status)
+				goto err_ice_rem_prof_id_flow;
+
+			/* Remove specified profile entry from the list */
+			status = ice_rem_prof_from_list(hw, &copy, hdl);
+			if (status)
+				goto err_ice_rem_prof_id_flow;
+
+			if (list_empty(&copy)) {
+				status = ice_move_vsi(hw, blk, vsi,
+						      ICE_DEFAULT_VSIG, &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+
+			} else if (!ice_find_dup_props_vsig(hw, blk, &copy,
+							    &vsig)) {
+				/* found an exact match */
+				/* add or move VSI to the VSIG that matches */
+				/* Search for a VSIG with a matching profile
+				 * list
+				 */
+
+				/* Found match, move VSI to the matching VSIG */
+				status = ice_move_vsi(hw, blk, vsi, vsig, &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+			} else {
+				/* since no existing VSIG supports this
+				 * characteristic pattern, we need to create a
+				 * new VSIG and TCAM entries
+				 */
+				status = ice_create_vsig_from_lst(hw, blk, vsi,
+								  &copy, &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+
+				/* Adjust priorities */
+				status = ice_adj_prof_priorities(hw, blk, vsig,
+								 &chg);
+				if (status)
+					goto err_ice_rem_prof_id_flow;
+			}
+		}
+	} else {
+		status = ICE_ERR_DOES_NOT_EXIST;
+	}
+
+	/* update hardware tables */
+	if (!status)
+		status = ice_upd_prof_hw(hw, blk, &chg);
+
+err_ice_rem_prof_id_flow:
+	list_for_each_entry_safe(del, tmp, &chg, list_entry) {
+		list_del(&del->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), del);
+	}
+
+	list_for_each_entry_safe(del1, tmp1, &copy, list) {
 		list_del(&del1->list);
 		devm_kfree(ice_hw_to_dev(hw), del1);
 	}

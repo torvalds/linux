@@ -4,6 +4,7 @@
 #ifndef _ICE_FLOW_H_
 #define _ICE_FLOW_H_
 
+#define ICE_FLOW_ENTRY_HANDLE_INVAL	0
 #define ICE_FLOW_FLD_OFF_INVAL		0xffff
 
 /* Generate flow hash field from flow field type(s) */
@@ -58,6 +59,12 @@ enum ice_flow_field {
 
 enum ice_flow_dir {
 	ICE_FLOW_RX		= 0x02,
+};
+
+enum ice_flow_priority {
+	ICE_FLOW_PRIO_LOW,
+	ICE_FLOW_PRIO_NORMAL,
+	ICE_FLOW_PRIO_HIGH
 };
 
 #define ICE_FLOW_SEG_MAX		2
@@ -130,7 +137,10 @@ struct ice_rss_cfg {
 	u32 packet_hdr;
 };
 
+enum ice_status ice_flow_rem_entry(struct ice_hw *hw, u64 entry_h);
+void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
+enum ice_status ice_rem_vsi_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 		u32 addl_hdrs);
