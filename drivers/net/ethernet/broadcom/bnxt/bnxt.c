@@ -11373,7 +11373,7 @@ int bnxt_get_port_parent_id(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	/* The PF and it's VF-reps only support the switchdev framework */
-	if (!BNXT_PF(bp))
+	if (!BNXT_PF(bp) || !(bp->flags & BNXT_FLAG_DSN_VALID))
 		return -EOPNOTSUPP;
 
 	ppid->id_len = sizeof(bp->switch_id);
@@ -11746,6 +11746,7 @@ static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
 	put_unaligned_le32(dw, &dsn[0]);
 	pci_read_config_dword(pdev, pos + 4, &dw);
 	put_unaligned_le32(dw, &dsn[4]);
+	bp->flags |= BNXT_FLAG_DSN_VALID;
 	return 0;
 }
 
@@ -11857,9 +11858,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (BNXT_PF(bp)) {
 		/* Read the adapter's DSN to use as the eswitch switch_id */
-		rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
-		if (rc)
-			goto init_err_pci_clean;
+		bnxt_pcie_dsn_get(bp, bp->switch_id);
 	}
 
 	/* MTU range: 60 - FW defined max */
