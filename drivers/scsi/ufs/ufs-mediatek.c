@@ -382,11 +382,60 @@ static void ufs_mtk_device_reset(struct ufs_hba *hba)
 	dev_info(hba->dev, "device reset done\n");
 }
 
+static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
+{
+	int err;
+
+	err = ufshcd_hba_enable(hba);
+	if (err)
+		return err;
+
+	err = ufshcd_dme_set(hba,
+			     UIC_ARG_MIB_SEL(VS_UNIPROPOWERDOWNCONTROL, 0),
+			     0);
+	if (err)
+		return err;
+
+	err = ufshcd_uic_hibern8_exit(hba);
+	if (!err)
+		ufshcd_set_link_active(hba);
+	else
+		return err;
+
+	err = ufshcd_make_hba_operational(hba);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int ufs_mtk_link_set_lpm(struct ufs_hba *hba)
+{
+	int err;
+
+	err = ufshcd_dme_set(hba,
+			     UIC_ARG_MIB_SEL(VS_UNIPROPOWERDOWNCONTROL, 0),
+			     1);
+	if (err) {
+		/* Resume UniPro state for following error recovery */
+		ufshcd_dme_set(hba,
+			       UIC_ARG_MIB_SEL(VS_UNIPROPOWERDOWNCONTROL, 0),
+			       0);
+		return err;
+	}
+
+	return 0;
+}
+
 static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
+	int err;
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	if (ufshcd_is_link_hibern8(hba)) {
+		err = ufs_mtk_link_set_lpm(hba);
+		if (err)
+			return -EAGAIN;
 		phy_power_off(host->mphy);
 		ufs_mtk_setup_ref_clk(hba, false);
 	}
@@ -397,10 +446,14 @@ static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 static int ufs_mtk_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	int err;
 
 	if (ufshcd_is_link_hibern8(hba)) {
 		ufs_mtk_setup_ref_clk(hba, true);
 		phy_power_on(host->mphy);
+		err = ufs_mtk_link_set_hpm(hba);
+		if (err)
+			return err;
 	}
 
 	return 0;
