@@ -499,7 +499,6 @@ struct io_kiocb {
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_LINK_NEXT		8	/* already grabbed next link */
 #define REQ_F_IO_DRAIN		16	/* drain existing IO first */
-#define REQ_F_IO_DRAINED	32	/* drain done */
 #define REQ_F_LINK		64	/* linked sqes */
 #define REQ_F_LINK_TIMEOUT	128	/* has linked timeout */
 #define REQ_F_FAIL_LINK		256	/* fail rest of links */
@@ -817,7 +816,7 @@ static inline bool __req_need_defer(struct io_kiocb *req)
 
 static inline bool req_need_defer(struct io_kiocb *req)
 {
-	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) == REQ_F_IO_DRAIN)
+	if (unlikely(req->flags & REQ_F_IO_DRAIN))
 		return __req_need_defer(req);
 
 	return false;
@@ -939,10 +938,8 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 
 	__io_commit_cqring(ctx);
 
-	while ((req = io_get_deferred_req(ctx)) != NULL) {
-		req->flags |= REQ_F_IO_DRAINED;
+	while ((req = io_get_deferred_req(ctx)) != NULL)
 		io_queue_async_work(req);
-	}
 }
 
 static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
