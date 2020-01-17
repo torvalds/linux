@@ -576,8 +576,9 @@ static inline bool ct_header_is_response(u32 header)
 	return !!(header & GUC_CT_MSG_IS_RESPONSE);
 }
 
-static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
+static int ct_read(struct intel_guc_ct *ct, u32 *data)
 {
+	struct intel_guc_ct_buffer *ctb = &ct->ctbs[CTB_RECV];
 	struct guc_ct_buffer_desc *desc = ctb->desc;
 	u32 head = desc->head;
 	u32 tail = desc->tail;
@@ -830,7 +831,6 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
  */
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 {
-	struct intel_guc_ct_buffer *ctb = &ct->ctbs[CTB_RECV];
 	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
 	int err = 0;
 
@@ -840,7 +840,7 @@ void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 	}
 
 	do {
-		err = ctb_read(ctb, msg);
+		err = ct_read(ct, msg);
 		if (err)
 			break;
 
