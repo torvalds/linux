@@ -1055,8 +1055,7 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 		level = n_entries - 1;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (IS_GEN9_BC(dev_priv) &&
-	    dev_priv->vbt.ddi_port_info[port].hdmi_boost_level)
+	if (IS_GEN9_BC(dev_priv) && intel_bios_hdmi_boost_level(encoder))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	/* Entry 9 is for HDMI: */
@@ -2341,7 +2340,7 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 	u8 iboost;
 
 	if (type == INTEL_OUTPUT_HDMI)
-		iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
+		iboost = intel_bios_hdmi_boost_level(encoder);
 	else
 		iboost = intel_bios_dp_boost_level(encoder);
 

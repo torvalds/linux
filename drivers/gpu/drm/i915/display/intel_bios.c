@@ -2585,3 +2585,10 @@ int intel_bios_dp_boost_level(struct intel_encoder *encoder)
 
 	return i915->vbt.ddi_port_info[encoder->port].dp_boost_level;
 }
+
+int intel_bios_hdmi_boost_level(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	return i915->vbt.ddi_port_info[encoder->port].hdmi_boost_level;
+}

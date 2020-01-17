@@ -250,5 +250,6 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 int intel_bios_max_tmds_clock(struct intel_encoder *encoder);
 int intel_bios_hdmi_level_shift(struct intel_encoder *encoder);
 int intel_bios_dp_boost_level(struct intel_encoder *encoder);
+int intel_bios_hdmi_boost_level(struct intel_encoder *encoder);
 
 #endif /* _INTEL_BIOS_H_ */
