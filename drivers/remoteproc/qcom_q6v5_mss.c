@@ -113,7 +113,7 @@
 #define QDSP6SS_BOOT_CORE_START         0x400
 #define QDSP6SS_BOOT_CMD                0x404
 #define QDSP6SS_BOOT_STATUS		0x408
-#define SLEEP_CHECK_MAX_LOOPS           200
+#define BOOT_STATUS_TIMEOUT_US		200
 #define BOOT_FSM_TIMEOUT                10000
 
 struct reg_info {
@@ -571,7 +571,7 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 		/* Poll the QDSP6SS_BOOT_STATUS for FSM completion */
 		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_BOOT_STATUS,
 					 val, (val & BIT(0)) != 0, 1,
-					 SLEEP_CHECK_MAX_LOOPS);
+					 BOOT_STATUS_TIMEOUT_US);
 		if (ret) {
 			dev_err(qproc->dev, "Boot FSM failed to complete.\n");
 			/* Reset the modem so that boot FSM is in reset state */
