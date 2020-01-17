@@ -123,13 +123,9 @@ static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
 static void poly1305_simd_emit(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
 			       const u32 nonce[4])
 {
-	struct poly1305_arch_internal *state = ctx;
-
-	if (!IS_ENABLED(CONFIG_AS_AVX) || !static_branch_likely(&poly1305_use_avx) ||
-	    !state->is_base2_26 || !crypto_simd_usable()) {
-		convert_to_base2_64(ctx);
+	if (!IS_ENABLED(CONFIG_AS_AVX) || !static_branch_likely(&poly1305_use_avx))
 		poly1305_emit_x86_64(ctx, mac, nonce);
-	} else
+	else
 		poly1305_emit_avx(ctx, mac, nonce);
 }
 
