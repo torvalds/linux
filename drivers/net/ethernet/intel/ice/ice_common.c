@@ -1573,6 +1573,39 @@ ice_alloc_res_exit:
 }
 
 /**
+ * ice_free_hw_res - free allocated HW resource
+ * @hw: pointer to the HW struct
+ * @type: type of resource to free
+ * @num: number of resources
+ * @res: pointer to array that contains the resources to free
+ */
+enum ice_status
+ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	buf_len = struct_size(buf, elem, num - 1);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Prepare buffer to free resource. */
+	buf->num_elems = cpu_to_le16(num);
+	buf->res_type = cpu_to_le16(type);
+	memcpy(buf->elem, res, sizeof(buf->elem) * num);
+
+	status = ice_aq_alloc_free_res(hw, num, buf, buf_len,
+				       ice_aqc_opc_free_res, NULL);
+	if (status)
+		ice_debug(hw, ICE_DBG_SW, "CQ CMD Buffer:\n");
+
+	kfree(buf);
+	return status;
+}
+
+/**
  * ice_get_num_per_func - determine number of resources per PF
  * @hw: pointer to the HW structure
  * @max: value to be evenly split between each PF

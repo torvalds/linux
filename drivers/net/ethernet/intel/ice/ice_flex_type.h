@@ -283,6 +283,7 @@ struct ice_ptg_ptype {
 	u8 ptg;
 };
 
+#define ICE_MAX_TCAM_PER_PROFILE	32
 #define ICE_MAX_PTG_PER_PROFILE		32
 
 struct ice_prof_map {
@@ -292,6 +293,23 @@ struct ice_prof_map {
 	u8 prof_id;
 	u8 ptg_cnt;
 	u8 ptg[ICE_MAX_PTG_PER_PROFILE];
+};
+
+#define ICE_INVALID_TCAM	0xFFFF
+
+struct ice_tcam_inf {
+	u16 tcam_idx;
+	u8 ptg;
+	u8 prof_id;
+	u8 in_use;
+};
+
+struct ice_vsig_prof {
+	struct list_head list;
+	u64 profile_cookie;
+	u8 prof_id;
+	u8 tcam_count;
+	struct ice_tcam_inf tcam[ICE_MAX_TCAM_PER_PROFILE];
 };
 
 struct ice_vsig_entry {
@@ -343,6 +361,13 @@ struct ice_xlt2 {
 	u16 count;
 };
 
+/* Profile ID Management */
+struct ice_prof_id_key {
+	__le16 flags;
+	u8 xlt1;
+	__le16 xlt2_cdid;
+} __packed;
+
 /* Keys are made up of two values, each one-half the size of the key.
  * For TCAM, the entire key is 80 bits wide (or 2, 40-bit wide values)
  */
@@ -383,6 +408,32 @@ struct ice_blk_info {
 	struct ice_es es;
 	u8 overwrite; /* set to true to allow overwrite of table entries */
 	u8 is_list_init;
+};
+
+enum ice_chg_type {
+	ICE_TCAM_NONE = 0,
+	ICE_PTG_ES_ADD,
+	ICE_TCAM_ADD,
+	ICE_VSIG_ADD,
+	ICE_VSIG_REM,
+	ICE_VSI_MOVE,
+};
+
+struct ice_chs_chg {
+	struct list_head list_entry;
+	enum ice_chg_type type;
+
+	u8 add_ptg;
+	u8 add_vsig;
+	u8 add_tcam_idx;
+	u8 add_prof;
+	u16 ptype;
+	u8 ptg;
+	u8 prof_id;
+	u16 vsi;
+	u16 vsig;
+	u16 orig_vsig;
+	u16 tcam_idx;
 };
 
 #define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT

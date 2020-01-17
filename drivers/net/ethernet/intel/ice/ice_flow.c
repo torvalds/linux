@@ -451,6 +451,38 @@ out:
 }
 
 /**
+ * ice_flow_assoc_prof - associate a VSI with a flow profile
+ * @hw: pointer to the hardware structure
+ * @blk: classification stage
+ * @prof: pointer to flow profile
+ * @vsi_handle: software VSI handle
+ *
+ * Assumption: the caller has acquired the lock to the profile list
+ * and the software VSI handle has been validated
+ */
+static enum ice_status
+ice_flow_assoc_prof(struct ice_hw *hw, enum ice_block blk,
+		    struct ice_flow_prof *prof, u16 vsi_handle)
+{
+	enum ice_status status = 0;
+
+	if (!test_bit(vsi_handle, prof->vsis)) {
+		status = ice_add_prof_id_flow(hw, blk,
+					      ice_get_hw_vsi_num(hw,
+								 vsi_handle),
+					      prof->id);
+		if (!status)
+			set_bit(vsi_handle, prof->vsis);
+		else
+			ice_debug(hw, ICE_DBG_FLOW,
+				  "HW profile add failed, %d\n",
+				  status);
+	}
+
+	return status;
+}
+
+/**
  * ice_flow_add_prof - Add a flow profile for packet segments and matched fields
  * @hw: pointer to the HW struct
  * @blk: classification stage
@@ -458,12 +490,13 @@ out:
  * @prof_id: unique ID to identify this flow profile
  * @segs: array of one or more packet segments that describe the flow
  * @segs_cnt: number of packet segments provided
+ * @prof: stores the returned flow profile added
  */
 static enum ice_status
 ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
-		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt)
+		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt,
+		  struct ice_flow_prof **prof)
 {
-	struct ice_flow_prof *prof = NULL;
 	enum ice_status status;
 
 	if (segs_cnt > ICE_FLOW_SEG_MAX)
@@ -482,9 +515,9 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 	mutex_lock(&hw->fl_profs_locks[blk]);
 
 	status = ice_flow_add_prof_sync(hw, blk, dir, prof_id, segs, segs_cnt,
-					&prof);
+					prof);
 	if (!status)
-		list_add(&prof->l_entry, &hw->fl_profs[blk]);
+		list_add(&(*prof)->l_entry, &hw->fl_profs[blk]);
 
 	mutex_unlock(&hw->fl_profs_locks[blk]);
 
@@ -634,6 +667,7 @@ ice_flow_set_rss_seg_info(struct ice_flow_seg_info *segs, u64 hash_fields,
 /**
  * ice_add_rss_cfg_sync - add an RSS configuration
  * @hw: pointer to the hardware structure
+ * @vsi_handle: software VSI handle
  * @hashed_flds: hash bit fields (ICE_FLOW_HASH_*) to configure
  * @addl_hdrs: protocol header fields
  * @segs_cnt: packet segment count
@@ -641,9 +675,11 @@ ice_flow_set_rss_seg_info(struct ice_flow_seg_info *segs, u64 hash_fields,
  * Assumption: lock has already been acquired for RSS list
  */
 static enum ice_status
-ice_add_rss_cfg_sync(struct ice_hw *hw, u64 hashed_flds, u32 addl_hdrs,
-		     u8 segs_cnt)
+ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
+		     u32 addl_hdrs, u8 segs_cnt)
 {
+	const enum ice_block blk = ICE_BLK_RSS;
+	struct ice_flow_prof *prof = NULL;
 	struct ice_flow_seg_info *segs;
 	enum ice_status status;
 
@@ -663,11 +699,15 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u64 hashed_flds, u32 addl_hdrs,
 	/* Create a new flow profile with generated profile and packet
 	 * segment information.
 	 */
-	status = ice_flow_add_prof(hw, ICE_BLK_RSS, ICE_FLOW_RX,
+	status = ice_flow_add_prof(hw, blk, ICE_FLOW_RX,
 				   ICE_FLOW_GEN_PROFID(hashed_flds,
 						       segs[segs_cnt - 1].hdrs,
 						       segs_cnt),
-				   segs, segs_cnt);
+				   segs, segs_cnt, &prof);
+	if (status)
+		goto exit;
+
+	status = ice_flow_assoc_prof(hw, blk, prof, vsi_handle);
 
 exit:
 	kfree(segs);
@@ -696,7 +736,7 @@ ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds,
 		return ICE_ERR_PARAM;
 
 	mutex_lock(&hw->rss_locks);
-	status = ice_add_rss_cfg_sync(hw, hashed_flds, addl_hdrs,
+	status = ice_add_rss_cfg_sync(hw, vsi_handle, hashed_flds, addl_hdrs,
 				      ICE_RSS_OUTER_HEADERS);
 	mutex_unlock(&hw->rss_locks);
 
@@ -719,7 +759,8 @@ enum ice_status ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle)
 	mutex_lock(&hw->rss_locks);
 	list_for_each_entry(r, &hw->rss_list_head, l_entry) {
 		if (test_bit(vsi_handle, r->vsis)) {
-			status = ice_add_rss_cfg_sync(hw, r->hashed_flds,
+			status = ice_add_rss_cfg_sync(hw, vsi_handle,
+						      r->hashed_flds,
 						      r->packet_hdr,
 						      ICE_RSS_OUTER_HEADERS);
 			if (status)

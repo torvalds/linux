@@ -36,6 +36,8 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);
 enum ice_status
 ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res);
+enum ice_status
+ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res);
 enum ice_status ice_init_nvm(struct ice_hw *hw);
 enum ice_status
 ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data);
