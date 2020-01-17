@@ -1856,6 +1856,7 @@ enum ice_adminq_opc {
 
 	/* package commands */
 	ice_aqc_opc_download_pkg			= 0x0C40,
+	ice_aqc_opc_update_pkg				= 0x0C42,
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
 
 	/* debug commands */

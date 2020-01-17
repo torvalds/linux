@@ -108,37 +108,57 @@ struct ice_buf_hdr {
 	sizeof(struct ice_buf_hdr) - (hd_sz)) / (ent_sz))
 
 /* ice package section IDs */
+#define ICE_SID_XLT0_SW			10
+#define ICE_SID_XLT_KEY_BUILDER_SW	11
 #define ICE_SID_XLT1_SW			12
 #define ICE_SID_XLT2_SW			13
 #define ICE_SID_PROFID_TCAM_SW		14
 #define ICE_SID_PROFID_REDIR_SW		15
 #define ICE_SID_FLD_VEC_SW		16
+#define ICE_SID_CDID_KEY_BUILDER_SW	17
+#define ICE_SID_CDID_REDIR_SW		18
 
+#define ICE_SID_XLT0_ACL		20
+#define ICE_SID_XLT_KEY_BUILDER_ACL	21
 #define ICE_SID_XLT1_ACL		22
 #define ICE_SID_XLT2_ACL		23
 #define ICE_SID_PROFID_TCAM_ACL		24
 #define ICE_SID_PROFID_REDIR_ACL	25
 #define ICE_SID_FLD_VEC_ACL		26
+#define ICE_SID_CDID_KEY_BUILDER_ACL	27
+#define ICE_SID_CDID_REDIR_ACL		28
 
+#define ICE_SID_XLT0_FD			30
+#define ICE_SID_XLT_KEY_BUILDER_FD	31
 #define ICE_SID_XLT1_FD			32
 #define ICE_SID_XLT2_FD			33
 #define ICE_SID_PROFID_TCAM_FD		34
 #define ICE_SID_PROFID_REDIR_FD		35
 #define ICE_SID_FLD_VEC_FD		36
+#define ICE_SID_CDID_KEY_BUILDER_FD	37
+#define ICE_SID_CDID_REDIR_FD		38
 
+#define ICE_SID_XLT0_RSS		40
+#define ICE_SID_XLT_KEY_BUILDER_RSS	41
 #define ICE_SID_XLT1_RSS		42
 #define ICE_SID_XLT2_RSS		43
 #define ICE_SID_PROFID_TCAM_RSS		44
 #define ICE_SID_PROFID_REDIR_RSS	45
 #define ICE_SID_FLD_VEC_RSS		46
+#define ICE_SID_CDID_KEY_BUILDER_RSS	47
+#define ICE_SID_CDID_REDIR_RSS		48
 
 #define ICE_SID_RXPARSER_BOOST_TCAM	56
 
+#define ICE_SID_XLT0_PE			80
+#define ICE_SID_XLT_KEY_BUILDER_PE	81
 #define ICE_SID_XLT1_PE			82
 #define ICE_SID_XLT2_PE			83
 #define ICE_SID_PROFID_TCAM_PE		84
 #define ICE_SID_PROFID_REDIR_PE		85
 #define ICE_SID_FLD_VEC_PE		86
+#define ICE_SID_CDID_KEY_BUILDER_PE	87
+#define ICE_SID_CDID_REDIR_PE		88
 
 /* Label Metadata section IDs */
 #define ICE_SID_LBL_FIRST		0x80000010
@@ -153,6 +173,19 @@ enum ice_block {
 	ICE_BLK_RSS,
 	ICE_BLK_PE,
 	ICE_BLK_COUNT
+};
+
+enum ice_sect {
+	ICE_XLT0 = 0,
+	ICE_XLT_KB,
+	ICE_XLT1,
+	ICE_XLT2,
+	ICE_PROF_TCAM,
+	ICE_PROF_REDIR,
+	ICE_VEC_TBL,
+	ICE_CDID_KB,
+	ICE_CDID_REDIR,
+	ICE_SECT_COUNT
 };
 
 /* package labels */
@@ -237,6 +270,13 @@ struct ice_prof_redir_section {
 	u8 redir_value[1];
 };
 
+/* package buffer building */
+
+struct ice_buf_build {
+	struct ice_buf buf;
+	u16 reserved_section_table_entries;
+};
+
 struct ice_pkg_enum {
 	struct ice_buf_table *buf_table;
 	u32 buf_idx;
@@ -249,6 +289,12 @@ struct ice_pkg_enum {
 
 	u32 entry_idx;
 	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
+};
+
+struct ice_pkg_es {
+	__le16 count;
+	__le16 offset;
+	struct ice_fv_word es[1];
 };
 
 struct ice_es {
