@@ -85,11 +85,11 @@
 /**
  * struct rc_map_table - represents a scancode/keycode pair
  *
- * @scancode: scan code (u32)
+ * @scancode: scan code (u64)
  * @keycode: Linux input keycode
  */
 struct rc_map_table {
-	u32	scancode;
+	u64	scancode;
 	u32	keycode;
 };
 
