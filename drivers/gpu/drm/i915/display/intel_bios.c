@@ -2236,9 +2236,7 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 		const struct ddi_vbt_port_info *port_info =
 			&dev_priv->vbt.ddi_port_info[port];
 
-		return port_info->supports_dp ||
-		       port_info->supports_dvi ||
-		       port_info->supports_hdmi;
+		return port_info->child;
 	}
 
 	/* FIXME maybe deal with port A as well? */
