@@ -572,6 +572,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	return 0;
 }
 
+#define enable_flag(x) (x)
+#define disable_flag(x) 0
+#define enable_flag_if(x, cond) ((cond) ? (x) : 0)
+
 static u32 i801_func(struct i2c_adapter *adapter)
 {
 	struct i2c_device *priv = i2c_get_adapdata(adapter);
@@ -588,42 +592,42 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	// http://lxr.free-electrons.com/source/include/uapi/linux/i2c.h#L85
 
 	u32 f =
-		I2C_FUNC_I2C                     | /* 0x00000001(I enabled this
-						    * one)
-						    */
-		!I2C_FUNC_10BIT_ADDR             |		/* 0x00000002 */
-		!I2C_FUNC_PROTOCOL_MANGLING      |		/* 0x00000004 */
-		((priv->features & FEATURE_SMBUS_PEC) ?
-			I2C_FUNC_SMBUS_PEC : 0)  |		/* 0x00000008 */
-		!I2C_FUNC_SMBUS_BLOCK_PROC_CALL  |		/* 0x00008000 */
-		I2C_FUNC_SMBUS_QUICK             |		/* 0x00010000 */
-		!I2C_FUNC_SMBUS_READ_BYTE	 |		/* 0x00020000 */
-		!I2C_FUNC_SMBUS_WRITE_BYTE       |		/* 0x00040000 */
-		!I2C_FUNC_SMBUS_READ_BYTE_DATA   |		/* 0x00080000 */
-		!I2C_FUNC_SMBUS_WRITE_BYTE_DATA  |		/* 0x00100000 */
-		!I2C_FUNC_SMBUS_READ_WORD_DATA   |		/* 0x00200000 */
-		!I2C_FUNC_SMBUS_WRITE_WORD_DATA  |		/* 0x00400000 */
-		!I2C_FUNC_SMBUS_PROC_CALL        |		/* 0x00800000 */
-		!I2C_FUNC_SMBUS_READ_BLOCK_DATA  |		/* 0x01000000 */
-		!I2C_FUNC_SMBUS_WRITE_BLOCK_DATA |		/* 0x02000000 */
-		((priv->features & FEATURE_I2C_BLOCK_READ) ?
-			I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0) |	/* 0x04000000 */
-		I2C_FUNC_SMBUS_WRITE_I2C_BLOCK   |		/* 0x08000000 */
+		enable_flag(I2C_FUNC_I2C) | /* 0x00000001(I enabled this one) */
+		disable_flag(I2C_FUNC_10BIT_ADDR)             | /* 0x00000002 */
+		disable_flag(I2C_FUNC_PROTOCOL_MANGLING)      | /* 0x00000004 */
+		enable_flag_if(I2C_FUNC_SMBUS_PEC,
+			       priv->features & FEATURE_SMBUS_PEC) |
+								/* 0x00000008 */
+		disable_flag(I2C_FUNC_SMBUS_BLOCK_PROC_CALL)  | /* 0x00008000 */
+		enable_flag(I2C_FUNC_SMBUS_QUICK)             | /* 0x00010000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BYTE)	      |	/* 0x00020000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BYTE)       |	/* 0x00040000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BYTE_DATA)   |	/* 0x00080000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BYTE_DATA)  |	/* 0x00100000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_WORD_DATA)   |	/* 0x00200000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_WORD_DATA)  |	/* 0x00400000 */
+		disable_flag(I2C_FUNC_SMBUS_PROC_CALL)        |	/* 0x00800000 */
+		disable_flag(I2C_FUNC_SMBUS_READ_BLOCK_DATA)  |	/* 0x01000000 */
+		disable_flag(I2C_FUNC_SMBUS_WRITE_BLOCK_DATA) |	/* 0x02000000 */
+		enable_flag_if(I2C_FUNC_SMBUS_READ_I2C_BLOCK,
+			       priv->features & FEATURE_I2C_BLOCK_READ) |
+								/* 0x04000000 */
+		enable_flag(I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)   |	/* 0x08000000 */
 
-		I2C_FUNC_SMBUS_BYTE              | /* _READ_BYTE  _WRITE_BYTE */
-		I2C_FUNC_SMBUS_BYTE_DATA         | /* _READ_BYTE_DATA
-						    * _WRITE_BYTE_DATA
-						    */
-		I2C_FUNC_SMBUS_WORD_DATA         | /* _READ_WORD_DATA
-						    * _WRITE_WORD_DATA
-						    */
-		I2C_FUNC_SMBUS_BLOCK_DATA        | /* _READ_BLOCK_DATA
-						    * _WRITE_BLOCK_DATA
-						    */
-		!I2C_FUNC_SMBUS_I2C_BLOCK        | /* _READ_I2C_BLOCK
-						    * _WRITE_I2C_BLOCK
-						    */
-		!I2C_FUNC_SMBUS_EMUL;              /* _QUICK  _BYTE
+		enable_flag(I2C_FUNC_SMBUS_BYTE) | /* _READ_BYTE  _WRITE_BYTE */
+		enable_flag(I2C_FUNC_SMBUS_BYTE_DATA)  | /* _READ_BYTE_DATA
+							  * _WRITE_BYTE_DATA
+							  */
+		enable_flag(I2C_FUNC_SMBUS_WORD_DATA)  | /* _READ_WORD_DATA
+							  * _WRITE_WORD_DATA
+							  */
+		enable_flag(I2C_FUNC_SMBUS_BLOCK_DATA) | /* _READ_BLOCK_DATA
+							  * _WRITE_BLOCK_DATA
+							  */
+		disable_flag(I2C_FUNC_SMBUS_I2C_BLOCK) | /* _READ_I2C_BLOCK
+							  * _WRITE_I2C_BLOCK
+							  */
+		disable_flag(I2C_FUNC_SMBUS_EMUL); /* _QUICK  _BYTE
 						    * _BYTE_DATA  _WORD_DATA
 						    * _PROC_CALL
 						    * _WRITE_BLOCK_DATA
@@ -631,6 +635,10 @@ static u32 i801_func(struct i2c_adapter *adapter)
 						    */
 	return f;
 }
+
+#undef enable_flag
+#undef disable_flag
+#undef enable_flag_if
 
 static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer     = i801_access,
