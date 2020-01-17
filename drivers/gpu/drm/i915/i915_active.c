@@ -621,6 +621,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	 * We can then use the preallocated nodes in
 	 * i915_active_acquire_barrier()
 	 */
+	GEM_BUG_ON(!mask);
 	for_each_engine_masked(engine, gt, mask, tmp) {
 		u64 idx = engine->kernel_context->timeline->fence_context;
 		struct active_node *node;
