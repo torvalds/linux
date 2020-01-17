@@ -14,7 +14,7 @@
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_MAX_NUM_SCANNED_CH			14
 
-struct assoc_resp {
+struct wilc_assoc_resp {
 	__le16 capab_info;
 	__le16 status_code;
 	__le16 aid;

@@ -552,7 +552,7 @@ static s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 {
 	u8 *ies;
 	u16 ies_len;
-	struct assoc_resp *res = (struct assoc_resp *)buffer;
+	struct wilc_assoc_resp *res = (struct wilc_assoc_resp *)buffer;
 
 	ret_conn_info->status = le16_to_cpu(res->status_code);
 	if (ret_conn_info->status == WLAN_STATUS_SUCCESS) {
