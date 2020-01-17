@@ -88,7 +88,7 @@ static int max98090_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	int ret;
 
 	max98090_shdn_save(max98090);
-	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+	ret = snd_soc_dapm_put_enum_double_locked(kcontrol, ucontrol);
 	max98090_shdn_restore(max98090);
 
 	return ret;
