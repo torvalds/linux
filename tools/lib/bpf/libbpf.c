@@ -2297,16 +2297,18 @@ static int bpf_object__init_btf(struct bpf_object *obj,
 				Elf_Data *btf_data,
 				Elf_Data *btf_ext_data)
 {
-	bool btf_required = bpf_object__is_btf_mandatory(obj);
-	int err = 0;
+	int err = -ENOENT;
 
 	if (btf_data) {
 		obj->btf = btf__new(btf_data->d_buf, btf_data->d_size);
 		if (IS_ERR(obj->btf)) {
+			err = PTR_ERR(obj->btf);
+			obj->btf = NULL;
 			pr_warn("Error loading ELF section %s: %d.\n",
 				BTF_ELF_SEC, err);
 			goto out;
 		}
+		err = 0;
 	}
 	if (btf_ext_data) {
 		if (!obj->btf) {
@@ -2324,18 +2326,9 @@ static int bpf_object__init_btf(struct bpf_object *obj,
 		}
 	}
 out:
-	if (err || IS_ERR(obj->btf)) {
-		if (btf_required)
-			err = err ? : PTR_ERR(obj->btf);
-		else
-			err = 0;
-		if (!IS_ERR_OR_NULL(obj->btf))
-			btf__free(obj->btf);
-		obj->btf = NULL;
-	}
-	if (btf_required && !obj->btf) {
+	if (err && bpf_object__is_btf_mandatory(obj)) {
 		pr_warn("BTF is required, but is missing or corrupted.\n");
-		return err == 0 ? -ENOENT : err;
+		return err;
 	}
 	return 0;
 }
