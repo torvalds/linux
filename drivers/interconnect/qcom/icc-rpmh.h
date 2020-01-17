@@ -26,11 +26,12 @@ struct qcom_icc_provider {
 	struct device *dev;
 	struct qcom_icc_bcm **bcms;
 	size_t num_bcms;
-	struct bcm_voter *voter;
 	struct list_head probe_list;
 	struct regmap *regmap;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	struct bcm_voter **voters;
+	size_t num_voters;
 };
 
 /**
@@ -111,6 +112,7 @@ struct qcom_icc_bcm {
 	struct bcm_db aux_data;
 	struct list_head list;
 	struct list_head ws_list;
+	int voter_idx;
 	size_t num_nodes;
 	struct qcom_icc_node *nodes[];
 };
@@ -126,6 +128,8 @@ struct qcom_icc_desc {
 	size_t num_nodes;
 	struct qcom_icc_bcm **bcms;
 	size_t num_bcms;
+	char **voters;
+	size_t num_voters;
 };
 
 #define DEFINE_QNODE(_name, _id, _channels, _buswidth, ...)		\
