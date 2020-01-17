@@ -1213,7 +1213,7 @@ static int inc_block_group_ro(struct btrfs_block_group *cache, int force)
 	 * Here we make sure if we mark this bg RO, we still have enough
 	 * free space as buffer.
 	 */
-	if (sinfo_used + num_bytes <= sinfo->total_bytes) {
+	if (force || (sinfo_used + num_bytes <= sinfo->total_bytes)) {
 		sinfo->bytes_readonly += num_bytes;
 		cache->ro++;
 		list_add_tail(&cache->ro_list, &sinfo->ro_bgs);
@@ -2225,7 +2225,7 @@ again:
 		}
 	}
 
-	ret = inc_block_group_ro(cache, !do_chunk_alloc);
+	ret = inc_block_group_ro(cache, 0);
 	if (!do_chunk_alloc)
 		goto unlock_out;
 	if (!ret)
