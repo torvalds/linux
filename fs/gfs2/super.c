@@ -1273,8 +1273,12 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	 * If there are no other lock holders, we'll get the lock immediately.
 	 * Otherwise, the other nodes holding the lock will be notified about
 	 * our locking request.  If they don't have the inode open, they'll
-	 * evict the cached inode and release the lock.  As a last resort,
-	 * we'll eventually time out.
+	 * evict the cached inode and release the lock.  Otherwise, if they
+	 * poke the inode glock, we'll take this as an indication that they
+	 * still need the iopen glock and that they'll take care of deleting
+	 * the inode when they're done.  As a last resort, if another node
+	 * keeps holding the iopen glock without showing any activity on the
+	 * inode glock, we'll eventually time out.
 	 *
 	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
 	 * locking request as an optimization to notify lock holders as soon as
@@ -1293,7 +1297,8 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 		return false;
 
 	timeout = wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
-		!test_bit(HIF_WAIT, &gh->gh_iflags),
+		!test_bit(HIF_WAIT, &gh->gh_iflags) ||
+		test_bit(GLF_DEMOTE, &ip->i_gl->gl_flags),
 		timeout);
 	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		gfs2_glock_dq(gh);

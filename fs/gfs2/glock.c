@@ -783,6 +783,17 @@ bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation)
 	return generation <= be64_to_cpu(ri->ri_generation_deleted);
 }
 
+static void gfs2_glock_poke(struct gfs2_glock *gl)
+{
+	int flags = LM_FLAG_TRY_1CB | LM_FLAG_ANY | GL_SKIP;
+	struct gfs2_holder gh;
+	int error;
+
+	error = gfs2_glock_nq_init(gl, LM_ST_SHARED, flags, &gh);
+	if (!error)
+		gfs2_glock_dq(&gh);
+}
+
 static bool gfs2_try_evict(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip;
@@ -804,6 +815,8 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 		ip = NULL;
 	spin_unlock(&gl->gl_lockref.lock);
 	if (ip) {
+		struct gfs2_glock *inode_gl = NULL;
+
 		gl->gl_no_formal_ino = ip->i_no_formal_ino;
 		set_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
 		d_prune_aliases(&ip->i_inode);
@@ -812,9 +825,16 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 		/* If the inode was evicted, gl->gl_object will now be NULL. */
 		spin_lock(&gl->gl_lockref.lock);
 		ip = gl->gl_object;
-		if (ip)
+		if (ip) {
+			inode_gl = ip->i_gl;
+			lockref_get(&inode_gl->gl_lockref);
 			clear_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
+		}
 		spin_unlock(&gl->gl_lockref.lock);
+		if (inode_gl) {
+			gfs2_glock_poke(inode_gl);
+			gfs2_glock_put(inode_gl);
+		}
 		evicted = !ip;
 	}
 	return evicted;
@@ -845,12 +865,22 @@ static void delete_work_func(struct work_struct *work)
 		 * has happened.  Otherwise, if we cause contention on the inode glock
 		 * immediately, the remote node will think that we still have
 		 * the inode in use, and so it will give up waiting.
+		 *
+		 * If we can't evict the inode, signal to the remote node that
+		 * the inode is still in use.  We'll later try to delete the
+		 * inode locally in gfs2_evict_inode.
+		 *
+		 * FIXME: We only need to verify that the remote node has
+		 * deleted the inode because nodes before this remote delete
+		 * rework won't cooperate.  At a later time, when we no longer
+		 * care about compatibility with such nodes, we can skip this
+		 * step entirely.
 		 */
 		if (gfs2_try_evict(gl)) {
 			if (gfs2_queue_delete_work(gl, 5 * HZ))
 				return;
-			goto out;
 		}
+		goto out;
 	}
 
 	inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
