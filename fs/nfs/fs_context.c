@@ -779,8 +779,7 @@ out_invalid_value:
 out_invalid_address:
 	return nfs_invalf(fc, "NFS: Bad IP address specified");
 out_of_bounds:
-	nfs_invalf(fc, "NFS: Value for '%s' out of range", param->key);
-	return -ERANGE;
+	return nfs_invalf(fc, "NFS: Value for '%s' out of range", param->key);
 }
 
 /*
