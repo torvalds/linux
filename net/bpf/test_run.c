@@ -253,21 +253,21 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 	/* priority is allowed */
 
 	if (!range_is_zero(__skb, offsetof(struct __sk_buff, priority) +
-			   FIELD_SIZEOF(struct __sk_buff, priority),
+			   sizeof_field(struct __sk_buff, priority),
 			   offsetof(struct __sk_buff, cb)))
 		return -EINVAL;
 
 	/* cb is allowed */
 
 	if (!range_is_zero(__skb, offsetof(struct __sk_buff, cb) +
-			   FIELD_SIZEOF(struct __sk_buff, cb),
+			   sizeof_field(struct __sk_buff, cb),
 			   offsetof(struct __sk_buff, tstamp)))
 		return -EINVAL;
 
 	/* tstamp is allowed */
 
 	if (!range_is_zero(__skb, offsetof(struct __sk_buff, tstamp) +
-			   FIELD_SIZEOF(struct __sk_buff, tstamp),
+			   sizeof_field(struct __sk_buff, tstamp),
 			   sizeof(struct __sk_buff)))
 		return -EINVAL;
 
@@ -438,7 +438,7 @@ static int verify_user_bpf_flow_keys(struct bpf_flow_keys *ctx)
 	/* flags is allowed */
 
 	if (!range_is_zero(ctx, offsetof(struct bpf_flow_keys, flags) +
-			   FIELD_SIZEOF(struct bpf_flow_keys, flags),
+			   sizeof_field(struct bpf_flow_keys, flags),
 			   sizeof(struct bpf_flow_keys)))
 		return -EINVAL;
 

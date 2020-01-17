@@ -442,7 +442,7 @@ int aa_bind_mount(struct aa_label *label, const struct path *path,
 	buffer = aa_get_buffer(false);
 	old_buffer = aa_get_buffer(false);
 	error = -ENOMEM;
-	if (!buffer || old_buffer)
+	if (!buffer || !old_buffer)
 		goto out;
 
 	error = fn_for_each_confined(label, profile,

@@ -17,12 +17,10 @@ static int
 trace_inject_entry(struct trace_event_file *file, void *rec, int len)
 {
 	struct trace_event_buffer fbuffer;
-	struct ring_buffer *buffer;
 	int written = 0;
 	void *entry;
 
 	rcu_read_lock_sched();
-	buffer = file->tr->trace_buffer.buffer;
 	entry = trace_event_buffer_reserve(&fbuffer, file, len);
 	if (entry) {
 		memcpy(entry, rec, len);
@@ -197,7 +195,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 	unsigned long irq_flags;
 	void *entry = NULL;
 	int entry_size;
-	u64 val;
+	u64 val = 0;
 	int len;
 
 	entry = trace_alloc_entry(call, &entry_size);

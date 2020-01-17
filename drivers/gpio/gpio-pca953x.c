@@ -568,16 +568,18 @@ static void pca953x_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	chip->irq_mask[d->hwirq / BANK_SZ] &= ~BIT(d->hwirq % BANK_SZ);
+	clear_bit(hwirq, chip->irq_mask);
 }
 
 static void pca953x_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	chip->irq_mask[d->hwirq / BANK_SZ] |= BIT(d->hwirq % BANK_SZ);
+	set_bit(hwirq, chip->irq_mask);
 }
 
 static int pca953x_irq_set_wake(struct irq_data *d, unsigned int on)
@@ -635,8 +637,7 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
-	int bank_nb = d->hwirq / BANK_SZ;
-	u8 mask = BIT(d->hwirq % BANK_SZ);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	if (!(type & IRQ_TYPE_EDGE_BOTH)) {
 		dev_err(&chip->client->dev, "irq %d: unsupported type %d\n",
@@ -644,15 +645,8 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		chip->irq_trig_fall[bank_nb] |= mask;
-	else
-		chip->irq_trig_fall[bank_nb] &= ~mask;
-
-	if (type & IRQ_TYPE_EDGE_RISING)
-		chip->irq_trig_raise[bank_nb] |= mask;
-	else
-		chip->irq_trig_raise[bank_nb] &= ~mask;
+	assign_bit(hwirq, chip->irq_trig_fall, type & IRQ_TYPE_EDGE_FALLING);
+	assign_bit(hwirq, chip->irq_trig_raise, type & IRQ_TYPE_EDGE_RISING);
 
 	return 0;
 }
@@ -661,10 +655,10 @@ static void pca953x_irq_shutdown(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
-	u8 mask = BIT(d->hwirq % BANK_SZ);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
-	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
+	clear_bit(hwirq, chip->irq_trig_raise);
+	clear_bit(hwirq, chip->irq_trig_fall);
 }
 
 static bool pca953x_irq_pending(struct pca953x_chip *chip, unsigned long *pending)

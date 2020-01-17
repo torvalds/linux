@@ -30,7 +30,7 @@ struct sxgbe_stats {
 #define SXGBE_STAT(m)						\
 {								\
 	#m,							\
-	FIELD_SIZEOF(struct sxgbe_extra_stats, m),		\
+	sizeof_field(struct sxgbe_extra_stats, m),		\
 	offsetof(struct sxgbe_priv_data, xstats.m)		\
 }
 

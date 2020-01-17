@@ -1916,6 +1916,9 @@ void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 {
 	int tx_pending;
 
+	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
+		return;
+
 	if (!tx_completed) {
 		if (sta)
 			atomic_add(tx_airtime,

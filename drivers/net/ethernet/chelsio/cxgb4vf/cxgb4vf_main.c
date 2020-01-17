@@ -1690,8 +1690,8 @@ static void cxgb4vf_get_pauseparam(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 
 	pauseparam->autoneg = (pi->link_cfg.requested_fc & PAUSE_AUTONEG) != 0;
-	pauseparam->rx_pause = (pi->link_cfg.fc & PAUSE_RX) != 0;
-	pauseparam->tx_pause = (pi->link_cfg.fc & PAUSE_TX) != 0;
+	pauseparam->rx_pause = (pi->link_cfg.advertised_fc & PAUSE_RX) != 0;
+	pauseparam->tx_pause = (pi->link_cfg.advertised_fc & PAUSE_TX) != 0;
 }
 
 /*

@@ -38,7 +38,7 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 /*
  * buffer.c
  */
-extern void guard_bio_eod(int rw, struct bio *bio);
+extern void guard_bio_eod(struct bio *bio);
 extern int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block, struct iomap *iomap);
 
