@@ -1046,11 +1046,28 @@ static noinline void check_find_3(struct xarray *xa)
 	xa_destroy(xa);
 }
 
+static noinline void check_find_4(struct xarray *xa)
+{
+	unsigned long index = 0;
+	void *entry;
+
+	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
+
+	entry = xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT);
+	XA_BUG_ON(xa, entry != xa_mk_index(ULONG_MAX));
+
+	entry = xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT);
+	XA_BUG_ON(xa, entry);
+
+	xa_erase_index(xa, ULONG_MAX);
+}
+
 static noinline void check_find(struct xarray *xa)
 {
 	check_find_1(xa);
 	check_find_2(xa);
 	check_find_3(xa);
+	check_find_4(xa);
 	check_multi_find(xa);
 	check_multi_find_2(xa);
 }
