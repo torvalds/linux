@@ -770,18 +770,19 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
 
-	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
-	if (!ctx)
-		return -ENOENT;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		goto out;
+		return ret;
+
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
+	if (!ctx) {
+		mutex_unlock(&dev->struct_mutex);
+		return -ENOENT;
+	}
 
 	__destroy_hw_context(ctx, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-out:
 	i915_gem_context_put(ctx);
 	return 0;
 }

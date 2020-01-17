@@ -356,6 +356,7 @@ static int afs_test_super(struct super_block *sb, void *data)
 	return (as->net_ns == as1->net_ns &&
 		as->volume &&
 		as->volume->vid == as1->volume->vid &&
+		as->cell == as1->cell &&
 		!as->dyn_root);
 }
 
