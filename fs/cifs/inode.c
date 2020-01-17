@@ -2228,7 +2228,7 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 	return -ENOTSUPP;
 }
 
-static int cifs_truncate_page(struct address_space *mapping, loff_t from)
+int cifs_truncate_page(struct address_space *mapping, loff_t from)
 {
 	pgoff_t index = from >> PAGE_SHIFT;
 	unsigned offset = from & (PAGE_SIZE - 1);
@@ -2245,7 +2245,7 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
-static void cifs_setsize(struct inode *inode, loff_t offset)
+void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 

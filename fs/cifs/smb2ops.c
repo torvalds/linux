@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/sort.h>
 #include <crypto/aead.h>
+#include "cifsfs.h"
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -3172,28 +3173,32 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		}
 
 	/*
+	 * Extending the file
+	 */
+	if ((keep_size == false) && i_size_read(inode) < off + len) {
+		if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0)
+			smb2_set_sparse(xid, tcon, cfile, inode, false);
+
+		eof = cpu_to_le64(off + len);
+		rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
+				  cfile->fid.volatile_fid, cfile->pid, &eof);
+		if (rc == 0) {
+			cifsi->server_eof = off + len;
+			cifs_setsize(inode, off + len);
+			cifs_truncate_page(inode->i_mapping, inode->i_size);
+			truncate_setsize(inode, off + len);
+		}
+		goto out;
+	}
+
+	/*
 	 * Files are non-sparse by default so falloc may be a no-op
-	 * Must check if file sparse. If not sparse, and not extending
-	 * then no need to do anything since file already allocated
+	 * Must check if file sparse. If not sparse, and since we are not
+	 * extending then no need to do anything since file already allocated
 	 */
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
-		if (keep_size == true)
-			rc = 0;
-		/* check if extending file */
-		else if (i_size_read(inode) >= off + len)
-			/* not extending file and already not sparse */
-			rc = 0;
-		/* BB: in future add else clause to extend file */
-		else
-			rc = -EOPNOTSUPP;
-		if (rc)
-			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
-				tcon->tid, tcon->ses->Suid, off, len, rc);
-		else
-			trace_smb3_falloc_done(xid, cfile->fid.persistent_fid,
-				tcon->tid, tcon->ses->Suid, off, len);
-		free_xid(xid);
-		return rc;
+		rc = 0;
+		goto out;
 	}
 
 	if ((keep_size == true) || (i_size_read(inode) >= off + len)) {
@@ -3207,25 +3212,14 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		 */
 		if ((off > 8192) || (off + len + 8192 < i_size_read(inode))) {
 			rc = -EOPNOTSUPP;
-			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
-				tcon->tid, tcon->ses->Suid, off, len, rc);
-			free_xid(xid);
-			return rc;
-		}
-
-		smb2_set_sparse(xid, tcon, cfile, inode, false);
-		rc = 0;
-	} else {
-		smb2_set_sparse(xid, tcon, cfile, inode, false);
-		rc = 0;
-		if (i_size_read(inode) < off + len) {
-			eof = cpu_to_le64(off + len);
-			rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
-					  cfile->fid.volatile_fid, cfile->pid,
-					  &eof);
+			goto out;
 		}
 	}
 
+	smb2_set_sparse(xid, tcon, cfile, inode, false);
+	rc = 0;
+
+out:
 	if (rc)
 		trace_smb3_falloc_err(xid, cfile->fid.persistent_fid, tcon->tid,
 				tcon->ses->Suid, off, len, rc);
