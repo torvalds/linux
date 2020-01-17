@@ -13,7 +13,7 @@
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 8
-#define DRV_VERSION_BUILD 1
+#define DRV_VERSION_BUILD 2
 
 #define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "." \
 			__stringify(DRV_VERSION_MINOR) "." \
