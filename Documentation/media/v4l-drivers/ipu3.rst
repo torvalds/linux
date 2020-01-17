@@ -234,9 +234,9 @@ The IPU3 ImgU pipelines can be configured using the Media Controller, defined at
 Firmware binary selection
 -------------------------
 
-The firmware binary is selected according to the running mode of imgu. There are
-2 modes are available - "video" and "still". "ipu3-imgu video" are running under
-"video" mode and "ipu3-imgu still" is running under "still" mode.
+The firmware binary is selected using the V4L2_CID_INTEL_IPU3_MODE, currently
+defined in drivers/staging/media/ipu3/include/intel-ipu3.h . "VIDEO" and "STILL"
+modes are available.
 
 Processing the image in raw Bayer format
 ----------------------------------------

@@ -7,6 +7,7 @@
 #include <linux/iova.h>
 #include <linux/pci.h>
 
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -95,7 +96,9 @@ struct imgu_v4l2_subdev {
 		struct v4l2_rect bds; /* bayer-domain scaled resolution*/
 		struct v4l2_rect gdc; /* gdc output resolution */
 	} rect;
-	unsigned int running_mode;
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl *ctrl;
+	atomic_t running_mode;
 	bool active;
 };
 
