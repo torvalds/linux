@@ -3,6 +3,7 @@
 
 #include "ice_common.h"
 #include "ice_flex_pipe.h"
+#include "ice_flow.h"
 
 /**
  * ice_pkg_val_buf
@@ -1379,11 +1380,18 @@ void ice_fill_blk_tbls(struct ice_hw *hw)
  */
 void ice_free_hw_tbls(struct ice_hw *hw)
 {
+	struct ice_rss_cfg *r, *rt;
 	u8 i;
 
 	for (i = 0; i < ICE_BLK_COUNT; i++) {
-		hw->blk[i].is_list_init = false;
+		if (hw->blk[i].is_list_init) {
+			struct ice_es *es = &hw->blk[i].es;
 
+			mutex_destroy(&es->prof_map_lock);
+			mutex_destroy(&hw->fl_profs_locks[i]);
+
+			hw->blk[i].is_list_init = false;
+		}
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.ptypes);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.ptg_tbl);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].xlt1.t);
@@ -1397,7 +1405,23 @@ void ice_free_hw_tbls(struct ice_hw *hw)
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.written);
 	}
 
+	list_for_each_entry_safe(r, rt, &hw->rss_list_head, l_entry) {
+		list_del(&r->l_entry);
+		devm_kfree(ice_hw_to_dev(hw), r);
+	}
+	mutex_destroy(&hw->rss_locks);
 	memset(hw->blk, 0, sizeof(hw->blk));
+}
+
+/**
+ * ice_init_flow_profs - init flow profile locks and list heads
+ * @hw: pointer to the hardware structure
+ * @blk_idx: HW block index
+ */
+static void ice_init_flow_profs(struct ice_hw *hw, u8 blk_idx)
+{
+	mutex_init(&hw->fl_profs_locks[blk_idx]);
+	INIT_LIST_HEAD(&hw->fl_profs[blk_idx]);
 }
 
 /**
@@ -1443,6 +1467,8 @@ enum ice_status ice_init_hw_tbls(struct ice_hw *hw)
 {
 	u8 i;
 
+	mutex_init(&hw->rss_locks);
+	INIT_LIST_HEAD(&hw->rss_list_head);
 	for (i = 0; i < ICE_BLK_COUNT; i++) {
 		struct ice_prof_redir *prof_redir = &hw->blk[i].prof_redir;
 		struct ice_prof_tcam *prof = &hw->blk[i].prof;
@@ -1454,6 +1480,9 @@ enum ice_status ice_init_hw_tbls(struct ice_hw *hw)
 		if (hw->blk[i].is_list_init)
 			continue;
 
+		ice_init_flow_profs(hw, i);
+		mutex_init(&es->prof_map_lock);
+		INIT_LIST_HEAD(&es->prof_map);
 		hw->blk[i].is_list_init = true;
 
 		hw->blk[i].overwrite = blk_sizes[i].overwrite;

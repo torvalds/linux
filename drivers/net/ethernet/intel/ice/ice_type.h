@@ -559,6 +559,10 @@ struct ice_hw {
 
 	/* HW block tables */
 	struct ice_blk_info blk[ICE_BLK_COUNT];
+	struct mutex fl_profs_locks[ICE_BLK_COUNT];	/* lock fltr profiles */
+	struct list_head fl_profs[ICE_BLK_COUNT];
+	struct mutex rss_locks;	/* protect RSS configuration */
+	struct list_head rss_list_head;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */

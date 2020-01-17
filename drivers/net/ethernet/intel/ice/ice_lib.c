@@ -3,6 +3,7 @@
 
 #include "ice.h"
 #include "ice_base.h"
+#include "ice_flow.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
 
@@ -1087,6 +1088,88 @@ ice_vsi_cfg_rss_exit:
 }
 
 /**
+ * ice_vsi_set_rss_flow_fld - Sets RSS input set for different flows
+ * @vsi: VSI to be configured
+ *
+ * This function will only be called after successful download package call
+ * during initialization of PF. Since the downloaded package will erase the
+ * RSS section, this function will configure RSS input sets for different
+ * flow types. The last profile added has the highest priority, therefore 2
+ * tuple profiles (i.e. IPv4 src/dst) are added before 4 tuple profiles
+ * (i.e. IPv4 src/dst TCP src/dst port).
+ */
+static void ice_vsi_set_rss_flow_fld(struct ice_vsi *vsi)
+{
+	u16 vsi_handle = vsi->idx, vsi_num = vsi->vsi_num;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	struct device *dev;
+
+	dev = ice_pf_to_dev(pf);
+	if (ice_is_safe_mode(pf)) {
+		dev_dbg(dev, "Advanced RSS disabled. Package download failed, vsi num = %d\n",
+			vsi_num);
+		return;
+	}
+	/* configure RSS for IPv4 with input set IP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV4,
+				 ICE_FLOW_SEG_HDR_IPV4);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for ipv4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for IPv6 with input set IPv6 src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV6,
+				 ICE_FLOW_SEG_HDR_IPV6);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for ipv6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for tcp4 with input set IP src/dst, TCP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_TCP_IPV4,
+				 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV4);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for tcp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for udp4 with input set IP src/dst, UDP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_UDP_IPV4,
+				 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV4);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for udp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for sctp4 with input set IP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV4,
+				 ICE_FLOW_SEG_HDR_SCTP | ICE_FLOW_SEG_HDR_IPV4);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for sctp4 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for tcp6 with input set IPv6 src/dst, TCP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_TCP_IPV6,
+				 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV6);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for tcp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for udp6 with input set IPv6 src/dst, UDP src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_HASH_UDP_IPV6,
+				 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV6);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for udp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+
+	/* configure RSS for sctp6 with input set IPv6 src/dst */
+	status = ice_add_rss_cfg(hw, vsi_handle, ICE_FLOW_HASH_IPV6,
+				 ICE_FLOW_SEG_HDR_SCTP | ICE_FLOW_SEG_HDR_IPV6);
+	if (status)
+		dev_dbg(dev, "ice_add_rss_cfg failed for sctp6 flow, vsi = %d, error = %d\n",
+			vsi_num, status);
+}
+
+/**
  * ice_add_mac_to_list - Add a MAC address filter entry to the list
  * @vsi: the VSI to be forwarded to
  * @add_list: pointer to the list which contains MAC filter entries
@@ -1901,8 +1984,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		 * receive traffic on first queue. Hence no need to capture
 		 * return value
 		 */
-		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
+		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
 			ice_vsi_cfg_rss_lut_key(vsi);
+			ice_vsi_set_rss_flow_fld(vsi);
+		}
 		break;
 	case ICE_VSI_VF:
 		/* VF driver will take care of creating netdev for this type and
