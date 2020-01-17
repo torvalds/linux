@@ -69,8 +69,7 @@ EXPORT_SYMBOL(on_each_cpu_mask);
  * same condtions in UP and SMP.
  */
 void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
-			   void *info, bool wait, gfp_t gfp_flags,
-			   const struct cpumask *mask)
+			   void *info, bool wait, const struct cpumask *mask)
 {
 	unsigned long flags;
 
@@ -85,9 +84,9 @@ void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
 EXPORT_SYMBOL(on_each_cpu_cond_mask);
 
 void on_each_cpu_cond(smp_cond_func_t cond_func, smp_call_func_t func,
-		      void *info, bool wait, gfp_t gfp_flags)
+		      void *info, bool wait)
 {
-	on_each_cpu_cond_mask(cond_func, func, info, wait, gfp_flags, NULL);
+	on_each_cpu_cond_mask(cond_func, func, info, wait, NULL);
 }
 EXPORT_SYMBOL(on_each_cpu_cond);
 
