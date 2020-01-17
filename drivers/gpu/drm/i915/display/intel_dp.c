@@ -4142,11 +4142,14 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	if (mask)
 		DRM_DEBUG_KMS("Using signal levels %08x\n", signal_levels);
 
-	DRM_DEBUG_KMS("Using vswing level %d\n",
-		train_set & DP_TRAIN_VOLTAGE_SWING_MASK);
-	DRM_DEBUG_KMS("Using pre-emphasis level %d\n",
-		(train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
-			DP_TRAIN_PRE_EMPHASIS_SHIFT);
+	DRM_DEBUG_KMS("Using vswing level %d%s\n",
+		      train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
+		      train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "");
+	DRM_DEBUG_KMS("Using pre-emphasis level %d%s\n",
+		      (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+		      DP_TRAIN_PRE_EMPHASIS_SHIFT,
+		      train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
+		      " (max)" : "");
 
 	intel_dp->DP = (intel_dp->DP & ~mask) | signal_levels;
 
