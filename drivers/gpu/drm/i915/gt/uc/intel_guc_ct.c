@@ -311,12 +311,13 @@ static u32 ct_get_next_fence(struct intel_guc_ct *ct)
  *                   ^-----------------len-------------------^
  */
 
-static int ctb_write(struct intel_guc_ct_buffer *ctb,
-		     const u32 *action,
-		     u32 len /* in dwords */,
-		     u32 fence,
-		     bool want_response)
+static int ct_write(struct intel_guc_ct *ct,
+		    const u32 *action,
+		    u32 len /* in dwords */,
+		    u32 fence,
+		    bool want_response)
 {
+	struct intel_guc_ct_buffer *ctb = &ct->ctbs[CTB_SEND];
 	struct guc_ct_buffer_desc *desc = ctb->desc;
 	u32 head = desc->head / 4;	/* in dwords */
 	u32 tail = desc->tail / 4;	/* in dwords */
@@ -492,7 +493,7 @@ static int ct_send(struct intel_guc_ct *ct,
 	list_add_tail(&request.link, &ct->requests.pending);
 	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
-	err = ctb_write(ctb, action, len, fence, !!response_buf);
+	err = ct_write(ct, action, len, fence, !!response_buf);
 	if (unlikely(err))
 		goto unlink;
 
