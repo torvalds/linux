@@ -25,6 +25,7 @@ struct at91sam9x5_clk_usb {
 	struct clk_hw hw;
 	struct regmap *regmap;
 	u32 usbs_mask;
+	u8 num_parents;
 };
 
 #define to_at91sam9x5_clk_usb(hw) \
@@ -110,7 +111,7 @@ static int at91sam9x5_clk_usb_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct at91sam9x5_clk_usb *usb = to_at91sam9x5_clk_usb(hw);
 
-	if (index > 1)
+	if (index >= usb->num_parents)
 		return -EINVAL;
 
 	regmap_update_bits(usb->regmap, AT91_PMC_USB, usb->usbs_mask, index);
@@ -215,6 +216,7 @@ _at91sam9x5_clk_register_usb(struct regmap *regmap, const char *name,
 	usb->hw.init = &init;
 	usb->regmap = regmap;
 	usb->usbs_mask = usbs_mask;
+	usb->num_parents = num_parents;
 
 	hw = &usb->hw;
 	ret = clk_hw_register(NULL, &usb->hw);
