@@ -479,7 +479,7 @@ static inline bool i915_request_is_running(const struct i915_request *rq)
 }
 
 /**
- * i915_request_is_running - check if the request is ready for execution
+ * i915_request_is_ready - check if the request is ready for execution
  * @rq: the request
  *
  * Upon construction, the request is instructed to wait upon various
