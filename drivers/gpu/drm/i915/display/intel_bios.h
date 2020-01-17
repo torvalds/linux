@@ -247,5 +247,6 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port 
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
+int intel_bios_max_tmds_clock(struct intel_encoder *encoder);
 
 #endif /* _INTEL_BIOS_H_ */

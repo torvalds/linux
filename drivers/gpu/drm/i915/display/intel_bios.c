@@ -2562,3 +2562,10 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 
 	return aux_ch;
 }
+
+int intel_bios_max_tmds_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	return i915->vbt.ddi_port_info[encoder->port].max_tmds_clock;
+}

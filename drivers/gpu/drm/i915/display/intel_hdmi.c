@@ -2090,9 +2090,7 @@ static void pch_post_disable_hdmi(struct intel_encoder *encoder,
 static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[encoder->port];
-	int max_tmds_clock;
+	int max_tmds_clock, vbt_max_tmds_clock;
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		max_tmds_clock = 594000;
@@ -2103,8 +2101,9 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 	else
 		max_tmds_clock = 165000;
 
-	if (info->max_tmds_clock)
-		max_tmds_clock = min(max_tmds_clock, info->max_tmds_clock);
+	vbt_max_tmds_clock = intel_bios_max_tmds_clock(encoder);
+	if (vbt_max_tmds_clock)
+		max_tmds_clock = min(max_tmds_clock, vbt_max_tmds_clock);
 
 	return max_tmds_clock;
 }
