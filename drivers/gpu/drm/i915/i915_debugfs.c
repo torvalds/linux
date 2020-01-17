@@ -4329,65 +4329,6 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 					minor->debugfs_root, minor);
 }
 
-struct dpcd_block {
-	/* DPCD dump start address. */
-	unsigned int offset;
-	/* DPCD dump end address, inclusive. If unset, .size will be used. */
-	unsigned int end;
-	/* DPCD dump size. Used if .end is unset. If unset, defaults to 1. */
-	size_t size;
-	/* Only valid for eDP. */
-	bool edp;
-};
-
-static const struct dpcd_block i915_dpcd_debug[] = {
-	{ .offset = DP_DPCD_REV, .size = DP_RECEIVER_CAP_SIZE },
-	{ .offset = DP_PSR_SUPPORT, .end = DP_PSR_CAPS },
-	{ .offset = DP_DOWNSTREAM_PORT_0, .size = 16 },
-	{ .offset = DP_LINK_BW_SET, .end = DP_EDP_CONFIGURATION_SET },
-	{ .offset = DP_SINK_COUNT, .end = DP_ADJUST_REQUEST_LANE2_3 },
-	{ .offset = DP_SET_POWER },
-	{ .offset = DP_EDP_DPCD_REV },
-	{ .offset = DP_EDP_GENERAL_CAP_1, .end = DP_EDP_GENERAL_CAP_3 },
-	{ .offset = DP_EDP_DISPLAY_CONTROL_REGISTER, .end = DP_EDP_BACKLIGHT_FREQ_CAP_MAX_LSB },
-	{ .offset = DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET, .end = DP_EDP_DBC_MAXIMUM_BRIGHTNESS_SET },
-};
-
-static int i915_dpcd_show(struct seq_file *m, void *data)
-{
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
-	u8 buf[16];
-	ssize_t err;
-	int i;
-
-	if (connector->status != connector_status_connected)
-		return -ENODEV;
-
-	for (i = 0; i < ARRAY_SIZE(i915_dpcd_debug); i++) {
-		const struct dpcd_block *b = &i915_dpcd_debug[i];
-		size_t size = b->end ? b->end - b->offset + 1 : (b->size ?: 1);
-
-		if (b->edp &&
-		    connector->connector_type != DRM_MODE_CONNECTOR_eDP)
-			continue;
-
-		/* low tech for now */
-		if (WARN_ON(size > sizeof(buf)))
-			continue;
-
-		err = drm_dp_dpcd_read(&intel_dp->aux, b->offset, buf, size);
-		if (err < 0)
-			seq_printf(m, "%04x: ERROR %d\n", b->offset, (int)err);
-		else
-			seq_printf(m, "%04x: %*ph\n", b->offset, (int)err, buf);
-	}
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(i915_dpcd);
-
 static int i915_panel_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
@@ -4551,11 +4492,6 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 	/* The connector must have been registered beforehands. */
 	if (!root)
 		return -ENODEV;
-
-	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-		debugfs_create_file("i915_dpcd", S_IRUGO, root,
-				    connector, &i915_dpcd_fops);
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
